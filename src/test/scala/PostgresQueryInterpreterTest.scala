@@ -2,8 +2,8 @@ import domain._
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
-class PostgresQueryBuilderTest extends FlatSpec {
-  import PostgresQueryBuilder._
+class PostgresQueryInterpreterTest extends FlatSpec {
+  import PostgresQueryInterpreter._
   import FieldExtractor._
 
   val students: DataSource = Table("students", "s")
@@ -17,7 +17,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = SelectQuery(students)
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
         " WHERE 1 = 1")
@@ -25,7 +25,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
 
   it should "evaluate a query with 1 field" in {
     val query = SelectQuery(students, Seq(studentName))
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
         " FROM students AS s" +
         " WHERE 1 = 1")
@@ -33,7 +33,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
 
   it should "evaluate a query with 2 fields" in {
     val query = SelectQuery(students, Seq(studentName, studentEmail), Seq.empty, Seq.empty)
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name, s.email AS s__email" +
         " FROM students AS s" +
         " WHERE 1 = 1")
@@ -49,7 +49,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
         )
       )
     )
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
         " FROM students AS s" +
         " WHERE s.name = ?", Seq("Fabio"))
@@ -65,7 +65,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
         )))
       )
     )
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
         " LEFT JOIN exams AS e ON e.student_id = s.id" +
@@ -91,7 +91,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
         ))
       )
     )
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
         " LEFT JOIN exams AS e ON e.student_id = s.id AND e.rate = ?" +
@@ -111,7 +111,7 @@ class PostgresQueryBuilderTest extends FlatSpec {
           or (studentId `in?` List(1, 2, 6)))
     )
 
-    queryEval(query) shouldBe Evaluated(
+    select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
         " LEFT JOIN exams AS e ON e.student_id = s.id" +
