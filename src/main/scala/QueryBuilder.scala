@@ -29,10 +29,11 @@ object PostgresQueryBuilder extends QueryBuilder {
   val filterOpEval: Evaluator[Filter.Expression.Op] = {
     case Filter.Expression.Op.Equal => Evaluated("=")
     case Filter.Expression.Op.NotEqual => Evaluated("<>")
+    case Filter.Expression.Op.Like => Evaluated("LIKE")
   }
 
-  val filterClauseEval: Evaluator[Filter.Expression.Clause] = {
-    case f: Filter.Expression.Clause.Field => Evaluated(f.field.src)
+  val filterClauseEval: Evaluator[Filter.Expression.Clause[_]] = {
+    case f: Filter.Expression.Clause.Field[_] => Evaluated(f.field.src)
     case v: Filter.Expression.Clause.Value[_] => Evaluated("?", Seq(v.value))
   }
 
@@ -47,8 +48,8 @@ object PostgresQueryBuilder extends QueryBuilder {
     case Filter.Or(f1, f2) => filterEval(f1) ++ "OR" ++ filterEval(f2)
   }
 
-  val fieldEval: Evaluator[Field] =
-    (t: Field) => Evaluated(s"${t.src} AS ${t.alias}")
+  val fieldEval: Evaluator[Field[_]] =
+    (t: Field[_]) => Evaluated(s"${t.src} AS ${t.alias}")
 
   val dataSourceEval: Evaluator[DataSource] =
     (t: DataSource) => Evaluated(s"${t.src} AS ${t.alias}")
