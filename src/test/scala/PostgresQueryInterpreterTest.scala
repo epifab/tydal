@@ -115,7 +115,50 @@ class PostgresQueryInterpreterTest extends FlatSpec {
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
         " LEFT JOIN exams AS e ON e.student_id = s.id" +
-        " WHERE s.name = ? OR s.email LIKE ? OR s.id IN ?",
+        " WHERE ((s.name = ? OR s.email LIKE ?) OR s.id IN ?)",
+      Seq("Fabio", "epifab@%", List(1, 2, 6))
+    )
+  }
+
+  it should "evaluate filters respecting precedence 1" in {
+    import Filter._
+
+    val query = SelectQuery(students, Seq(studentName, examRate),
+      joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
+      filters = Seq(
+        (studentName `==?` "Fabio")
+          and (
+            (studentEmail `like?` "epifab@%") or (studentId `in?` List(1, 2, 6))
+          )
+      )
+    )
+
+    select(query) shouldBe Query(
+      "SELECT s.name AS s__name, e.rate AS e__rate" +
+        " FROM students AS s" +
+        " LEFT JOIN exams AS e ON e.student_id = s.id" +
+        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN ?)",
+      Seq("Fabio", "epifab@%", List(1, 2, 6))
+    )
+  }
+
+  it should "evaluate filters respecting precedence 2" in {
+    import Filter._
+
+    val query = SelectQuery(students, Seq(studentName, examRate),
+      joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
+      filters = Seq(
+        (studentName `==?` "Fabio")
+          and (studentEmail `like?` "epifab@%")
+          or (studentId `in?` List(1, 2, 6))
+      )
+    )
+
+    select(query) shouldBe Query(
+      "SELECT s.name AS s__name, e.rate AS e__rate" +
+        " FROM students AS s" +
+        " LEFT JOIN exams AS e ON e.student_id = s.id" +
+        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN ?)",
       Seq("Fabio", "epifab@%", List(1, 2, 6))
     )
   }

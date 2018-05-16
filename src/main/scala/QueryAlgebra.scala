@@ -17,6 +17,7 @@ case class Query(query: String, params: Seq[Any]) {
 
 object Query {
   def apply(src: String, params: Seq[Any] = Seq.empty): Query = new Query(src, params)
+  val empty: Query = Query("")
 }
 
 trait QueryBuilder[T] {
@@ -26,44 +27,44 @@ trait QueryBuilder[T] {
 object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
   implicit val fromString: String => Query = Query(_)
 
-  val filterOpEval: QueryBuilder[Filter.Expression.Op] = {
+  val filterOpBuilder: QueryBuilder[Filter.Expression.Op] = {
     case Filter.Expression.Op.Equal => Query("=")
     case Filter.Expression.Op.NotEqual => Query("<>")
     case Filter.Expression.Op.Like => Query("LIKE")
     case Filter.Expression.Op.In => Query("IN")
   }
 
-  val filterClauseEval: QueryBuilder[Filter.Expression.Clause[_]] = {
+  val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
     case f: Filter.Expression.Clause.Field[_] => Query(f.field.src)
     case v: Filter.Expression.Clause.Value[_] => Query("?", Seq(v.value))
   }
 
-  val filterExpressionEval: QueryBuilder[Filter.Expression] = {
+  val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
     case Filter.Expression(left, right, op) =>
-      filterClauseEval(left) ++ filterOpEval(op) ++ filterClauseEval(right)
+      filterClauseBuilder(left) ++ filterOpBuilder(op) ++ filterClauseBuilder(right)
   }
 
-  val filterEval: QueryBuilder[Filter] = {
-    case e: Filter.Expression => filterExpressionEval(e)
-    case Filter.And(f1, f2) => filterEval(f1) ++ "AND" ++ filterEval(f2)
-    case Filter.Or(f1, f2) => filterEval(f1) ++ "OR" ++ filterEval(f2)
+  val filterBuilder: QueryBuilder[Filter] = {
+    case e: Filter.Expression => filterExpressionBuilder(e)
+    case Filter.And(f1, f2) => filterBuilder(f1) ++ "AND" ++ filterBuilder(f2)
+    case Filter.Or(f1, f2) => Query("(") + filterBuilder(f1) ++ "OR" ++ filterBuilder(f2) + ")"
   }
 
-  val fieldEval: QueryBuilder[Field[_]] =
-    (t: Field[_]) => Query(s"${t.src} AS ${t.alias}")
+  val fieldBuilder: QueryBuilder[Field[_]] =
+    (field: Field[_]) => Query(s"${field.src} AS ${field.alias}")
 
-  val dataSourceEval: QueryBuilder[DataSource] =
-    (t: DataSource) => Query(s"${t.src} AS ${t.alias}")
+  val dataSourceBuilder: QueryBuilder[DataSource] =
+    (ds: DataSource) => Query(s"${ds.src} AS ${ds.alias}")
 
-  val joinEval: QueryBuilder[Join] =
-    (t: Join) => {
-      val clauses = t.clauses
-        .map(filterEval.apply)
+  val joinBuilder: QueryBuilder[Join] =
+    (join: Join) => {
+      val clauses = join.clauses
+        .map(filterBuilder.apply)
         .reduce((a, b) => a ++ "AND" ++ b)
 
-      t.joinType match {
-        case InnerJoin => Query("INNER JOIN") ++ dataSourceEval(t.source) ++ "ON" ++ clauses
-        case LeftJoin => Query("LEFT JOIN") ++ dataSourceEval(t.source) ++ "ON" ++ clauses
+      join.joinType match {
+        case InnerJoin => Query("INNER JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ clauses
+        case LeftJoin => Query("LEFT JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ clauses
       }
     }
 
@@ -71,15 +72,15 @@ object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
     (t: SelectQuery) =>
       Query("SELECT") ++
         t.fields
-          .map(fieldEval.apply)
+          .map(fieldBuilder.apply)
           .reduceOption(_ + "," ++ _)
           .getOrElse(Query("1")) ++
       Query("FROM") ++
         t.joins
-          .foldLeft(dataSourceEval(t.dataSource))((from, join) => from ++ joinEval(join)) ++
+          .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
       Query("WHERE") ++
         t.filters
-          .map(filterEval.apply)
+          .map(filterBuilder.apply)
           .reduceOption(_ ++ _)
           .getOrElse(Query("1 = 1"))
 }
