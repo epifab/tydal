@@ -17,6 +17,9 @@ object Filter {
 
     def `like?`(ec: ExtendedClause[T]): Expression =
       Expression(clause, ec.clause, Expression.Op.Like)
+
+    def `in?`(ec: ExtendedClause[Iterable[T]]): Expression =
+      Expression(clause, ec.clause, Expression.Op.In)
   }
 
   implicit class ExtendedValue[T](value: T) extends ExtendedClause[T] {
@@ -44,6 +47,7 @@ object Filter {
       final case object Equal extends Op
       final case object NotEqual extends Op
       final case object Like extends Op
+      final case object In extends Op
     }
   }
 }

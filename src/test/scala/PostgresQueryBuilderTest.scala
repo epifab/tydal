@@ -105,15 +105,18 @@ class PostgresQueryBuilderTest extends FlatSpec {
 
     val query = SelectQuery(students, Seq(studentName, examRate),
       joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
-      filters = Seq((studentName `==?` "Fabio") or (studentEmail `like?` "epifab@%"))
+      filters = Seq(
+        (studentName `==?` "Fabio")
+          or (studentEmail `like?` "epifab@%")
+          or (studentId `in?` List(1, 2, 6)))
     )
 
     queryEval(query) shouldBe Evaluated(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
         " LEFT JOIN exams AS e ON e.student_id = s.id" +
-        " WHERE s.name = ? OR s.email LIKE ?",
-      Seq("Fabio", "epifab@%")
+        " WHERE s.name = ? OR s.email LIKE ? OR s.id IN ?",
+      Seq("Fabio", "epifab@%", List(1, 2, 6))
     )
   }
 }

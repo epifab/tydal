@@ -30,6 +30,7 @@ object PostgresQueryBuilder extends QueryBuilder {
     case Filter.Expression.Op.Equal => Evaluated("=")
     case Filter.Expression.Op.NotEqual => Evaluated("<>")
     case Filter.Expression.Op.Like => Evaluated("LIKE")
+    case Filter.Expression.Op.In => Evaluated("IN")
   }
 
   val filterClauseEval: Evaluator[Filter.Expression.Clause[_]] = {
