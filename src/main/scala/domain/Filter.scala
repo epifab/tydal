@@ -46,11 +46,10 @@ object Filter {
     override def and(filter: Filter): Filter = filter
     override def or(filter: Filter): Filter = filter
   }
-  sealed trait NonEmptyFilter extends Filter
-  final case class Or(filter1: Filter, filter2: Filter) extends NonEmptyFilter
-  final case class And(filter1: Filter, filter2: Filter) extends NonEmptyFilter
+  final case class Or(filter1: Filter, filter2: Filter) extends Filter
+  final case class And(filter1: Filter, filter2: Filter) extends Filter
 
-  final case class Expression(left: Expression.Clause[_], right: Expression.Clause[_], op: Expression.Op) extends NonEmptyFilter
+  final case class Expression(left: Expression.Clause[_], right: Expression.Clause[_], op: Expression.Op) extends Filter
 
   object Expression {
     sealed trait Clause[T]
