@@ -1,34 +1,15 @@
 import domain._
 
-import scala.language.higherKinds
 
-
-trait QueryAlgebra[T[_]] {
-  def select: T[SelectQuery]
-}
-
-case class Query(query: String, params: Seq[Any]) {
-  def `+`(e2: Query) = Query(s"$query${e2.query}", params ++ e2.params)
-  def `+`(o: Option[Query]): Query = o.map(e => this + e).getOrElse(this)
-
-  def `++`(e2: Query) = Query(s"$query ${e2.query}", params ++ e2.params)
-  def `++`(o: Option[Query]): Query = o.map(e => this ++ e).getOrElse(this)
-}
-
-object Query {
-  def apply(src: String, params: Seq[Any] = Seq.empty): Query = new Query(src, params)
-  val empty: Query = Query("")
-}
-
-trait QueryBuilder[T] {
-  def apply(t: T): Query
-}
-
-object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
-  implicit val fromString: String => Query = Query(_)
+object PostgresQueryBuilders {
+  implicit private val fromString: String => Query = Query(_)
 
   val filterOpBuilder: QueryBuilder[Filter.Expression.Op] = {
     case Filter.Expression.Op.Equal => Query("=")
+    case Filter.Expression.Op.GT => Query(">")
+    case Filter.Expression.Op.LT => Query("<")
+    case Filter.Expression.Op.GTE => Query(">=")
+    case Filter.Expression.Op.LTE => Query("<=")
     case Filter.Expression.Op.NotEqual => Query("<>")
     case Filter.Expression.Op.Like => Query("LIKE")
     case Filter.Expression.Op.In => Query("IN")
@@ -48,6 +29,7 @@ object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
     case e: Filter.Expression => filterExpressionBuilder(e)
     case Filter.And(f1, f2) => filterBuilder(f1) ++ "AND" ++ filterBuilder(f2)
     case Filter.Or(f1, f2) => Query("(") + filterBuilder(f1) ++ "OR" ++ filterBuilder(f2) + ")"
+    case Filter.Empty => Query("1 = 1")
   }
 
   val fieldBuilder: QueryBuilder[Field[_]] =
@@ -58,13 +40,9 @@ object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
 
   val joinBuilder: QueryBuilder[Join] =
     (join: Join) => {
-      val clauses = join.clauses
-        .map(filterBuilder.apply)
-        .reduce((a, b) => a ++ "AND" ++ b)
-
       join.joinType match {
-        case InnerJoin => Query("INNER JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ clauses
-        case LeftJoin => Query("LEFT JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ clauses
+        case InnerJoin => Query("INNER JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ filterBuilder(join.clauses)
+        case LeftJoin => Query("LEFT JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ filterBuilder(join.clauses)
       }
     }
 
@@ -75,12 +53,9 @@ object PostgresQueryInterpreter extends QueryAlgebra[QueryBuilder] {
           .map(fieldBuilder.apply)
           .reduceOption(_ + "," ++ _)
           .getOrElse(Query("1")) ++
-      Query("FROM") ++
-        t.joins
-          .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
-      Query("WHERE") ++
-        t.filters
-          .map(filterBuilder.apply)
-          .reduceOption(_ ++ _)
-          .getOrElse(Query("1 = 1"))
+        Query("FROM") ++
+          t.joins
+            .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
+        Query("WHERE") ++
+          filterBuilder(t.filter)
 }

@@ -2,8 +2,8 @@ import domain._
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
-class PostgresQueryInterpreterTest extends FlatSpec {
-  import PostgresQueryInterpreter._
+class PostgresQueryBuildersTest extends FlatSpec {
+  import PostgresQueryBuilders._
   import FieldExtractor._
 
   val students: DataSource = Table("students", "s")
@@ -32,7 +32,7 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   }
 
   it should "evaluate a query with 2 fields" in {
-    val query = SelectQuery(students, Seq(studentName, studentEmail), Seq.empty, Seq.empty)
+    val query = SelectQuery(students, Seq(studentName, studentEmail))
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, s.email AS s__email" +
         " FROM students AS s" +
@@ -41,12 +41,10 @@ class PostgresQueryInterpreterTest extends FlatSpec {
 
   it should "evaluate a query with a filter" in {
     val query = SelectQuery(students, Seq(studentName),
-      filters = Seq(
-        Filter.Expression(
-          Filter.Expression.Clause.Field(studentName),
-          Filter.Expression.Clause.Value("Fabio"),
-          Filter.Expression.Op.Equal
-        )
+      filter = Filter.Expression(
+        Filter.Expression.Clause.Field(studentName),
+        Filter.Expression.Clause.Value("Fabio"),
+        Filter.Expression.Op.Equal
       )
     )
     select(query) shouldBe Query(
@@ -58,11 +56,11 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   it should "evaluate a query with a join" in {
     val query = SelectQuery(students, Seq(studentName, examRate),
       joins = Seq(
-        Join(exams, LeftJoin, Seq(Filter.Expression(
+        Join(exams, LeftJoin, Filter.Expression(
           Filter.Expression.Clause.Field(examStudentId),
           Filter.Expression.Clause.Field(studentId),
           Filter.Expression.Op.Equal
-        )))
+        ))
       )
     )
     select(query) shouldBe Query(
@@ -73,24 +71,24 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   }
 
   it should "evaluate a query with a join with fixed parameter" in {
-    val query = SelectQuery(students, Seq(studentName, examRate),
+    val query = SelectQuery(students,
+      fields = Seq(studentName, examRate),
       joins = Seq(
-        Join(exams, LeftJoin, Seq(
-          Filter.And(
-            Filter.Expression(
-              Filter.Expression.Clause.Field(examStudentId),
-              Filter.Expression.Clause.Field(studentId),
-              Filter.Expression.Op.Equal
-            ),
-            Filter.Expression(
-              Filter.Expression.Clause.Field(examRate),
-              Filter.Expression.Clause.Value(30),
-              Filter.Expression.Op.Equal
-            )
+        Join(exams, LeftJoin, Filter.And(
+          Filter.Expression(
+            Filter.Expression.Clause.Field(examStudentId),
+            Filter.Expression.Clause.Field(studentId),
+            Filter.Expression.Op.Equal
+          ),
+          Filter.Expression(
+            Filter.Expression.Clause.Field(examRate),
+            Filter.Expression.Clause.Value(30),
+            Filter.Expression.Op.Equal
           )
         ))
       )
     )
+
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
         " FROM students AS s" +
@@ -103,13 +101,14 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   it should "evaluate more concise filters syntax" in {
     import Filter._
 
-    val query = SelectQuery(students, Seq(studentName, examRate),
-      joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
-      filters = Seq(
-        (studentName `==?` "Fabio")
-          or (studentEmail `like?` "epifab@%")
-          or (studentId `in?` List(1, 2, 6)))
-    )
+    val query =
+      SelectQuery(students)
+        .take(Seq(studentName, examRate))
+        .leftJoin(exams, examStudentId === studentId)
+        .where(
+          (studentName === "Fabio")
+            or (studentEmail like "epifab@%")
+            or (studentId in List(1, 2, 6)))
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
@@ -123,15 +122,17 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   it should "evaluate filters respecting precedence 1" in {
     import Filter._
 
-    val query = SelectQuery(students, Seq(studentName, examRate),
-      joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
-      filters = Seq(
-        (studentName `==?` "Fabio")
-          and (
-            (studentEmail `like?` "epifab@%") or (studentId `in?` List(1, 2, 6))
-          )
-      )
-    )
+    val query =
+      SelectQuery(students)
+        .take(Seq(studentName, examRate))
+        .leftJoin(exams, examStudentId === studentId)
+        .where(
+          (studentName === "Fabio")
+            and (
+              (studentEmail like "epifab@%")
+                or (studentId in List(1, 2, 6))
+            )
+        )
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
@@ -145,14 +146,14 @@ class PostgresQueryInterpreterTest extends FlatSpec {
   it should "evaluate filters respecting precedence 2" in {
     import Filter._
 
-    val query = SelectQuery(students, Seq(studentName, examRate),
-      joins = Seq(Join(exams, LeftJoin, Seq(examStudentId `==?` studentId))),
-      filters = Seq(
-        (studentName `==?` "Fabio")
-          and (studentEmail `like?` "epifab@%")
-          or (studentId `in?` List(1, 2, 6))
-      )
-    )
+    val query =
+      SelectQuery(students)
+        .take(Seq(studentName, examRate))
+        .leftJoin(exams, examStudentId === studentId)
+        .where(
+          (studentName === "Fabio")
+            and (studentEmail like "epifab@%")
+            or (studentId in List(1, 2, 6)))
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate" +
