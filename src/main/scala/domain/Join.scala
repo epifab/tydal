@@ -1,7 +1,9 @@
 package domain
 
-sealed trait JoinType
-case object InnerJoin extends JoinType
-case object LeftJoin extends JoinType
+sealed trait Join {
+  def source: DataSource
+}
 
-case class Join(source: DataSource, joinType: JoinType, clauses: Filter = Filter.Empty)
+final case class LeftJoin(override val source: DataSource, clauses: Filter) extends Join
+final case class InnerJoin(override val source: DataSource, clauses: Filter) extends Join
+final case class CrossJoin(override val source: DataSource) extends Join

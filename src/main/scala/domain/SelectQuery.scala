@@ -6,15 +6,22 @@ case class SelectQuery(
   joins: Seq[Join] = Seq.empty,
   filter: Filter = Filter.Empty
 ) {
-  def take(fields: Seq[Field[_]]): SelectQuery =
+  def take(fields: Field[_]*): SelectQuery =
     copy(fields = this.fields ++ fields)
 
   def leftJoin(dataSource: DataSource, where: Filter = Filter.Empty): SelectQuery =
-    copy(joins = joins :+ Join(dataSource, LeftJoin, where))
+    copy(joins = joins :+ LeftJoin(dataSource, where))
 
   def innerJoin(dataSource: DataSource, where: Filter = Filter.Empty): SelectQuery =
-    copy(joins = joins :+ Join(dataSource, InnerJoin, where))
+    copy(joins = joins :+ InnerJoin(dataSource, where))
+
+  def crossJoin(dataSource: DataSource): SelectQuery =
+    copy(joins = joins :+ CrossJoin(dataSource))
 
   def where(filter: Filter): SelectQuery =
     copy(filter = this.filter and filter)
+}
+
+object SelectQuery {
+  def from(dataSource: DataSource) = SelectQuery(dataSource)
 }

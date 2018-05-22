@@ -2,7 +2,7 @@ package domain
 
 import scala.util.{Failure, Success, Try}
 
-class ExtractorError(msg: String) extends Error(msg)
+case class ExtractorError(msg: String) extends Error(msg)
 
 trait FieldExtractor[T] {
   def extract(v: Any): Either[ExtractorError, T]
@@ -11,39 +11,39 @@ trait FieldExtractor[T] {
 object FieldExtractor {
   implicit val string: FieldExtractor[String] = {
     case s: String => Right(s)
-    case _ => Left(new ExtractorError("Not a string"))
+    case _ => Left(ExtractorError("Not a string"))
   }
 
   implicit val int: FieldExtractor[Int] = {
     case i: Int => Right(i)
     case s: String => Try(s.toInt) match {
       case Success(i) => Right(i)
-      case Failure(f) => Left(new ExtractorError(f.getMessage))
+      case Failure(f) => Left(ExtractorError(f.getMessage))
     }
-    case _ => Left(new ExtractorError("Not an integer"))
+    case _ => Left(ExtractorError("Not an integer"))
   }
 
   implicit val long: FieldExtractor[Long] = {
     case l: Long => Right(l)
     case s: String => Try(s.toLong) match {
       case Success(l) => Right(l)
-      case Failure(f) => Left(new ExtractorError(f.getMessage))
+      case Failure(f) => Left(ExtractorError(f.getMessage))
     }
-    case _ => Left(new ExtractorError("Not a long"))
+    case _ => Left(ExtractorError("Not a long"))
   }
 
   implicit val double: FieldExtractor[Double] ={
     case d: Double => Right(d)
     case s: String => Try(s.toDouble) match {
       case Success(d) => Right(d)
-      case Failure(f) => Left(new ExtractorError(f.getMessage))
+      case Failure(f) => Left(ExtractorError(f.getMessage))
     }
-    case _ => Left(new ExtractorError("Not a double"))
+    case _ => Left(ExtractorError("Not a double"))
   }
 
   implicit def sequence[T](implicit extractor: FieldExtractor[T]): FieldExtractor[Seq[T]] = {
     case x: Seq[Any] => firstLeftOrRights(x.map(extractor.extract))
-    case _ => Left(new ExtractorError("Not a sequence"))
+    case _ => Left(ExtractorError("Not a sequence"))
   }
 
   implicit def optional[T](implicit extractor: FieldExtractor[T]): FieldExtractor[Option[T]] =
@@ -71,9 +71,11 @@ object FieldExtractor {
     )
 }
 
-class Field[T](override val src: String, override val alias: String)(implicit val extractor: FieldExtractor[T]) extends DataSource
+trait Field[T] extends DataSource {
+  def extractor: FieldExtractor[T]
+}
 
-object Field {
-  def apply[T](name: String, dataSource: DataSource)(implicit extractor: FieldExtractor[T]): Field[T] =
-    new Field[T](s"${dataSource.alias}.$name", s"${dataSource.alias}__$name")
+case class TableField[T](name: String, dataSource: DataSource)(implicit val extractor: FieldExtractor[T]) extends Field[T] {
+  override def src: String = s"${dataSource.alias}.$name"
+  override def alias: String = s"${dataSource.alias}__$name"
 }

@@ -38,13 +38,14 @@ object PostgresQueryBuilders {
   val dataSourceBuilder: QueryBuilder[DataSource] =
     (ds: DataSource) => Query(s"${ds.src} AS ${ds.alias}")
 
-  val joinBuilder: QueryBuilder[Join] =
-    (join: Join) => {
-      join.joinType match {
-        case InnerJoin => Query("INNER JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ filterBuilder(join.clauses)
-        case LeftJoin => Query("LEFT JOIN") ++ dataSourceBuilder(join.source) ++ "ON" ++ filterBuilder(join.clauses)
-      }
-    }
+  val joinBuilder: QueryBuilder[Join] = {
+    case InnerJoin(source, clauses) =>
+      Query("INNER JOIN") ++ dataSourceBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+    case LeftJoin(source, clauses) =>
+      Query("LEFT JOIN") ++ dataSourceBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+    case CrossJoin(source) =>
+      Query("CROSS JOIN") ++ dataSourceBuilder(source)
+  }
 
   val select: QueryBuilder[SelectQuery] =
     (t: SelectQuery) =>

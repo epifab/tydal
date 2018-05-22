@@ -7,13 +7,13 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import FieldExtractor._
 
   val students: DataSource = Table("students", "s")
-  val studentId: Field[Int] = Field("id", students)
-  val studentName: Field[String] = Field("name", students)
-  val studentEmail: Field[String] = Field("email", students)
+  val studentId: Field[Int] = TableField("id", students)
+  val studentName: Field[String] = TableField("name", students)
+  val studentEmail: Field[String] = TableField("email", students)
 
   val exams: DataSource = Table("exams", "e")
-  val examRate: Field[Int] = Field("rate", exams)
-  val examStudentId: Field[Int] = Field("student_id", exams)
+  val examRate: Field[Int] = TableField("rate", exams)
+  val examStudentId: Field[Int] = TableField("student_id", exams)
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = SelectQuery(students)
@@ -56,7 +56,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with a join" in {
     val query = SelectQuery(students, Seq(studentName, examRate),
       joins = Seq(
-        Join(exams, LeftJoin, Filter.Expression(
+        LeftJoin(exams, Filter.Expression(
           Filter.Expression.Clause.Field(examStudentId),
           Filter.Expression.Clause.Field(studentId),
           Filter.Expression.Op.Equal
@@ -74,7 +74,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query = SelectQuery(students,
       fields = Seq(studentName, examRate),
       joins = Seq(
-        Join(exams, LeftJoin, Filter.And(
+        LeftJoin(exams, Filter.And(
           Filter.Expression(
             Filter.Expression.Clause.Field(examStudentId),
             Filter.Expression.Clause.Field(studentId),
@@ -102,9 +102,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
     import Filter._
 
     val query =
-      SelectQuery(students)
-        .take(Seq(studentName, examRate))
+      SelectQuery
+        .from(students)
         .leftJoin(exams, examStudentId === studentId)
+        .take(studentName, examRate)
         .where(
           (studentName === "Fabio")
             or (studentEmail like "epifab@%")
@@ -123,9 +124,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
     import Filter._
 
     val query =
-      SelectQuery(students)
-        .take(Seq(studentName, examRate))
+      SelectQuery
+        .from(students)
         .leftJoin(exams, examStudentId === studentId)
+        .take(studentName, examRate)
         .where(
           (studentName === "Fabio")
             and (
@@ -147,9 +149,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
     import Filter._
 
     val query =
-      SelectQuery(students)
-        .take(Seq(studentName, examRate))
+      SelectQuery
+        .from(students)
         .leftJoin(exams, examStudentId === studentId)
+        .take(studentName, examRate)
         .where(
           (studentName === "Fabio")
             and (studentEmail like "epifab@%")
