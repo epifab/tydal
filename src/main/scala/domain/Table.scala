@@ -1,7 +1,8 @@
 package domain
 
 case class Table(src: String, alias: String) extends DataSource {
-  def apply[T](name: String)(implicit extractor: FieldExtractor[T]): Field[T] = TableField[T](name, this)
+  def field[T](name: String)(implicit fieldExtractor: FieldExtractor[T]): TableField[T] = TableField[T](name, this)
+  def relation(name: String) = Table(name, s"${alias}__$name")
 }
 
 object Table {

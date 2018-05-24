@@ -6,19 +6,22 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import PostgresQueryBuilders._
   import FieldExtractor._
 
-  val students: Table = Table("students", "s")
-  val `student.id`: Field[Int] = students("id")
-  val `student.name`: Field[String] = students("name")
-  val `student.email`: Field[String] = students("email")
+  object students extends Table("students", "s") {
+    lazy val id: TableField[Int] = field("id")
+    lazy val name: TableField[String] = field("name")
+    lazy val email: TableField[String] = field("email")
 
-  val exams: Table = Table("exams", "e")
-  val `exams.student_id`: Field[Int] = exams("student_id")
-  val `exams.course_id`: Field[Int] = exams("course_id")
-  val `exams.rate`: Field[Int] = exams("rate")
+    object exams extends Table("exams", "e") {
+      lazy val studentId: TableField[Int] = field("student_id")
+      lazy val courseId: TableField[Int] = field("course_id")
+      lazy val rate: TableField[Int] = field("rate")
 
-  val course: Table = Table("courses", "c")
-  val `course.id`: Field[Int] = course("id")
-  val `course_name`: Field[String] = course("name")
+      object course extends Table("courses", "c") {
+        lazy val id: TableField[Int] = field("id")
+        lazy val name: TableField[String] = field("name")
+      }
+    }
+  }
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = SelectQuery(students)
@@ -31,7 +34,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with 1 field" in {
     val query = SelectQuery
       .from(students)
-      .take(`student.name`)
+      .take(students.name)
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
@@ -42,7 +45,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with 2 fields" in {
     val query = SelectQuery
       .from(students)
-      .take(`student.name`, `student.email`)
+      .take(students.name, students.email)
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, s.email AS s__email" +
@@ -55,8 +58,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     val query = SelectQuery
       .from(students)
-      .take(`student.name`)
-      .where(`student.name` === "Fabio")
+      .take(students.name)
+      .where(students.name === "Fabio")
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
@@ -71,9 +74,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       SelectQuery
         .from(students)
         .where(
-          (`student.name` === "Fabio")
-            and (`student.email` like "epifab@%")
-            or (`student.id` in List(1, 2, 6)))
+          (students.name === "Fabio")
+            and (students.email like "epifab@%")
+            or (students.id in List(1, 2, 6)))
 
     select(query) shouldBe Query(
       "SELECT 1" +
@@ -92,9 +95,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       SelectQuery
         .from(students)
         .where(
-          `student.name` === "Fabio"
+          students.name === "Fabio"
             and
-            (`student.email` like "epifab@%" or (`student.id` in List(1, 2, 6)))
+            (students.email like "epifab@%" or (students.id in List(1, 2, 6)))
         )
 
     select(query) shouldBe Query(
@@ -111,9 +114,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       SelectQuery
         .from(students)
-        .leftJoin(exams, `exams.student_id` === `student.id`)
-        .innerJoin(course, `course.id` === `exams.course_id`)
-        .take(`student.name`, `exams.rate`, `course_name`)
+        .leftJoin(students.exams, students.exams.studentId === students.id)
+        .innerJoin(students.exams.course, students.exams.course.id === students.exams.courseId)
+        .take(students.name, students.exams.rate, students.exams.course.name)
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate, c.name AS c__name" +
