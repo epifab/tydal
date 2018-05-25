@@ -1,4 +1,4 @@
-package domain
+package io.epifab.dal.domain
 
 sealed trait Filter {
   def and(filter: Filter): Filter = Filter.And(this, filter)
@@ -38,7 +38,7 @@ object Filter {
     override val clause = Expression.Clause.Value(value)
   }
 
-  implicit class ExtendedField[T](field: domain.Field[T]) extends ExtendedClause[T] {
+  implicit class ExtendedField[T](field: io.epifab.dal.domain.Field[T]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Field(field)
   }
 
@@ -54,7 +54,7 @@ object Filter {
   object Expression {
     sealed trait Clause[T]
     object Clause {
-      case class Field[T](field: domain.Field[T]) extends Clause[T]
+      case class Field[T](field: io.epifab.dal.domain.Field[T]) extends Clause[T]
       case class Value[T](value: T) extends Clause[T]
     }
 

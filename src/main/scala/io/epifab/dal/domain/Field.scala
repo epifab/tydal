@@ -1,14 +1,14 @@
-package domain
+package io.epifab.dal.domain
 
 import scala.util.{Failure, Success, Try}
-
-case class ExtractorError(msg: String) extends Error(msg)
 
 trait FieldExtractor[T] {
   def extract(v: Any): Either[ExtractorError, T]
 }
 
 object FieldExtractor {
+  import io.epifab.dal.utils.EitherSupport._
+
   implicit val string: FieldExtractor[String] = {
     case s: String => Right(s)
     case _ => Left(ExtractorError("Not a string"))
@@ -55,20 +55,6 @@ object FieldExtractor {
   implicit def stringToObject[T](implicit extractor: FieldExtractor[String], ft: String => T): FieldExtractor[T] =
     (v: Any) => extractor.extract(v).map(ft)
 
-  private def firstLeftOrRights[A, B](s: Seq[Either[A, B]]): Either[A, Seq[B]] =
-    s.foldLeft[Either[A, Seq[B]]](Right(Seq.empty[B]))(
-      (a: Either[A, Seq[B]], b: Either[A, B]) => {
-        a.flatMap(results =>
-          b match {
-            case Left(error) =>
-              // New error
-              Left(error)
-            case Right(result) =>
-              Right(results :+ result)
-          }
-        )
-      }
-    )
 }
 
 trait Field[T] extends DataSource {

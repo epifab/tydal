@@ -1,3 +1,5 @@
+package io.epifab.dal
+
 import scala.language.higherKinds
 
 case class Query(query: String, params: Seq[Any]) {

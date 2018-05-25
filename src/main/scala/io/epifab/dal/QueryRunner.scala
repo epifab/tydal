@@ -1,3 +1,5 @@
+package io.epifab.dal
+
 import domain._
 
 import scala.language.higherKinds
@@ -13,7 +15,5 @@ class Row(cols: Map[String, Any]) {
 }
 
 trait QueryRunner[F[_]] {
-  def queryBuilder: QueryBuilder[SelectQuery]
-
-  def select(query: SelectQuery): F[Seq[Row]]
+  def select(query: SelectQuery): F[Either[DALError, Seq[Row]]]
 }

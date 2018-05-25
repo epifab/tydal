@@ -1,4 +1,4 @@
-package domain
+package io.epifab.dal.domain
 
 case class SelectQuery(
   dataSource: DataSource,

@@ -8,5 +8,6 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warning
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "1.0.1",
+  "org.postgresql" % "postgresql" % "42.2.2",
   "org.scalatest" %% "scalatest" % "3.0.1" % Test
 )
