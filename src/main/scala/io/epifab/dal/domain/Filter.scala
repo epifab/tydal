@@ -35,7 +35,7 @@ object Filter {
   }
 
   implicit class ExtendedValue[T](value: T) extends ExtendedClause[T] {
-    override val clause = Expression.Clause.Value(value)
+    override val clause = Expression.Clause.Literal(value)
   }
 
   implicit class ExtendedField[T](field: io.epifab.dal.domain.Field[T]) extends ExtendedClause[T] {
@@ -55,7 +55,7 @@ object Filter {
     sealed trait Clause[T]
     object Clause {
       case class Field[T](field: io.epifab.dal.domain.Field[T]) extends Clause[T]
-      case class Value[T](value: T) extends Clause[T]
+      case class Literal[T](value: T) extends Clause[T]
     }
 
     sealed trait Op

@@ -65,8 +65,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM hd_students AS s" +
-        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN ?)",
-      Seq("Fabio", "epifab@%", List(1, 2, 6))
+        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN (?, ?, ?))",
+      Seq("Fabio", "epifab@%", 1, 2, 6)
     )
   }
 
@@ -87,8 +87,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM hd_students AS s" +
-        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN ?)",
-      Seq("Fabio", "epifab@%", List(1, 2, 6))
+        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN (?, ?, ?))",
+      Seq("Fabio", "epifab@%", 1, 2, 6)
     )
   }
 

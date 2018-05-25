@@ -18,8 +18,19 @@ object PostgresQueryBuilders {
   }
 
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case f: Filter.Expression.Clause.Field[_] => Query(f.field.src)
-    case v: Filter.Expression.Clause.Value[_] => Query("?", Seq(v.value))
+    case f: Filter.Expression.Clause.Field[_] =>
+      Query(f.field.src)
+    case literal: Filter.Expression.Clause.Literal[_] =>
+      literal.value match {
+        case array: Iterable[_] =>
+          Query("(") + array
+            .map(element => Query("?", Seq(element)))
+            .reduceOption(_ + "," ++ _)
+            .getOrElse(Query.empty) +
+          Query(")")
+        case any =>
+          Query("?", Seq(any))
+      }
   }
 
   val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {

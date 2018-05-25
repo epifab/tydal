@@ -15,5 +15,5 @@ class Row(cols: Map[String, Any]) {
 }
 
 trait QueryRunner[F[_]] {
-  def select(query: SelectQuery): F[Either[DALError, Seq[Row]]]
+  def selectAll[T](query: SelectQuery)(implicit extractor: Row => Either[ExtractorError, T]): F[Either[DALError, Seq[T]]]
 }

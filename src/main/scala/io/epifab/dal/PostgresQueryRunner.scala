@@ -2,36 +2,47 @@ package io.epifab.dal
 
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
-import domain.{DriverError, SelectQuery}
+import io.epifab.dal.domain.{DALError, DriverError, ExtractorError, SelectQuery}
 
 import scala.concurrent.{ExecutionContext, Future}
 
+
 class PostgresQueryRunner(connection: Connection, queryBuilder: QueryBuilder[SelectQuery])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] {
-  override def select(select: SelectQuery): Future[Either[DriverError, Seq[Row]]] = {
+  private def extractResults[T](select: SelectQuery, extractor: Row => Either[ExtractorError, T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
+    import io.epifab.dal.utils.EitherSupport._
+
+    val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
+    while (resultSet.next()) {
+      rows += new Row(
+        select.fields.zipWithIndex.map {
+          case (field, index) =>
+            field.alias -> resultSet.getObject(index + 1)
+        }.toMap
+      )
+    }
+    firstLeftOrRights(rows.map(extractor))
+  }
+
+  private def preparedStatement(select: SelectQuery): PreparedStatement = {
     val queryAndParameters = queryBuilder(select)
 
     val statement: PreparedStatement = connection
       .prepareStatement(queryAndParameters.query)
 
-    queryAndParameters.params.zipWithIndex.foreach { case (param, index) => statement.setObject(index + 1, param) }
-
-    def resultSetToRow(resultSet: ResultSet): Seq[Row] = {
-      val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
-      while (resultSet.next()) {
-        rows += new Row(
-          select.fields.zipWithIndex.map {
-            case (field, index) =>
-              field.alias -> resultSet.getObject(index + 1)
-          }.toMap
-        )
-      }
-      rows
+    queryAndParameters.params.zipWithIndex.foreach {
+      case (param, index) => statement.setObject(index + 1, param)
     }
+
+    statement
+  }
+
+  override def selectAll[T](select: SelectQuery)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
+    val statement = preparedStatement(select)
 
     Future {
       try {
         statement.execute()
-        Right(resultSetToRow(statement.executeQuery()))
+        extractResults(select, extractor)(statement.executeQuery())
       }
       catch {
         case error: SQLException => Left(DriverError(error))
