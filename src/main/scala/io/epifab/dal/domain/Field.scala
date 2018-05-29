@@ -1,5 +1,6 @@
 package io.epifab.dal.domain
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 trait FieldExtractor[T] {
@@ -64,4 +65,10 @@ trait Field[T] extends DataSource {
 case class TableField[T](name: String, dataSource: DataSource)(implicit val extractor: FieldExtractor[T]) extends Field[T] {
   override def src: String = s"${dataSource.alias}.$name"
   override def alias: String = s"${dataSource.alias}__$name"
+}
+
+case class FieldValue[T](field: TableField[T], value: T)
+
+object FieldValue {
+  implicit def apply[T](field: (TableField[T], T)): FieldValue[T] = new FieldValue(field._1, field._2)
 }

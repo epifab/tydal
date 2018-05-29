@@ -9,7 +9,7 @@ case class Student(id: Int, name: String, email: String)
 
 class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
   import Schema._
-  import Filter._
+  import io.epifab.dal.Implicits._
 
   implicit private val extractStudent: Row => Either[ExtractorError, Student] = row => for {
     id <- row.get(students.id)
@@ -18,7 +18,7 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
   } yield Student(id, name, email)
 
   def selectById(id: Int): F[Either[DALError, Option[Student]]] = {
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.id === id)
@@ -28,7 +28,7 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
   }
 
   def selectByName(name: String): F[Either[DALError, Seq[Student]]] = {
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.name like name)
@@ -37,7 +37,7 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
   }
 
   def selectByIds(ids: Int*): F[Either[DALError, Seq[Student]]] = {
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.id in ids)

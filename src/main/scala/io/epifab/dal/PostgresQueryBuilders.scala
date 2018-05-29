@@ -23,11 +23,11 @@ object PostgresQueryBuilders {
     case literal: Filter.Expression.Clause.Literal[_] =>
       literal.value match {
         case array: Iterable[_] =>
-          Query("(") + array
+          array
             .map(element => Query("?", Seq(element)))
             .reduceOption(_ + "," ++ _)
-            .getOrElse(Query.empty) +
-          Query(")")
+            .getOrElse(Query.empty)
+            .wrap("(", ")")
         case any =>
           Query("?", Seq(any))
       }
@@ -60,8 +60,8 @@ object PostgresQueryBuilders {
       Query("CROSS JOIN") ++ dataSourceBuilder(source)
   }
 
-  val select: QueryBuilder[SelectQuery] =
-    (t: SelectQuery) =>
+  val select: QueryBuilder[Select] =
+    (t: Select) =>
       Query("SELECT") ++
         t.fields
           .map(fieldBuilder.apply)
@@ -72,4 +72,29 @@ object PostgresQueryBuilders {
             .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
         Query("WHERE") ++
           filterBuilder(t.filter)
+
+  val insert: QueryBuilder[Insert] =
+    (t: Insert) =>
+      Query("INSERT INTO") ++
+        t.dataSource.src ++
+        t.fieldValues
+          .map(fieldValue => Query(fieldValue.field.name))
+          .reduce(_ + "," ++ _)
+          .wrap("(", ")") ++
+      Query("VALUES") ++
+        t.fieldValues
+          .map(fieldValue => Query("?", Seq(fieldValue.value)))
+          .reduce(_ + ", " + _)
+          .wrap("(", ")")
+
+  val update: QueryBuilder[Update] =
+    (t: Update) =>
+      Query("UPDATE") ++
+        dataSourceBuilder(t.dataSource) ++
+      Query("SET") ++
+        t.fieldValues
+          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue.value)))
+          .reduce(_ + "," ++ _) ++
+      Query("WHERE") ++
+        filterBuilder(t.filter)
 }

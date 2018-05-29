@@ -4,11 +4,12 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
 class PostgresQueryBuildersTest extends FlatSpec {
+  import io.epifab.dal.Implicits._
   import io.epifab.dal.PostgresQueryBuilders._
   import Schema._
 
   "PostgresQuery" should "evaluate a the simplest query" in {
-    val query = SelectQuery(students)
+    val query = Select(students)
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM hd_students AS s" +
@@ -16,7 +17,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate a query with 1 field" in {
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.name)
 
@@ -27,7 +28,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate a query with 2 fields" in {
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.name, students.email)
 
@@ -38,9 +39,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate a query with a filter" in {
-    import Filter._
-
-    val query = SelectQuery
+    val query = Select
       .from(students)
       .take(students.name)
       .where(students.name === "Fabio")
@@ -52,10 +51,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate non trivial filters" in {
-    import Filter._
-
     val query =
-      SelectQuery
+      Select
         .from(students)
         .where(
           (students.name === "Fabio")
@@ -71,12 +68,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate non trivial filters respecting precedence" in {
-    import Filter._
-
-    SelectQuery(students)
+    Select(students)
 
     val query =
-      SelectQuery
+      Select
         .from(students)
         .where(
           students.name === "Fabio"
@@ -93,10 +88,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate left and inner joins" in {
-    import Filter._
-
     val query =
-      SelectQuery
+      Select
         .from(students)
         .leftJoin(students.exams, students.exams.studentId === students.id)
         .innerJoin(students.exams.course, students.exams.course.id === students.exams.courseId)
@@ -110,5 +103,21 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " WHERE 1 = 1"
     )
   }
-}
 
+  it should "evaluate an insert query" in {
+    val query =
+      Insert
+        .into(students)
+        .set(
+          students.name -> "John",
+          students.email -> "john@doe.com"
+        )
+
+    insert(query) shouldBe Query(
+      "INSERT INTO hd_students" +
+        " (name, email)" +
+        " VALUES (?, ?)",
+      Seq("John", "john@doe.com")
+    )
+  }
+}

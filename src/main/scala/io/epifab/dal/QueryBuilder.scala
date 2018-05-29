@@ -8,6 +8,8 @@ case class Query(query: String, params: Seq[Any]) {
 
   def ++(e2: Query) = Query(query + " " + e2.query, params ++ e2.params)
   def ++(o: Option[Query]): Query = o.map(e => this ++ e).getOrElse(this)
+
+  def wrap(before: String, after: String): Query = copy(before + query + after)
 }
 
 object Query {

@@ -2,13 +2,13 @@ package io.epifab.dal
 
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
-import io.epifab.dal.domain.{DALError, DriverError, ExtractorError, SelectQuery}
+import io.epifab.dal.domain.{DALError, DriverError, ExtractorError, Select}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class PostgresQueryRunner(connection: Connection, queryBuilder: QueryBuilder[SelectQuery])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] {
-  private def extractResults[T](select: SelectQuery, extractor: Row => Either[ExtractorError, T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
+class PostgresQueryRunner(connection: Connection, queryBuilder: QueryBuilder[Select])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] {
+  private def extractResults[T](select: Select, extractor: Row => Either[ExtractorError, T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.dal.utils.EitherSupport._
 
     val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
@@ -23,7 +23,7 @@ class PostgresQueryRunner(connection: Connection, queryBuilder: QueryBuilder[Sel
     firstLeftOrRights(rows.map(extractor))
   }
 
-  private def preparedStatement(select: SelectQuery): PreparedStatement = {
+  private def preparedStatement(select: Select): PreparedStatement = {
     val queryAndParameters = queryBuilder(select)
 
     val statement: PreparedStatement = connection
@@ -36,7 +36,7 @@ class PostgresQueryRunner(connection: Connection, queryBuilder: QueryBuilder[Sel
     statement
   }
 
-  override def selectAll[T](select: SelectQuery)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
+  override def selectAll[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
     val statement = preparedStatement(select)
 
     Future {
