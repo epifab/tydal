@@ -36,6 +36,17 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
     queryRunner.execute(query)
   }
 
+  def update(student: Student): F[Either[DALError, Int]] = {
+    val query = Update(students)
+      .set(
+        students.name -> student.name,
+        students.email -> student.email
+      )
+      .where(students.id === student.id)
+
+    queryRunner.execute(query)
+  }
+
   def selectById(id: Int): F[Either[DALError, Option[Student]]] = {
     val query = Select
       .from(students)

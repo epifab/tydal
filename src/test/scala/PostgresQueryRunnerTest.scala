@@ -63,4 +63,13 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
   it should "retrieve a list of students by ids" in {
     Await.result(studentLayer.selectByIds(2, 3, 4), 3.seconds) shouldBe Right(Seq(student2, student3))
   }
+
+  it should "update a student" in {
+    val edited: EitherT[Future, DALError, Option[Student]] = for {
+      _ <- EitherT(studentLayer.update(student3.copy(name = "Edited")))
+      edited <- EitherT(studentLayer.selectById(3))
+    } yield edited
+
+    Await.result(edited.value, 3.seconds).map(_.map(_.name)) shouldBe Right(Some("Edited"))
+  }
 }
