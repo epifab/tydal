@@ -97,4 +97,11 @@ object PostgresQueryBuilders {
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)
+
+  val delete: QueryBuilder[Delete] =
+    (t: Delete) =>
+      Query("DELETE FROM") ++
+        dataSourceBuilder(t.dataSource) ++
+      Query("WHERE") ++
+        filterBuilder(t.filter)
 }

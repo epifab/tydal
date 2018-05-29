@@ -9,7 +9,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import Schema._
 
   "PostgresQuery" should "evaluate a the simplest query" in {
-    val query = Select(students)
+    val query = Select.from(students)
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM hd_students AS s" +
@@ -68,7 +68,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   }
 
   it should "evaluate non trivial filters respecting precedence" in {
-    Select(students)
+    Select.from(students)
 
     val query =
       Select
@@ -91,8 +91,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       Select
         .from(students)
-        .leftJoin(students.exams, students.exams.studentId === students.id)
-        .innerJoin(students.exams.course, students.exams.course.id === students.exams.courseId)
+        .leftJoin(students.exams)
+        .innerJoin(students.exams.course)
         .take(students.name, students.exams.rate, students.exams.course.name)
 
     select(query) shouldBe Query(
@@ -118,6 +118,35 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " (name, email)" +
         " VALUES (?, ?)",
       Seq("John", "john@doe.com")
+    )
+  }
+
+  it should "evaluate an update query" in {
+    val query =
+      Update(students)
+        .set(
+          students.name -> "Jane",
+          students.email -> "jane@doe.com"
+        )
+        .where(students.id === 2)
+
+    update(query) shouldBe Query(
+      "UPDATE hd_students AS s" +
+        " SET name = ?, email = ?" +
+        " WHERE s.id = ?",
+      Seq("Jane", "jane@doe.com", 2)
+    )
+  }
+
+  it should "evaluate a delete query" in {
+    val query =
+      Delete(students)
+        .where(students.id === 2)
+
+    delete(query) shouldBe Query(
+      "DELETE FROM hd_students AS s" +
+        " WHERE s.id = ?",
+      Seq(2)
     )
   }
 }
