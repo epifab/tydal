@@ -7,7 +7,7 @@ import scala.language.higherKinds
 
 case class Student(id: Int, name: String, email: String)
 
-class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
+class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
   import Schema._
   import io.epifab.dal.Implicits._
 
@@ -17,13 +17,32 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
     email <- row.get(students.email)
   } yield Student(id, name, email)
 
+  def deleteById(id: Int): F[Either[DALError, Int]] = {
+    val query = Delete(students)
+      .where(students.id === id)
+
+    queryRunner.execute(query)
+  }
+
+  def create(student: Student): F[Either[DALError, Int]] = {
+    val query = Insert
+      .into(students)
+      .set(
+        students.id -> student.id,
+        students.name -> student.name,
+        students.email -> student.email
+      )
+
+    queryRunner.execute(query)
+  }
+
   def selectById(id: Int): F[Either[DALError, Option[Student]]] = {
     val query = Select
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.id === id)
 
-    selectQueryRunner.selectAll(query)
+    queryRunner.select(query)
       .map(_.map(_.headOption))
   }
 
@@ -33,7 +52,7 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
       .take(students.id, students.name, students.email)
       .where(students.name like name)
 
-    selectQueryRunner.selectAll(query)
+    queryRunner.select(query)
   }
 
   def selectByIds(ids: Int*): F[Either[DALError, Seq[Student]]] = {
@@ -42,6 +61,6 @@ class StudentsRepo[F[_]](selectQueryRunner: QueryRunner[F])(implicit a: Applicat
       .take(students.id, students.name, students.email)
       .where(students.id in ids)
 
-    selectQueryRunner.selectAll(query)
+    queryRunner.select(query)
   }
 }

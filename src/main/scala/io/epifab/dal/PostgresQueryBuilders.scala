@@ -104,4 +104,11 @@ object PostgresQueryBuilders {
         dataSourceBuilder(t.dataSource) ++
       Query("WHERE") ++
         filterBuilder(t.filter)
+
+  val build: QueryBuilder[Statement] = {
+    case s: Select => select(s)
+    case s: Insert => insert(s)
+    case s: Update => update(s)
+    case s: Delete => delete(s)
+  }
 }
