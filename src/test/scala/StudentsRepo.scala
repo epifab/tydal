@@ -21,7 +21,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
     val query = Delete(students)
       .where(students.id === id)
 
-    queryRunner.execute(query)
+    queryRunner.run(query)
   }
 
   def create(student: Student): F[Either[DALError, Int]] = {
@@ -33,7 +33,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
         students.email -> student.email
       )
 
-    queryRunner.execute(query)
+    queryRunner.run(query)
   }
 
   def update(student: Student): F[Either[DALError, Int]] = {
@@ -44,7 +44,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       )
       .where(students.id === student.id)
 
-    queryRunner.execute(query)
+    queryRunner.run(query)
   }
 
   def selectById(id: Int): F[Either[DALError, Option[Student]]] = {
@@ -53,7 +53,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .take(students.id, students.name, students.email)
       .where(students.id === id)
 
-    queryRunner.select(query)
+    queryRunner.run(query)
       .map(_.map(_.headOption))
   }
 
@@ -63,7 +63,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .take(students.id, students.name, students.email)
       .where(students.name like name)
 
-    queryRunner.select(query)
+    queryRunner.run(query)
   }
 
   def selectByIds(ids: Int*): F[Either[DALError, Seq[Student]]] = {
@@ -72,6 +72,6 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .take(students.id, students.name, students.email)
       .where(students.id in ids)
 
-    queryRunner.select(query)
+    queryRunner.run(query)
   }
 }

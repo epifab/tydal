@@ -2,6 +2,8 @@ package io.epifab.dal.domain
 
 sealed trait Statement
 
+sealed trait SideEffect
+
 sealed trait Select extends Statement {
   def dataSource: DataSource
   def fields: Seq[Field[_]]
@@ -56,7 +58,7 @@ object Select {
   def from(dataSource: DataSource) = SelectImpl(dataSource)
 }
 
-sealed trait Insert extends Statement {
+sealed trait Insert extends Statement with SideEffect {
   def dataSource: DataSource
   def fieldValues: Seq[FieldValue[_]]
 
@@ -72,7 +74,7 @@ object Insert {
   def into(dataSource: DataSource) = InsertImpl(dataSource)
 }
 
-sealed trait Update extends Statement {
+sealed trait Update extends Statement with SideEffect {
   def dataSource: DataSource
   def fieldValues: Seq[FieldValue[_]]
   def filter: Filter
@@ -93,7 +95,7 @@ object Update {
   def apply(dataSource: DataSource) = UpdateImpl(dataSource)
 }
 
-sealed trait Delete extends Statement {
+sealed trait Delete extends Statement with SideEffect {
   def dataSource: DataSource
   def filter: Filter
 

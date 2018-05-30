@@ -15,6 +15,6 @@ class Row(cols: Map[String, Any]) {
 }
 
 trait QueryRunner[F[_]] {
-  def select[T](query: Select)(implicit extractor: Row => Either[ExtractorError, T]): F[Either[DALError, Seq[T]]]
-  def execute(query: Statement): F[Either[DALError, Int]]
+  def run[T](query: Select)(implicit extractor: Row => Either[ExtractorError, T]): F[Either[DALError, Seq[T]]]
+  def run(query: Statement with SideEffect): F[Either[DALError, Int]]
 }

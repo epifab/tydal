@@ -40,7 +40,7 @@ trait JDBCQueryRunner {
 
 
 class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner {
-  override def select[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
     val statement = preparedStatement(queryBuilder(select))
 
     try {
@@ -52,7 +52,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
     }
   }
 
-  override def execute(update: Statement): Id[Either[DALError, Int]] = {
+  override def run(update: Statement with SideEffect): Id[Either[DALError, Int]] = {
     val statement = preparedStatement(queryBuilder(update))
 
     try {
@@ -67,7 +67,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
 
 
 class AsyncPostgresQueryRunner(protected val connection: Connection, protected val queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner {
-  override def select[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
     val statement = preparedStatement(queryBuilder(select))
 
     Future {
@@ -81,7 +81,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, protected v
     }
   }
 
-  override def execute(update: Statement): Future[Either[DALError, Int]] = {
+  override def run(update: Statement with SideEffect): Future[Either[DALError, Int]] = {
     val statement = preparedStatement(queryBuilder(update))
 
     Future {
