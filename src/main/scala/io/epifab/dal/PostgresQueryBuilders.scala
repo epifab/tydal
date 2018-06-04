@@ -83,7 +83,10 @@ object PostgresQueryBuilders {
         t.sort
           .map(sortBuilder.apply)
           .reduceOption(_ + "," ++ _)
-          .map(sort => Query("ORDER BY") ++ sort)
+          .map(sort => Query("ORDER BY") ++ sort) ++
+        t.limit.map(limit =>
+          Query("OFFSET") ++ limit.start.toString ++
+          Query("LIMIT") ++ limit.stop.toString)
 
   val insert: QueryBuilder[Insert] =
     (t: Insert) =>

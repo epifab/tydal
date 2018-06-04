@@ -117,6 +117,19 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " ORDER BY s.email ASC, s.id DESC")
   }
 
+  it should "evaluate limit" in {
+    val query = Select
+      .from(students)
+      .take(students.name)
+      .inRange(1, 4)
+
+    select(query) shouldBe Query(
+      "SELECT s.name AS s__name" +
+        " FROM hd_students AS s" +
+        " WHERE 1 = 1" +
+        " OFFSET 1 LIMIT 4")
+  }
+
   it should "evaluate an insert query" in {
     val query =
       Insert

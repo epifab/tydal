@@ -53,6 +53,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .take(students.id, students.name, students.email)
       .where(students.id === id)
       .sortBy(students.id.asc)
+      .inRange(0, 1)
 
     queryRunner.run(query)
       .map(_.map(_.headOption))

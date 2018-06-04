@@ -10,6 +10,7 @@ sealed trait Select extends Statement {
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
+  def limit: Option[Limit]
 
   def take(fields: Field[_]*): Select
 
@@ -26,6 +27,8 @@ sealed trait Select extends Statement {
   def where(filter: Filter): Select
 
   def sortBy(sort: Sort*): Select
+
+  def inRange(start: Int, stop: Int): Select
 }
 
 object Select {
@@ -34,7 +37,8 @@ object Select {
     fields: Seq[Field[_]] = Seq.empty,
     joins: Seq[Join] = Seq.empty,
     filter: Filter = Filter.Empty,
-    sort: Seq[Sort] = Seq.empty
+    sort: Seq[Sort] = Seq.empty,
+    limit: Option[Limit] = None
   ) extends Select {
 
     def take(fields: Field[_]*): Select =
@@ -60,6 +64,9 @@ object Select {
 
     def sortBy(sort: Sort*): Select =
       copy(sort = this.sort ++ sort)
+
+    def inRange(start: Int, stop: Int): Select =
+      copy(limit = Some(Limit(start, stop)))
   }
 
   def from(dataSource: DataSource) = SelectImpl(dataSource)
