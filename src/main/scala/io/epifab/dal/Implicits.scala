@@ -1,6 +1,7 @@
 package io.epifab.dal
 
 import io.epifab.dal.domain.Filter.Expression
+import io.epifab.dal.domain.{AscSort, DescSort, Sort}
 
 object Implicits {
   trait ExtendedClause[T] {
@@ -37,5 +38,8 @@ object Implicits {
 
   implicit class ExtendedField[T](field: io.epifab.dal.domain.Field[T]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Field(field)
+
+    def asc: Sort = AscSort(field)
+    def desc: Sort = DescSort(field)
   }
 }

@@ -104,6 +104,19 @@ class PostgresQueryBuildersTest extends FlatSpec {
     )
   }
 
+  it should "evaluate sort" in {
+    val query = Select
+      .from(students)
+      .take(students.name)
+      .sortBy(students.email.asc, students.id.desc)
+
+    select(query) shouldBe Query(
+      "SELECT s.name AS s__name" +
+        " FROM hd_students AS s" +
+        " WHERE 1 = 1" +
+        " ORDER BY s.email ASC, s.id DESC")
+  }
+
   it should "evaluate an insert query" in {
     val query =
       Insert

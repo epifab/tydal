@@ -9,6 +9,7 @@ sealed trait Select extends Statement {
   def fields: Seq[Field[_]]
   def joins: Seq[Join]
   def filter: Filter
+  def sort: Seq[Sort]
 
   def take(fields: Field[_]*): Select
 
@@ -23,6 +24,8 @@ sealed trait Select extends Statement {
   def crossJoin(dataSource: DataSource): Select
 
   def where(filter: Filter): Select
+
+  def sortBy(sort: Sort*): Select
 }
 
 object Select {
@@ -30,7 +33,8 @@ object Select {
     dataSource: DataSource,
     fields: Seq[Field[_]] = Seq.empty,
     joins: Seq[Join] = Seq.empty,
-    filter: Filter = Filter.Empty
+    filter: Filter = Filter.Empty,
+    sort: Seq[Sort] = Seq.empty
   ) extends Select {
 
     def take(fields: Field[_]*): Select =
@@ -53,6 +57,9 @@ object Select {
 
     def where(filter: Filter): Select =
       copy(filter = this.filter and filter)
+
+    def sortBy(sort: Sort*): Select =
+      copy(sort = this.sort ++ sort)
   }
 
   def from(dataSource: DataSource) = SelectImpl(dataSource)

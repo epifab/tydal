@@ -60,6 +60,14 @@ object PostgresQueryBuilders {
       Query("CROSS JOIN") ++ dataSourceBuilder(source)
   }
 
+  val sortBuilder: QueryBuilder[Sort] =
+    (s: Sort) => {
+      Query(s.source.src) ++ (s match {
+        case _: AscSort => "ASC"
+        case _: DescSort => "DESC"
+      })
+    }
+
   val select: QueryBuilder[Select] =
     (t: Select) =>
       Query("SELECT") ++
@@ -71,7 +79,11 @@ object PostgresQueryBuilders {
           t.joins
             .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
         Query("WHERE") ++
-          filterBuilder(t.filter)
+          filterBuilder(t.filter) ++
+        t.sort
+          .map(sortBuilder.apply)
+          .reduceOption(_ + "," ++ _)
+          .map(sort => Query("ORDER BY") ++ sort)
 
   val insert: QueryBuilder[Insert] =
     (t: Insert) =>

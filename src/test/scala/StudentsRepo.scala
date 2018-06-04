@@ -52,6 +52,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.id === id)
+      .sortBy(students.id.asc)
 
     queryRunner.run(query)
       .map(_.map(_.headOption))
@@ -62,6 +63,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.name like name)
+      .sortBy(students.id.asc)
 
     queryRunner.run(query)
   }
@@ -71,6 +73,7 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.id in ids)
+      .sortBy(students.id.asc)
 
     queryRunner.run(query)
   }
