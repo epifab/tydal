@@ -31,6 +31,8 @@ trait JDBCQueryRunner {
       .prepareStatement(query.query)
 
     query.params.zipWithIndex.foreach {
+      case (Some(value), index) => statement.setObject(index + 1, value)
+      case (None, index) => statement.setObject(index + 1, null)
       case (param, index) => statement.setObject(index + 1, param)
     }
 
