@@ -5,7 +5,7 @@ import io.epifab.dal.{QueryRunner, Row}
 
 import scala.language.higherKinds
 
-case class Student(id: Int, name: String, email: String)
+case class Student(id: Int, name: String, email: Option[String])
 
 class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
   import Schema._
@@ -64,6 +64,26 @@ class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]
       .from(students)
       .take(students.id, students.name, students.email)
       .where(students.name like name)
+      .sortBy(students.id.asc)
+
+    queryRunner.run(query)
+  }
+
+  def selectByEmail(email: String): F[Either[DALError, Seq[Student]]] = {
+    val query = Select
+      .from(students)
+      .take(students.id, students.name, students.email)
+      .where(students.email like email)
+      .sortBy(students.id.asc)
+
+    queryRunner.run(query)
+  }
+
+  def selectByMissingEmail(): F[Either[DALError, Seq[Student]]] = {
+    val query = Select
+      .from(students)
+      .take(students.id, students.name, students.email)
+      .where(students.email.isNotDefined)
       .sortBy(students.id.asc)
 
     queryRunner.run(query)

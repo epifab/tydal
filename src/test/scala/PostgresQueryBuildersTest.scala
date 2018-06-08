@@ -136,7 +136,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .into(students)
         .set(
           students.name -> "John",
-          students.email -> "john@doe.com"
+          students.email -> Some("john@doe.com")
         )
 
     insert(query) shouldBe Query(
@@ -152,7 +152,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       Update(students)
         .set(
           students.name -> "Jane",
-          students.email -> "jane@doe.com"
+          students.email -> Some("jane@doe.com")
         )
         .where(students.id === 2)
 

@@ -6,7 +6,7 @@ object Schema {
   object students extends Table("hd_students", "s") {
     lazy val id: TableField[Int] = field("id")
     lazy val name: TableField[String] = field("name")
-    lazy val email: TableField[String] = field("email")
+    lazy val email: TableField[Option[String]] = field("email")
 
     object exams extends Table("hd_exams", "e") with Relation {
       override val relationClause: Filter = studentId === students.id

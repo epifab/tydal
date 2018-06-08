@@ -15,6 +15,8 @@ object PostgresQueryBuilders {
     case Filter.Expression.Op.NotEqual => Query("<>")
     case Filter.Expression.Op.Like => Query("LIKE")
     case Filter.Expression.Op.In => Query("IN")
+    case Filter.Expression.Op.IsDefined => Query("IS NOT NULL")
+    case Filter.Expression.Op.IsNotDefined => Query("IS NULL")
   }
 
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
@@ -34,8 +36,10 @@ object PostgresQueryBuilders {
   }
 
   val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
-    case Filter.Expression(left, right, op) =>
+    case Filter.BinaryExpression(left, right, op) =>
       filterClauseBuilder(left) ++ filterOpBuilder(op) ++ filterClauseBuilder(right)
+    case Filter.UniaryExpression(left, op) =>
+      filterClauseBuilder(left) ++ filterOpBuilder(op)
   }
 
   val filterBuilder: QueryBuilder[Filter] = {

@@ -13,7 +13,9 @@ object Filter {
   final case class Or(filter1: Filter, filter2: Filter) extends Filter
   final case class And(filter1: Filter, filter2: Filter) extends Filter
 
-  final case class Expression(left: Expression.Clause[_], right: Expression.Clause[_], op: Expression.Op) extends Filter
+  sealed trait Expression extends Filter
+  final case class BinaryExpression(left: Expression.Clause[_], right: Expression.Clause[_], op: Expression.Op.BinaryOp) extends Expression
+  final case class UniaryExpression(left: Expression.Clause[_], op: Expression.Op.UnaryOp) extends Expression
 
   object Expression {
     sealed trait Clause[T]
@@ -24,14 +26,19 @@ object Filter {
 
     sealed trait Op
     object Op {
-      final case object Equal extends Op
-      final case object NotEqual extends Op
-      final case object GT extends Op
-      final case object LT extends Op
-      final case object GTE extends Op
-      final case object LTE extends Op
-      final case object Like extends Op
-      final case object In extends Op
+      sealed trait BinaryOp extends Op
+      final case object Equal extends BinaryOp
+      final case object NotEqual extends BinaryOp
+      final case object GT extends BinaryOp
+      final case object LT extends BinaryOp
+      final case object GTE extends BinaryOp
+      final case object LTE extends BinaryOp
+      final case object Like extends BinaryOp
+      final case object In extends BinaryOp
+
+      sealed trait UnaryOp extends Op
+      final case object IsDefined extends UnaryOp
+      final case object IsNotDefined extends UnaryOp
     }
   }
 }

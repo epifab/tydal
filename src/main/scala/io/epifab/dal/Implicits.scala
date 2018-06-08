@@ -1,6 +1,6 @@
 package io.epifab.dal
 
-import io.epifab.dal.domain.Filter.Expression
+import io.epifab.dal.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.dal.domain.{AscSort, DescSort, Sort}
 
 object Implicits {
@@ -8,28 +8,25 @@ object Implicits {
     def clause: Expression.Clause[T]
 
     def ===(ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.Equal)
+      BinaryExpression(clause, ec.clause, Expression.Op.Equal)
 
     def !==(ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.NotEqual)
+      BinaryExpression(clause, ec.clause, Expression.Op.NotEqual)
 
     def > (ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.GT)
+      BinaryExpression(clause, ec.clause, Expression.Op.GT)
 
     def < (ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.LT)
+      BinaryExpression(clause, ec.clause, Expression.Op.LT)
 
     def >= (ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.GTE)
+      BinaryExpression(clause, ec.clause, Expression.Op.GTE)
 
     def <= (ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.LTE)
-
-    def like(ec: ExtendedClause[T]): Expression =
-      Expression(clause, ec.clause, Expression.Op.Like)
+      BinaryExpression(clause, ec.clause, Expression.Op.LTE)
 
     def in(ec: ExtendedClause[Iterable[T]]): Expression =
-      Expression(clause, ec.clause, Expression.Op.In)
+      BinaryExpression(clause, ec.clause, Expression.Op.In)
   }
 
   implicit class ExtendedValue[T](value: T) extends ExtendedClause[T] {
@@ -41,5 +38,23 @@ object Implicits {
 
     def asc: Sort = AscSort(field)
     def desc: Sort = DescSort(field)
+  }
+
+  implicit class ExtendedStringField(field: io.epifab.dal.domain.Field[String]) {
+    def like(ec: ExtendedClause[String]): Expression =
+      BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
+  }
+
+  implicit class ExtendedOptionStringField(field: io.epifab.dal.domain.Field[Option[String]]) {
+    def like(ec: ExtendedClause[String]): Expression =
+      BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
+  }
+
+  implicit class ExtendedOptionField[T](field: io.epifab.dal.domain.Field[Option[T]]) {
+    def isDefined: Expression =
+      UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsDefined)
+
+    def isNotDefined: Expression =
+      UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsNotDefined)
   }
 }

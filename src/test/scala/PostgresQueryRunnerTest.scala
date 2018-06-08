@@ -18,9 +18,9 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
     def eventually: T = Await.result[T](f, 5.seconds)
   }
 
-  val student1 = Student(1, "John Doe", "john@doe.com")
-  val student2 = Student(2, "Jane Doe", "jane@doe.com")
-  val student3 = Student(3, "Jack Roe", "jack@roe.com")
+  val student1 = Student(1, "John Doe", Some("john@doe.com"))
+  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"))
+  val student3 = Student(3, "Jack Roe", None)
 
   val connection: Connection = DriverManager
     .getConnection(
@@ -63,6 +63,14 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
 
   it should "retrieve a list of students by ids" in {
     studentLayer.selectByIds(2, 3, 4).eventually shouldBe Right(Seq(student2, student3))
+  }
+
+  it should "retrieve a list of students by email" in {
+    studentLayer.selectByEmail("%@doe.com").eventually shouldBe Right(Seq(student1, student2))
+  }
+
+  it should "retrieve students with missing email" in {
+    studentLayer.selectByMissingEmail().eventually shouldBe Right(Seq(student3))
   }
 
   it should "update a student" in {
