@@ -3,7 +3,7 @@ package io.epifab.dal.postgres
 import io.epifab.dal.domain._
 
 
-object PostgresQueryBuilders {
+object PostgresQueryBuilder {
   implicit private val fromString: String => Query = Query(_)
 
   val filterOpBuilder: QueryBuilder[Filter.Expression.Op] = {

@@ -4,7 +4,7 @@ import org.scalatest.Matchers._
 
 class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.dal.implicits._
-  import io.epifab.dal.postgres.PostgresQueryBuilders._
+  import io.epifab.dal.postgres.PostgresQueryBuilder._
   import io.epifab.dal.examples.Schema._
 
   "PostgresQuery" should "evaluate a the simplest query" in {

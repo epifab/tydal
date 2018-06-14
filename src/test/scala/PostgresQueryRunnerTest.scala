@@ -3,15 +3,15 @@ import java.sql.{Connection, DriverManager}
 import cats.data.EitherT
 import io.epifab.dal.domain.DALError
 import io.epifab.dal.examples.{Student, StudentsRepo}
-import io.epifab.dal.postgres.{AsyncPostgresQueryRunner, PostgresQueryBuilders}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import org.scalatest.Matchers._
+import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
   import cats.implicits._
+  import io.epifab.dal.postgres._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -27,12 +27,7 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
 
-  val studentLayer = new StudentsRepo[Future](
-    new AsyncPostgresQueryRunner(
-      connection,
-      PostgresQueryBuilders.build
-    )
-  )
+  val studentLayer = new StudentsRepo[Future](asyncQueryRunner(connection))
 
   override def beforeAll(): Unit = {
     val fe: EitherT[Future, DALError, Unit] = for {

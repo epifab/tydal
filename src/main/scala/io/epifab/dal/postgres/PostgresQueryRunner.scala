@@ -69,7 +69,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
 }
 
 
-class AsyncPostgresQueryRunner(protected val connection: Connection, protected val queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner {
+class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner {
   override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
     val statement = preparedStatement(queryBuilder(select))
 
