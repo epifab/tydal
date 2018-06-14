@@ -1,4 +1,4 @@
-package io.epifab.dal
+package io.epifab.dal.domain
 
 import scala.language.higherKinds
 

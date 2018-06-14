@@ -1,17 +1,18 @@
+package io.epifab.dal.examples
+
 import cats.Applicative
 import cats.implicits._
 import io.epifab.dal.domain._
-import io.epifab.dal.{QueryRunner, Row}
+import io.epifab.dal.implicits._
 
 import scala.language.higherKinds
 
 case class Student(id: Int, name: String, email: Option[String])
 
 class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
-  import Schema._
-  import io.epifab.dal.Implicits._
+  import Schema.students
 
-  implicit private val extractStudent: Row => Either[ExtractorError, Student] = row => for {
+  implicit private val extractStudent: Extractor[Student] = row => for {
     id <- row.get(students.id)
     name <- row.get(students.name)
     email <- row.get(students.email)

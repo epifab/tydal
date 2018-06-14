@@ -1,18 +1,17 @@
-import io.epifab.dal.domain._
-import io.epifab.dal.Query
+import io.epifab.dal.domain.{Query, _}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
 class PostgresQueryBuildersTest extends FlatSpec {
-  import io.epifab.dal.Implicits._
-  import io.epifab.dal.PostgresQueryBuilders._
-  import Schema._
+  import io.epifab.dal.implicits._
+  import io.epifab.dal.postgres.PostgresQueryBuilders._
+  import io.epifab.dal.examples.Schema._
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)
     select(query) shouldBe Query(
       "SELECT 1" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE 1 = 1")
   }
 
@@ -23,7 +22,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE 1 = 1")
   }
 
@@ -34,7 +33,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, s.email AS s__email" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE 1 = 1")
   }
 
@@ -46,7 +45,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE s.name = ?", Seq("Fabio"))
   }
 
@@ -61,7 +60,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT 1" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN (?, ?, ?))",
       Seq("Fabio", "epifab@%", 1, 2, 6)
     )
@@ -81,7 +80,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT 1" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN (?, ?, ?))",
       Seq("Fabio", "epifab@%", 1, 2, 6)
     )
@@ -97,9 +96,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate, c.name AS c__name" +
-        " FROM hd_students AS s" +
-        " LEFT JOIN hd_exams AS e ON e.student_id = s.id" +
-        " INNER JOIN hd_courses AS c ON c.id = e.course_id" +
+        " FROM students AS s" +
+        " LEFT JOIN exams AS e ON e.student_id = s.id" +
+        " INNER JOIN courses AS c ON c.id = e.course_id" +
         " WHERE 1 = 1"
     )
   }
@@ -112,7 +111,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE 1 = 1" +
         " ORDER BY s.email ASC, s.id DESC")
   }
@@ -125,7 +124,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
-        " FROM hd_students AS s" +
+        " FROM students AS s" +
         " WHERE 1 = 1" +
         " OFFSET 1 LIMIT 4")
   }
@@ -140,7 +139,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         )
 
     insert(query) shouldBe Query(
-      "INSERT INTO hd_students" +
+      "INSERT INTO students" +
         " (name, email)" +
         " VALUES (?, ?)",
       Seq("John", "john@doe.com")
@@ -157,7 +156,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .where(students.id === 2)
 
     update(query) shouldBe Query(
-      "UPDATE hd_students AS s" +
+      "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
       Seq("Jane", "jane@doe.com", 2)
@@ -170,7 +169,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .where(students.id === 2)
 
     delete(query) shouldBe Query(
-      "DELETE FROM hd_students AS s" +
+      "DELETE FROM students AS s" +
         " WHERE s.id = ?",
       Seq(2)
     )

@@ -2,7 +2,8 @@ import java.sql.{Connection, DriverManager}
 
 import cats.data.EitherT
 import io.epifab.dal.domain.DALError
-import io.epifab.dal.{PostgresQueryBuilders, AsyncPostgresQueryRunner}
+import io.epifab.dal.examples.{Student, StudentsRepo}
+import io.epifab.dal.postgres.{AsyncPostgresQueryRunner, PostgresQueryBuilders}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import org.scalatest.Matchers._
 

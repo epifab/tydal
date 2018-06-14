@@ -3,7 +3,7 @@ package io.epifab.dal
 import io.epifab.dal.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.dal.domain.{AscSort, DescSort, Sort}
 
-object Implicits {
+object implicits {
   trait ExtendedClause[T] {
     def clause: Expression.Clause[T]
 

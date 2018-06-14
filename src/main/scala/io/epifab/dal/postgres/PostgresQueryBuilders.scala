@@ -1,6 +1,6 @@
-package io.epifab.dal
+package io.epifab.dal.postgres
 
-import domain._
+import io.epifab.dal.domain._
 
 
 object PostgresQueryBuilders {

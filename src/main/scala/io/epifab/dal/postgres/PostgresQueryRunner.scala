@@ -1,8 +1,9 @@
-package io.epifab.dal
+package io.epifab.dal.postgres
 
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
 import cats.Id
+import io.epifab.dal._
 import io.epifab.dal.domain._
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
