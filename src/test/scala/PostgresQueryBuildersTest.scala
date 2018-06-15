@@ -90,9 +90,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       Select
         .from(students)
-        .leftJoin(students.exams)
-        .innerJoin(students.exams.course)
-        .take(students.name, students.exams.rate, students.exams.course.name)
+        .leftJoin(exams, exams.studentId === students.id)
+        .innerJoin(exams.course)
+        .take(students.name, exams.rate, exams.course.name)
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name, e.rate AS e__rate, c.name AS c__name" +
@@ -142,7 +142,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "INSERT INTO students" +
         " (name, email)" +
         " VALUES (?, ?)",
-      Seq("John", "john@doe.com")
+      Seq("John", Some("john@doe.com"))
     )
   }
 
@@ -159,7 +159,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
-      Seq("Jane", "jane@doe.com", 2)
+      Seq("Jane", Some("jane@doe.com"), 2)
     )
   }
 

@@ -7,12 +7,10 @@ import io.epifab.dal.implicits._
 
 import scala.language.higherKinds
 
-case class Student(id: Int, name: String, email: Option[String])
-
 class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
   import Schema.students
 
-  implicit private val extractStudent: Extractor[Student] = row => for {
+  implicit private val studentExtractor: Extractor[Student] = row => for {
     id <- row.get(students.id)
     name <- row.get(students.name)
     email <- row.get(students.email)
