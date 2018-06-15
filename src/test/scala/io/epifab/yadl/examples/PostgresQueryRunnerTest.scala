@@ -1,9 +1,9 @@
-package io.epifab.dal.examples
+package io.epifab.yadl.examples
 
 import java.sql.{Connection, DriverManager}
 
 import cats.data.EitherT
-import io.epifab.dal.domain.DALError
+import io.epifab.yadl.domain.DALError
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -12,7 +12,7 @@ import scala.concurrent.{Await, Future}
 
 class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
   import cats.implicits._
-  import io.epifab.dal.postgres._
+  import io.epifab.yadl.postgres._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 

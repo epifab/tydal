@@ -1,13 +1,13 @@
-package io.epifab.dal.examples
+package io.epifab.yadl.examples
 
-import io.epifab.dal.domain._
+import io.epifab.yadl.domain._
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
 class PostgresQueryBuildersTest extends FlatSpec {
-  import io.epifab.dal.examples.Schema._
-  import io.epifab.dal.implicits._
-  import io.epifab.dal.postgres.PostgresQueryBuilder._
+  import io.epifab.yadl.examples.Schema._
+  import io.epifab.yadl.implicits._
+  import io.epifab.yadl.postgres.PostgresQueryBuilder._
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)

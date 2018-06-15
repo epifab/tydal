@@ -1,7 +1,7 @@
-package io.epifab.dal
+package io.epifab.yadl
 
-import io.epifab.dal.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
-import io.epifab.dal.domain.{AscSort, DescSort, Sort}
+import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
+import io.epifab.yadl.domain.{AscSort, DescSort, Sort}
 
 object implicits {
   trait ExtendedClause[T] {
@@ -33,24 +33,24 @@ object implicits {
     override val clause = Expression.Clause.Literal(value)
   }
 
-  implicit class ExtendedField[T](field: io.epifab.dal.domain.Field[T]) extends ExtendedClause[T] {
+  implicit class ExtendedField[T](field: io.epifab.yadl.domain.Field[T]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Field(field)
 
     def asc: Sort = AscSort(field)
     def desc: Sort = DescSort(field)
   }
 
-  implicit class ExtendedStringField(field: io.epifab.dal.domain.Field[String]) {
+  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String]) {
     def like(ec: ExtendedClause[String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionStringField(field: io.epifab.dal.domain.Field[Option[String]]) {
+  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String]]) {
     def like(ec: ExtendedClause[String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionField[T](field: io.epifab.dal.domain.Field[Option[T]]) {
+  implicit class ExtendedOptionField[T](field: io.epifab.yadl.domain.Field[Option[T]]) {
     def isDefined: Expression =
       UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsDefined)
 

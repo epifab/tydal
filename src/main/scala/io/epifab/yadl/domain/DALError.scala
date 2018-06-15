@@ -1,4 +1,4 @@
-package io.epifab.dal.domain
+package io.epifab.yadl.domain
 
 sealed trait DALError extends Throwable
 

@@ -1,4 +1,4 @@
-package io.epifab.dal.domain
+package io.epifab.yadl.domain
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -8,7 +8,7 @@ trait FieldExtractor[T] {
 }
 
 object FieldExtractor {
-  import io.epifab.dal.utils.EitherSupport._
+  import io.epifab.yadl.utils.EitherSupport._
 
   implicit val string: FieldExtractor[String] = {
     case s: String => Right(s)

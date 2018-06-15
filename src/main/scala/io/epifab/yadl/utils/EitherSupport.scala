@@ -1,4 +1,4 @@
-package io.epifab.dal.utils
+package io.epifab.yadl.utils
 
 object EitherSupport {
   def firstLeftOrRights[A, B](s: Seq[Either[A, B]]): Either[A, Seq[B]] =

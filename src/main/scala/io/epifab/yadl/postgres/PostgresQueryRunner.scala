@@ -1,10 +1,10 @@
-package io.epifab.dal.postgres
+package io.epifab.yadl.postgres
 
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
 import cats.Id
-import io.epifab.dal._
-import io.epifab.dal.domain._
+import io.epifab.yadl._
+import io.epifab.yadl.domain._
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
 
@@ -13,7 +13,7 @@ trait JDBCQueryRunner {
   protected def connection: Connection
 
   protected def extractResults[T](select: Select, extractor: Row => Either[ExtractorError, T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
-    import io.epifab.dal.utils.EitherSupport._
+    import io.epifab.yadl.utils.EitherSupport._
 
     val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
     while (resultSet.next()) {

@@ -1,8 +1,8 @@
-package io.epifab.dal.examples
+package io.epifab.yadl.examples
 
 import cats.Applicative
-import io.epifab.dal.domain._
-import io.epifab.dal.implicits._
+import io.epifab.yadl.domain._
+import io.epifab.yadl.implicits._
 import shapeless._
 
 import scala.language.higherKinds

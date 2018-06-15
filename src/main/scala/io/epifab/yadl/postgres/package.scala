@@ -1,9 +1,9 @@
-package io.epifab.dal
+package io.epifab.yadl
 
 import java.sql.Connection
 
 import cats.Id
-import io.epifab.dal.domain.{QueryBuilder, QueryRunner, Statement}
+import io.epifab.yadl.domain.{QueryBuilder, QueryRunner, Statement}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions

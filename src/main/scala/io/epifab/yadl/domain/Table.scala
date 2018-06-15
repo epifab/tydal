@@ -1,4 +1,4 @@
-package io.epifab.dal.domain
+package io.epifab.yadl.domain
 
 case class Table(src: String, alias: String) extends DataSource {
   def field[T](name: String)(implicit fieldExtractor: FieldExtractor[T]): TableField[T] = TableField[T](name, this)

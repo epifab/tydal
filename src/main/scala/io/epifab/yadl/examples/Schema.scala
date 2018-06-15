@@ -1,9 +1,9 @@
-package io.epifab.dal.examples
+package io.epifab.yadl.examples
 
-import io.epifab.dal.domain.{Filter, Relation, Table, TableField}
+import io.epifab.yadl.domain.{Filter, Relation, Table, TableField}
 
 object Schema {
-  import io.epifab.dal.implicits._
+  import io.epifab.yadl.implicits._
 
   object students extends Table("students", "s") {
     lazy val id: TableField[Int] = field("id")

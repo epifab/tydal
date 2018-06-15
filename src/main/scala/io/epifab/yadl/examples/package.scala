@@ -1,4 +1,4 @@
-package io.epifab.dal
+package io.epifab.yadl
 
 package object examples {
   case class Student(id: Int, name: String, email: Option[String])
