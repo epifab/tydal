@@ -1,8 +1,9 @@
+package io.epifab.dal.examples
+
 import java.sql.{Connection, DriverManager}
 
 import cats.data.EitherT
 import io.epifab.dal.domain.DALError
-import io.epifab.dal.examples.{Student, StudentsRepo}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -27,13 +28,13 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
 
-  val studentLayer = new StudentsRepo[Future](asyncQueryRunner(connection))
+  val studentsRepo = new StudentsRepo[Future](asyncQueryRunner(connection))
 
   override def beforeAll(): Unit = {
     val fe: EitherT[Future, DALError, Unit] = for {
-      _ <- EitherT(studentLayer.create(student1))
-      _ <- EitherT(studentLayer.create(student2))
-      _ <- EitherT(studentLayer.create(student3))
+      _ <- EitherT(studentsRepo.create(student1))
+      _ <- EitherT(studentsRepo.create(student2))
+      _ <- EitherT(studentsRepo.create(student3))
     } yield {}
 
     fe.value.eventually shouldBe 'Right
@@ -41,38 +42,38 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     val fe: EitherT[Future, DALError, Unit] = for {
-      _ <- EitherT(studentLayer.deleteById(2))
-      _ <- EitherT(studentLayer.deleteById(3))
-      _ <- EitherT(studentLayer.deleteById(1))
+      _ <- EitherT(studentsRepo.deleteById(2))
+      _ <- EitherT(studentsRepo.deleteById(3))
+      _ <- EitherT(studentsRepo.deleteById(1))
     } yield {}
 
     fe.value.eventually shouldBe 'Right
   }
 
   "The query runner" should "retrieve a student by ID" in {
-    studentLayer.selectById(2).eventually shouldBe Right(Some(student2))
+    studentsRepo.selectById(2).eventually shouldBe Right(Some(student2))
   }
 
   it should "retrieve a list of students by name" in {
-    studentLayer.selectByName("%Doe").eventually shouldBe Right(Seq(student1, student2))
+    studentsRepo.selectByName("%Doe").eventually shouldBe Right(Seq(student1, student2))
   }
 
   it should "retrieve a list of students by ids" in {
-    studentLayer.selectByIds(2, 3, 4).eventually shouldBe Right(Seq(student2, student3))
+    studentsRepo.selectByIds(2, 3, 4).eventually shouldBe Right(Seq(student2, student3))
   }
 
   it should "retrieve a list of students by email" in {
-    studentLayer.selectByEmail("%@doe.com").eventually shouldBe Right(Seq(student1, student2))
+    studentsRepo.selectByEmail("%@doe.com").eventually shouldBe Right(Seq(student1, student2))
   }
 
   it should "retrieve students with missing email" in {
-    studentLayer.selectByMissingEmail().eventually shouldBe Right(Seq(student3))
+    studentsRepo.selectByMissingEmail().eventually shouldBe Right(Seq(student3))
   }
 
   it should "update a student" in {
     val edited: EitherT[Future, DALError, Option[Student]] = for {
-      _ <- EitherT(studentLayer.update(student3.copy(name = "Edited")))
-      edited <- EitherT(studentLayer.selectById(3))
+      _ <- EitherT(studentsRepo.update(student3.copy(name = "Edited")))
+      edited <- EitherT(studentsRepo.selectById(3))
     } yield edited
 
     edited.value.eventually.map(_.map(_.name)) shouldBe Right(Some("Edited"))

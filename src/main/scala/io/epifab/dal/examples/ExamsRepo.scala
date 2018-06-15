@@ -1,7 +1,7 @@
 package io.epifab.dal.examples
 
 import cats.Applicative
-import io.epifab.dal.domain.{DALError, Extractor, QueryRunner, Select}
+import io.epifab.dal.domain._
 import io.epifab.dal.implicits._
 import shapeless._
 
@@ -32,6 +32,18 @@ class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
       .innerJoin(exams.course)
       .take(exams.rate, exams.courseId, exams.studentId, exams.course.id, exams.course.name)
       .where(exams.studentId === studentId)
+
+    queryRunner.run(query)
+  }
+
+  def createExam(exam: Exam): F[Either[DALError, Int]] = {
+    val query = Insert
+      .into(exams)
+      .set(
+        exams.studentId -> exam.studentId,
+        exams.courseId -> exam.courseId,
+        exams.rate -> exam.rate
+      )
 
     queryRunner.run(query)
   }
