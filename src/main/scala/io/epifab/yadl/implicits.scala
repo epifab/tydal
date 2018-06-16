@@ -1,9 +1,26 @@
 package io.epifab.yadl
 
+import cats.Applicative
+import cats.implicits._
 import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.yadl.domain._
 
+import scala.language.higherKinds
+
 object implicits {
+  implicit class ExtendedSelect[F[_]](select: Select)(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
+    def fetchOne[T]()(implicit extractor: Extractor[T]): F[Either[DALError, Option[T]]] =
+      queryRunner.run(select).map(_.map(_.headOption))
+
+    def fetchMany[T]()(implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]] =
+      queryRunner.run(select)
+  }
+
+  implicit class ExtendedStatementWithSideEffects[F[_]](statement: Statement with SideEffect)(implicit queryRunner: QueryRunner[F]) {
+    def execute(): F[Either[DALError, Int]] =
+      queryRunner.run(statement)
+  }
+
   trait ExtendedClause[T] {
     def clause: Expression.Clause[T]
 

@@ -7,7 +7,7 @@ import shapeless._
 
 import scala.language.higherKinds
 
-class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
+class ExamsRepo[F[_]](implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
   private lazy val exams = new Schema.ExamsTable("e")
 
   implicit private val examExtractor: Extractor[Exam] = row => for {
@@ -26,25 +26,22 @@ class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
     course <- courseExtractor(row)
   } yield exam :: course :: HNil
 
-  def selectByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] = {
-    val query = Select
+  def selectByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] =
+    Select
       .from(exams)
       .innerJoin(exams.course)
-      .take(exams.rate, exams.courseId, exams.studentId, exams.course.name)
+      .take(exams.*)
+      .take(exams.course.*)
       .where(exams.studentId === studentId)
+      .fetchMany()
 
-    queryRunner.run(query)
-  }
-
-  def createExam(exam: Exam): F[Either[DALError, Int]] = {
-    val query = Insert
+  def createExam(exam: Exam): F[Either[DALError, Int]] =
+    Insert
       .into(exams)
       .set(
         exams.studentId -> exam.studentId,
         exams.courseId -> exam.courseId,
         exams.rate -> exam.rate
       )
-
-    queryRunner.run(query)
-  }
+      .execute()
 }

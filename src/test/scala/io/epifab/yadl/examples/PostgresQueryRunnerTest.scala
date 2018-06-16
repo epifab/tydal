@@ -3,7 +3,7 @@ package io.epifab.yadl.examples
 import java.sql.{Connection, DriverManager}
 
 import cats.data.EitherT
-import io.epifab.yadl.domain.DALError
+import io.epifab.yadl.domain.{DALError, QueryRunner}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -28,7 +28,9 @@ class PostgresQueryRunnerTest extends FlatSpec with BeforeAndAfterAll {
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
 
-  val studentsRepo = new StudentsRepo[Future](asyncQueryRunner(connection))
+  implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
+
+  val studentsRepo = new StudentsRepo[Future]
 
   override def beforeAll(): Unit = {
     val fe: EitherT[Future, DALError, Unit] = for {

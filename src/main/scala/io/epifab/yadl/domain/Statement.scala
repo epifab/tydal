@@ -12,7 +12,9 @@ sealed trait Select extends Statement {
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def take(fields: Field[_]*): Select
+  def take(field: Field[_], fields: Field[_]*): Select
+
+  def take(fields: Seq[Field[_]]): Select
 
   def leftJoin(relation: DataSource with Relation): Select
 
@@ -40,9 +42,11 @@ object Select {
     sort: Seq[Sort] = Seq.empty,
     limit: Option[Limit] = None
   ) extends Select {
-
-    def take(fields: Field[_]*): Select =
+    def take(fields: Seq[Field[_]]): Select =
       copy(fields = this.fields ++ fields)
+
+    def take(field: Field[_], fields: Field[_]*): Select =
+      copy(fields = this.fields ++ (field +: fields))
 
     def leftJoin(relation: DataSource with Relation): Select =
       leftJoin(relation, relation.relationClause)

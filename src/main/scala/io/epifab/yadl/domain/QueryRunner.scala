@@ -13,6 +13,6 @@ class Row(cols: Map[String, Any]) {
 }
 
 trait QueryRunner[F[_]] {
-  def run[T](query: Select)(implicit extractor: Row => Either[ExtractorError, T]): F[Either[DALError, Seq[T]]]
+  def run[T](query: Select)(implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]]
   def run(query: Statement with SideEffect): F[Either[DALError, Int]]
 }
