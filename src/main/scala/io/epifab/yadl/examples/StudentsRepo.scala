@@ -8,7 +8,9 @@ import io.epifab.yadl.implicits._
 import scala.language.higherKinds
 
 class StudentsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
-  import Schema.students
+  import Schema._
+
+  private lazy val students = new StudentsTable("s")
 
   implicit private val studentExtractor: Extractor[Student] = row => for {
     id <- row.get(students.id)

@@ -1,7 +1,7 @@
 package io.epifab.yadl
 
 import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
-import io.epifab.yadl.domain.{AscSort, DescSort, Sort}
+import io.epifab.yadl.domain._
 
 object implicits {
   trait ExtendedClause[T] {

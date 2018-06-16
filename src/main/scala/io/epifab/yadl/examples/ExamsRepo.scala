@@ -8,7 +8,9 @@ import shapeless._
 import scala.language.higherKinds
 
 class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
-  import Schema.exams
+  import Schema._
+
+  private lazy val exams = new ExamsTable("e")
 
   implicit private val examExtractor: Extractor[Exam] = row => for {
     rate <- row.get(exams.rate)

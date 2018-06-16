@@ -9,6 +9,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.yadl.implicits._
   import io.epifab.yadl.postgres.PostgresQueryBuilder._
 
+  val students = new StudentsTable("s")
+
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)
     select(query) shouldBe Query(
@@ -92,15 +94,17 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       Select
         .from(students)
-        .leftJoin(exams, exams.studentId === students.id)
-        .innerJoin(exams.course)
-        .take(students.name, exams.rate, exams.course.name)
+        .leftJoin(students.exams, students.exams.studentId === students.id)
+        .innerJoin(students.exams.course)
+        .take(students.name, students.exams.rate, students.exams.course.name)
 
     select(query) shouldBe Query(
-      "SELECT s.name AS s__name, e.rate AS e__rate, c.name AS c__name" +
+      "SELECT s.name AS s__name," +
+        " s__exams.rate AS s__exams__rate," +
+        " s__exams__course.name AS s__exams__course__name" +
         " FROM students AS s" +
-        " LEFT JOIN exams AS e ON e.student_id = s.id" +
-        " INNER JOIN courses AS c ON c.id = e.course_id" +
+        " LEFT JOIN exams AS s__exams ON s__exams.student_id = s.id" +
+        " INNER JOIN courses AS s__exams__course ON s__exams__course.id = s__exams.course_id" +
         " WHERE 1 = 1"
     )
   }

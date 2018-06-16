@@ -62,7 +62,7 @@ trait Field[T] extends DataSource {
   def extractor: FieldExtractor[T]
 }
 
-case class TableField[T](name: String, dataSource: DataSource)(implicit val extractor: FieldExtractor[T]) extends Field[T] {
+case class TableField[T](name: String, dataSource: Table)(implicit val extractor: FieldExtractor[T]) extends Field[T] {
   override def src: String = s"${dataSource.alias}.$name"
   override def alias: String = s"${dataSource.alias}__$name"
 }
