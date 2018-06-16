@@ -17,11 +17,15 @@ object Schema {
     }
   }
 
-  class CoursesTable(val alias: String) extends Table {
+  class CoursesTable(val alias: String) extends Table { courses =>
     override def src: String = "courses"
 
     lazy val id: TableField[Int] = field("id")
     lazy val name: TableField[String] = field("name")
+
+    lazy val exams: ExamsTable with Relation = new ExamsTable(courses.alias + "__exams") with Relation {
+      override def relationClause: Filter = courses.id === courseId
+    }
   }
 
   class ExamsTable(val alias: String) extends Table { exams =>

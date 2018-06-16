@@ -8,9 +8,7 @@ import shapeless._
 import scala.language.higherKinds
 
 class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
-  import Schema._
-
-  private lazy val exams = new ExamsTable("e")
+  private lazy val exams = new Schema.ExamsTable("e")
 
   implicit private val examExtractor: Extractor[Exam] = row => for {
     rate <- row.get(exams.rate)
@@ -19,7 +17,7 @@ class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
   } yield Exam(studentId, courseId, rate)
 
   implicit private val courseExtractor: Extractor[Course] = row => for {
-    id <- row.get(exams.course.id)
+    id <- row.get(exams.courseId)
     name <- row.get(exams.course.name)
   } yield Course(id, name)
 
@@ -32,7 +30,7 @@ class ExamsRepo[F[_]](queryRunner: QueryRunner[F])(implicit a: Applicative[F]) {
     val query = Select
       .from(exams)
       .innerJoin(exams.course)
-      .take(exams.rate, exams.courseId, exams.studentId, exams.course.id, exams.course.name)
+      .take(exams.rate, exams.courseId, exams.studentId, exams.course.name)
       .where(exams.studentId === studentId)
 
     queryRunner.run(query)
