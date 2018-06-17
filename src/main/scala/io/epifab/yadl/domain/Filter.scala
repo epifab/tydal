@@ -21,7 +21,9 @@ object Filter {
     sealed trait Clause[T]
     object Clause {
       case class Field[T](field: io.epifab.yadl.domain.Field[T]) extends Clause[T]
-      case class Literal[T](value: T) extends Clause[T]
+      case class Literal[T](value: T)(implicit fieldType: FieldAdapter[T]) extends Clause[T] {
+        def dbValue: Any = fieldType.inject(value)
+      }
     }
 
     sealed trait Op

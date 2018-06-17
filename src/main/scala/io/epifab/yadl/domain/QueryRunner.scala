@@ -6,10 +6,9 @@ class Col[T](field: Field[T], result: T)
 
 class Row(cols: Map[String, Any]) {
   def get[T](field: Field[T]): Either[ExtractorError, T] =
-    cols.get(field.alias).map(field.extractor.extract) match {
-      case Some(t) => t
-      case None => Left(ExtractorError("Field not found"))
-    }
+    cols.get(field.alias)
+      .map(field.fieldAdapter.extract)
+      .getOrElse(Left(ExtractorError("Field not found")))
 }
 
 trait QueryRunner[F[_]] {

@@ -23,9 +23,10 @@ object PostgresQueryBuilder {
     case f: Filter.Expression.Clause.Field[_] =>
       Query(f.field.src)
     case literal: Filter.Expression.Clause.Literal[_] =>
-      literal.value match {
-        case array: Iterable[_] =>
-          array
+      literal.dbValue match {
+        // todo: there must be a way to inject a sequence
+        case iterable: Iterable[_] =>
+          iterable
             .map(element => Query("?", Seq(element)))
             .reduceOption(_ + "," ++ _)
             .getOrElse(Query.empty)

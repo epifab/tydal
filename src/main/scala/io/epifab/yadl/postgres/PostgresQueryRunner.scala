@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future, blocking}
 trait JDBCQueryRunner {
   protected def connection: Connection
 
-  protected def extractResults[T](select: Select, extractor: Row => Either[ExtractorError, T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
+  protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
     val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
@@ -32,8 +32,6 @@ trait JDBCQueryRunner {
       .prepareStatement(query.query)
 
     query.params.zipWithIndex.foreach {
-      case (Some(value), index) => statement.setObject(index + 1, value)
-      case (None, index) => statement.setObject(index + 1, null)
       case (param, index) => statement.setObject(index + 1, param)
     }
 
