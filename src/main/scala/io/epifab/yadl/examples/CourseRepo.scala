@@ -1,19 +1,18 @@
 package io.epifab.yadl.examples
 
-import cats.Applicative
+import io.epifab.yadl.domain.{DALError, Insert}
 import io.epifab.yadl.implicits._
-import io.epifab.yadl.domain.{DALError, Insert, QueryRunner}
 
 import scala.language.higherKinds
 
-class CourseRepo[F[_]](implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
-  private lazy val courses = new Schema.CoursesTable("c")
+trait CourseRepo[F[_]] extends Repo[F] {
+  object Courses extends Schema.CoursesTable("c")
 
-  def create(course: Course): F[Either[DALError, Int]] =
-    Insert.into(courses)
+  def createCourse(course: Course): F[Either[DALError, Int]] =
+    Insert.into(Courses)
       .set(
-        courses.id -> course.id,
-        courses.name -> course.name
+        Courses.id -> course.id,
+        Courses.name -> course.name
       )
       .execute()
 }
