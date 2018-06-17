@@ -1,4 +1,4 @@
-name := "tagless-dal"
+name := "yadl"
 organization := "epifab.io"
 version := "0.1"
 
