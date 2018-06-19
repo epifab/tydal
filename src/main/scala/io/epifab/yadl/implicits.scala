@@ -42,11 +42,11 @@ object implicits {
     def <= (ec: ExtendedClause[T]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.LTE)
 
-    def in(ec: ExtendedClause[Iterable[T]]): Expression =
+    def in(ec: ExtendedClause[Seq[T]]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.In)
   }
 
-  implicit class ExtendedValue[T](value: T)(implicit fieldType: FieldAdapter[T]) extends ExtendedClause[T] {
+  implicit class ExtendedValue[T, U](value: T)(implicit fieldType: FieldAdapter[T, U]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Literal(value)
   }
 

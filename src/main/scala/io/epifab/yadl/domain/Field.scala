@@ -1,61 +1,77 @@
 package io.epifab.yadl.domain
 
-import scala.language.implicitConversions
-import scala.util.{Failure, Success, Try}
+import io.epifab.yadl.utils.EitherSupport._
 
-trait FieldAdapter[T] {
-  def extract(v: Any): Either[ExtractorError, T]
-  def inject(t: T): Any
+import scala.language.implicitConversions
+import scala.util.Try
+
+sealed trait DbFieldType[T]
+
+object DbFieldType {
+  sealed trait ScalarDbType[T] extends DbFieldType[T]
+  implicit final case object StringDbType extends ScalarDbType[String]
+  implicit final case object IntDbType extends ScalarDbType[Int]
+  implicit final case object ArrayDbType extends DbFieldType[java.sql.Array]
+}
+
+trait NullableField[T] {
+  def nullValue: T
+}
+
+object NullableField {
+  implicit val NullableString: NullableField[String] = null
+  implicit val NullableInt: NullableField[Int] = null
+}
+
+trait FieldAdapter[T, U] {
+  implicit def dbType: DbFieldType[U]
+
+  def extract(u: U): Either[ExtractorError, T]
+  def inject(t: T): U
 }
 
 object FieldAdapter {
-  import io.epifab.yadl.utils.EitherSupport._
-
-  sealed trait SimpleFieldAdapter[T] extends FieldAdapter[T] {
-    override def extract(v: Any): Either[ExtractorError, T] =
-      Try(v.asInstanceOf[T]) match {
-        case Success(t) => Right(t)
-        case Failure(_) => Left(ExtractorError("Invalid field type"))
-      }
-
-    override def inject(t: T): Any = t
+  abstract class SimpleFieldAdapter[T](implicit val dbType: DbFieldType[T]) extends FieldAdapter[T, T] {
+    override def extract(u: T): Either[ExtractorError, T] = Right(u)
+    override def inject(t: T): T = t
   }
 
-  implicit case object StringField extends SimpleFieldAdapter[String]
-  implicit case object IntField extends SimpleFieldAdapter[Int]
-  implicit case object LongField extends SimpleFieldAdapter[Long]
-  implicit case object DoubleField extends SimpleFieldAdapter[Double]
+  implicit final case object StringType extends SimpleFieldAdapter[String]
+  implicit final case object IntType extends SimpleFieldAdapter[Int]
 
-  implicit def optionalField[T](implicit underneathFieldAdapter: SimpleFieldAdapter[T]): FieldAdapter[Option[T]] = new FieldAdapter[Option[T]] {
-    override def extract(v: Any): Either[ExtractorError, Option[T]] =
-      Option(v) match {
-        case Some(x) => underneathFieldAdapter.extract(x).map(Some(_))
-        case None => Right(None)
-      }
+  implicit def optionalField[T, U](implicit underneathFieldAdapter: FieldAdapter[T, U], nullable: NullableField[U]): FieldAdapter[Option[T], U] =
+    new FieldAdapter[Option[T], U] {
+      override implicit val dbType: DbFieldType[U] = underneathFieldAdapter.dbType
 
-    override def inject(t: Option[T]): Any = t match {
-      case Some(x) => underneathFieldAdapter.inject(x)
-      case None => null
-    }
-  }
+      override def extract(u: U): Either[ExtractorError, Option[T]] =
+        Option(u) match {
+          case Some(x) => underneathFieldAdapter.extract(x).map(Some(_))
+          case None => Right(None)
+        }
 
-  implicit def sequenceField[T](implicit underneathFieldAdapter: SimpleFieldAdapter[T]): FieldAdapter[Iterable[T]] = new FieldAdapter[Iterable[T]] {
-    override def extract(v: Any): Either[ExtractorError, Iterable[T]] = {
-      v match {
-        case x: Seq[Any] => firstLeftOrRights(x.map(underneathFieldAdapter.extract))
-        case _ => Left(ExtractorError("Not a sequence"))
+      override def inject(t: Option[T]): U = t match {
+        case Some(x) => underneathFieldAdapter.inject(x)
+        case None => nullable.nullValue
       }
     }
 
-    override def inject(s: Iterable[T]): Any = s.map(underneathFieldAdapter.inject)
+  implicit def arrayField[T, U](implicit fieldAdapter: FieldAdapter[T, U], dbFieldType: DbFieldType.ScalarDbType[U]): FieldAdapter[Seq[T], java.sql.Array] = new FieldAdapter[Seq[T], java.sql.Array] {
+    override implicit val dbType: DbFieldType[java.sql.Array] = DbFieldType.ArrayDbType
+
+    override def extract(u: java.sql.Array): Either[ExtractorError, Seq[T]] =
+      Try(u.getArray().asInstanceOf[Array[U]])
+        .map(array => firstLeftOrRights(array.toSeq.map(fieldAdapter.extract)))
+        .getOrElse(Left(ExtractorError("Could not convert array")))
+
+    override def inject(t: Seq[T]): java.sql.Array = ???
   }
 }
 
 trait Field[T] extends DataSource {
-  def fieldAdapter: FieldAdapter[T]
+  def fieldAdapter: FieldAdapter[T, _]
 }
 
-case class TableField[T](name: String, dataSource: Table)(implicit val fieldAdapter: FieldAdapter[T]) extends Field[T] {
+case class TableField[T](name: String, dataSource: Table)(implicit val fieldAdapter: FieldAdapter[T, _]) extends Field[T] {
   override def src: String = s"${dataSource.alias}.$name"
   override def alias: String = s"${dataSource.alias}__$name"
 }

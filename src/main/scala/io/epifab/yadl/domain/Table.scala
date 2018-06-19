@@ -4,7 +4,7 @@ trait Table extends DataSource {
   def alias: String
   def src: String
 
-  def field[T](name: String)(implicit fieldExtractor: FieldAdapter[T]): TableField[T] =
+  def field[T, U](name: String)(implicit fieldAdapter: FieldAdapter[T, U]): TableField[T] =
     TableField[T](name, this)
 }
 

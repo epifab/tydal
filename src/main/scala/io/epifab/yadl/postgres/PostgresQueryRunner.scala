@@ -12,19 +12,41 @@ import scala.concurrent.{ExecutionContext, Future, blocking}
 trait JDBCQueryRunner {
   protected def connection: Connection
 
+  protected def extractField[T, U](resultSet: ResultSet, index: Int, fieldAdapter: FieldAdapter[T, U]): Either[ExtractorError, T] = {
+    val u: U = fieldAdapter.dbType match {
+      case DbFieldType.StringDbType =>
+        resultSet.getString(index).asInstanceOf[U]
+      case DbFieldType.IntDbType =>
+        resultSet.getInt(index).asInstanceOf[U]
+      case DbFieldType.ArrayDbType =>
+        resultSet.getArray(index).asInstanceOf[U]
+    }
+
+    fieldAdapter.extract(u)
+  }
+
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val rows = scala.collection.mutable.ArrayBuffer.empty[Row]
+    val fieldIndexes: Map[Field[_], Int] =
+      select.fields.zipWithIndex.toMap
+
+    val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
+
     while (resultSet.next()) {
-      rows += new Row(
-        select.fields.zipWithIndex.map {
-          case (field, index) =>
-            field.alias -> resultSet.getObject(index + 1)
-        }.toMap
-      )
+      val row = new Row {
+        override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
+          fieldIndexes.get(field) match {
+            case Some(index) =>
+              extractField(resultSet, index + 1, field.fieldAdapter)
+            case None =>
+              Left(ExtractorError(s"Field ${field.src} is missing"))
+          }
+      }
+      results += extractor(row)
     }
-    firstLeftOrRights(rows.map(extractor))
+
+    firstLeftOrRights(results)
   }
 
   protected def preparedStatement(query: Query): PreparedStatement = {

@@ -4,11 +4,8 @@ import scala.language.higherKinds
 
 class Col[T](field: Field[T], result: T)
 
-class Row(cols: Map[String, Any]) {
-  def get[T](field: Field[T]): Either[ExtractorError, T] =
-    cols.get(field.alias)
-      .map(field.fieldAdapter.extract)
-      .getOrElse(Left(ExtractorError("Field not found")))
+trait Row {
+  def get[T](field: Field[T]): Either[ExtractorError, T]
 }
 
 trait QueryRunner[F[_]] {
