@@ -35,10 +35,8 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
 
-  implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
-
   object repos extends StudentsRepo[Future] with ExamsRepo[Future] with CourseRepo[Future] {
-    override implicit val queryRunner: QueryRunner[Future] = implicitly
+    override implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
     override implicit val A: Applicative[Future] = implicitly
   }
 
@@ -60,9 +58,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   }
 
   override def afterAll(): Unit = {
-    queryRunner.run(Delete(new Schema.ExamsTable("e")))
-      .flatMap(_ => queryRunner.run(Delete(new Schema.CoursesTable("c"))))
-      .flatMap(_ => queryRunner.run(Delete(new Schema.StudentsTable("s"))))
+    repos.queryRunner.run(Delete(new Schema.ExamsTable("e")))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable("c"))))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable("s"))))
       .eventually shouldBe 'Right
   }
 

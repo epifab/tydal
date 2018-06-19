@@ -103,7 +103,7 @@ object PostgresQueryBuilder {
           .wrap("(", ")") ++
       Query("VALUES") ++
         t.fieldValues
-          .map(fieldValue => Query("?", Seq(fieldValue.value)))
+          .map(fieldValue => Query("?", Seq(fieldValue.dbValue)))
           .reduce(_ + ", " + _)
           .wrap("(", ")")
 
@@ -113,7 +113,7 @@ object PostgresQueryBuilder {
         dataSourceBuilder(t.dataSource) ++
       Query("SET") ++
         t.fieldValues
-          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue.value)))
+          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue.dbValue)))
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)

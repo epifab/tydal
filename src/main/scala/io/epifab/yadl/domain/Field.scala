@@ -60,7 +60,9 @@ case class TableField[T](name: String, dataSource: Table)(implicit val fieldAdap
   override def alias: String = s"${dataSource.alias}__$name"
 }
 
-case class FieldValue[T](field: TableField[T], value: T)
+case class FieldValue[T](field: TableField[T], value: T) {
+  def dbValue: Any = field.fieldAdapter.inject(value)
+}
 
 object FieldValue {
   implicit def apply[T](field: (TableField[T], T)): FieldValue[T] = new FieldValue(field._1, field._2)
