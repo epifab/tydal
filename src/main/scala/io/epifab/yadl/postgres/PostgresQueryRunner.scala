@@ -28,14 +28,14 @@ trait JDBCQueryRunner {
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val fieldIndexes: Map[Field[_], Int] =
+    val fieldIndexes: Map[Field[_, _], Int] =
       select.fields.zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 
     while (resultSet.next()) {
       val row = new Row {
-        override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
+        override def get[FT](field: Field[FT, _]): Either[ExtractorError, FT] =
           fieldIndexes.get(field) match {
             case Some(index) =>
               extractField(resultSet, index + 1, field.fieldAdapter)

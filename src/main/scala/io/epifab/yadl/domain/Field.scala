@@ -1,5 +1,6 @@
 package io.epifab.yadl.domain
 
+import io.circe.{Decoder, Encoder, Printer}
 import io.epifab.yadl.utils.EitherSupport._
 
 import scala.language.implicitConversions
@@ -36,8 +37,33 @@ object FieldAdapter {
     override def inject(t: T): T = t
   }
 
-  implicit final case object StringType extends SimpleFieldAdapter[String]
-  implicit final case object IntType extends SimpleFieldAdapter[Int]
+  implicit final case object StringFieldAdapter extends SimpleFieldAdapter[String]
+  implicit final case object IntFieldAdapter extends SimpleFieldAdapter[Int]
+
+  case class Json[T](value: T)
+
+  implicit def jsonFieldAdapter[T](implicit
+    dbType: DbFieldType[String],
+    stringAdapter: FieldAdapter[String, String],
+    decoder: Decoder[T],
+    encoder: Encoder[T]
+  ): FieldAdapter[Json[T], String] = new FieldAdapter[Json[T], String] {
+
+    import io.circe.parser.decode
+    import io.circe.syntax._
+
+    override def extract(u: String): Either[ExtractorError, Json[T]] = stringAdapter.extract(u)
+      .flatMap { json =>
+        decode(json) match {
+          case Left(e) => Left(ExtractorError(e.getMessage))
+          case Right(t) => Right(Json(t))
+        }
+      }
+
+    override def inject(t: Json[T]): String = t.value.asJson.pretty(Printer.noSpaces)
+
+    override implicit def dbType: DbFieldType[String] = stringAdapter.dbType
+  }
 
   implicit def optionalField[T, U](implicit underneathFieldAdapter: FieldAdapter[T, U], nullable: NullableField[U]): FieldAdapter[Option[T], U] =
     new FieldAdapter[Option[T], U] {
@@ -67,19 +93,20 @@ object FieldAdapter {
   }
 }
 
-trait Field[T] extends DataSource {
-  def fieldAdapter: FieldAdapter[T, _]
+trait Field[T, U] extends DataSource {
+  def fieldAdapter: FieldAdapter[T, U]
 }
 
-case class TableField[T](name: String, dataSource: Table)(implicit val fieldAdapter: FieldAdapter[T, _]) extends Field[T] {
+case class TableField[T, U](name: String, dataSource: Table)(implicit val fieldAdapter: FieldAdapter[T, U]) extends Field[T, U] {
   override def src: String = s"${dataSource.alias}.$name"
   override def alias: String = s"${dataSource.alias}__$name"
 }
 
-case class FieldValue[T](field: TableField[T], value: T) {
-  def dbValue: Any = field.fieldAdapter.inject(value)
+case class FieldValue[T, U](field: TableField[T, U], value: T) {
+  def dbValue: U = field.fieldAdapter.inject(value)
 }
 
 object FieldValue {
-  implicit def apply[T](field: (TableField[T], T)): FieldValue[T] = new FieldValue(field._1, field._2)
+  implicit def apply[T, U](field: (TableField[T, U], T)): FieldValue[T, U] =
+    new FieldValue[T, U](field._1, field._2)
 }

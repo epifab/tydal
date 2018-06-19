@@ -21,53 +21,53 @@ object implicits {
       queryRunner.run(statement)
   }
 
-  trait ExtendedClause[T] {
+  trait ExtendedClause[T, U] {
     def clause: Expression.Clause[T]
 
-    def ===(ec: ExtendedClause[T]): Expression =
+    def ===(ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.Equal)
 
-    def !==(ec: ExtendedClause[T]): Expression =
+    def !==(ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.NotEqual)
 
-    def > (ec: ExtendedClause[T]): Expression =
+    def > (ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.GT)
 
-    def < (ec: ExtendedClause[T]): Expression =
+    def < (ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.LT)
 
-    def >= (ec: ExtendedClause[T]): Expression =
+    def >= (ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.GTE)
 
-    def <= (ec: ExtendedClause[T]): Expression =
+    def <= (ec: ExtendedClause[T, U]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.LTE)
 
-    def in(ec: ExtendedClause[Seq[T]]): Expression =
+    def in[V](ec: ExtendedClause[Seq[T], V]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.In)
   }
 
-  implicit class ExtendedValue[T, U](value: T)(implicit fieldType: FieldAdapter[T, U]) extends ExtendedClause[T] {
+  implicit class ExtendedValue[T, U](value: T)(implicit fieldType: FieldAdapter[T, U]) extends ExtendedClause[T, U] {
     override val clause = Expression.Clause.Literal(value)
   }
 
-  implicit class ExtendedField[T](field: io.epifab.yadl.domain.Field[T]) extends ExtendedClause[T] {
+  implicit class ExtendedField[T, U](field: io.epifab.yadl.domain.Field[T, U]) extends ExtendedClause[T, U] {
     override val clause = Expression.Clause.Field(field)
 
     def asc: Sort = AscSort(field)
     def desc: Sort = DescSort(field)
   }
 
-  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String]) {
-    def like(ec: ExtendedClause[String]): Expression =
+  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String, String]) {
+    def like(ec: ExtendedClause[String, String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String]]) {
-    def like(ec: ExtendedClause[String]): Expression =
+  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String], String]) {
+    def like(ec: ExtendedClause[String, String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionField[T](field: io.epifab.yadl.domain.Field[Option[T]]) {
+  implicit class ExtendedOptionField[T, U](field: io.epifab.yadl.domain.Field[Option[T], U]) {
     def isDefined: Expression =
       UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsDefined)
 

@@ -1,5 +1,6 @@
 package io.epifab.yadl.examples
 
+import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
 
 object Schema {
@@ -8,11 +9,13 @@ object Schema {
   class StudentsTable(val alias: String) extends Table { self =>
     override val src: String = "students"
 
-    lazy val id: TableField[Int] = field("id")
-    lazy val name: TableField[String] = field("name")
-    lazy val email: TableField[Option[String]] = field("email")
+    lazy val id: TableField[Int, Int] = field("id")
+    lazy val name: TableField[String, String] = field("name")
+    lazy val email: TableField[Option[String], String] = field("email")
+    lazy val interests: TableField[Seq[String], java.sql.Array] = field("interests")
+    lazy val address: TableField[Json[String], String] = field("address")
 
-    lazy val `*`: Seq[Field[_]] = Seq(id, name, email)
+    lazy val `*`: Seq[Field[_, _]] = Seq(id, name, email)
 
     lazy val exams: ExamsTable with Relation = new ExamsTable(self.alias + "__exams") with Relation {
       override def relationClause: Filter = self.id === studentId
@@ -22,10 +25,10 @@ object Schema {
   class CoursesTable(val alias: String) extends Table { self =>
     override def src: String = "courses"
 
-    lazy val id: TableField[Int] = field("id")
-    lazy val name: TableField[String] = field("name")
+    lazy val id: TableField[Int, Int] = field("id")
+    lazy val name: TableField[String, String] = field("name")
 
-    lazy val `*`: Seq[Field[_]] = Seq(id, name)
+    lazy val `*`: Seq[Field[_, _]] = Seq(id, name)
 
     lazy val exams: ExamsTable with Relation = new ExamsTable(self.alias + "__exams") with Relation {
       override def relationClause: Filter = self.id === courseId
@@ -35,11 +38,11 @@ object Schema {
   class ExamsTable(val alias: String) extends Table { self =>
     override def src: String = "exams"
 
-    lazy val studentId: TableField[Int] = field("student_id")
-    lazy val courseId: TableField[Int] = field("course_id")
-    lazy val rate: TableField[Int] = field("rate")
+    lazy val studentId: TableField[Int, Int] = field("student_id")
+    lazy val courseId: TableField[Int, Int] = field("course_id")
+    lazy val rate: TableField[Int, Int] = field("rate")
 
-    lazy val `*`: Seq[Field[_]] = Seq(studentId, courseId, rate)
+    lazy val `*`: Seq[Field[_, _]] = Seq(studentId, courseId, rate)
 
     lazy val course: CoursesTable with Relation = new CoursesTable(self.alias + "__course") with Relation {
       override def relationClause: Filter = id === self.courseId
