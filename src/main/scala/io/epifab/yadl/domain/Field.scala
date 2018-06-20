@@ -10,17 +10,27 @@ sealed trait DbFieldType[T]
 
 object DbFieldType {
   sealed trait ScalarDbType[T] extends DbFieldType[T]
-  implicit final case object StringDbType extends ScalarDbType[String]
-  implicit final case object IntDbType extends ScalarDbType[Int]
+  implicit final case object StringDbType extends ScalarDbType[java.lang.String]
+  implicit final case object IntDbType extends ScalarDbType[java.lang.Integer]
   implicit final case object ArrayDbType extends DbFieldType[java.sql.Array]
 }
 
-trait NullableField[-T] {
-  def nullValue[U <: T]: U
+trait NullableField[T] {
+  def nullValue: T
 }
 
 object NullableField {
-  implicit val nullableString: NullableField[Object] = null
+  implicit val nullableString: NullableField[java.lang.String] = new NullableField[java.lang.String] {
+    override def nullValue: java.lang.String = null
+  }
+
+  implicit val nullableInt: NullableField[java.lang.Integer] = new NullableField[java.lang.Integer] {
+    override def nullValue: java.lang.Integer = null
+  }
+
+  implicit val nullableArray: NullableField[java.sql.Array] = new NullableField[java.sql.Array] {
+    override def nullValue: java.sql.Array = null
+  }
 }
 
 trait FieldAdapter[T, U] {
@@ -37,7 +47,13 @@ object FieldAdapter {
   }
 
   implicit final case object StringFieldAdapter extends SimpleFieldAdapter[String]
-  implicit final case object IntFieldAdapter extends SimpleFieldAdapter[Int]
+
+  implicit final case object IntFieldAdapter extends FieldAdapter[Int, java.lang.Integer] {
+    override implicit def dbType: DbFieldType[Integer] = DbFieldType.IntDbType
+
+    override def extract(u: java.lang.Integer): Either[ExtractorError, Int] = Right(u)
+    override def inject(t: Int): java.lang.Integer = t
+  }
 
   case class Json[T](value: T)
 

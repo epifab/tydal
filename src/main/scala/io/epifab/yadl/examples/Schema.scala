@@ -12,9 +12,9 @@ object Schema {
   class StudentsTable(val alias: String) extends Table { self =>
     override val src: String = "students"
 
-    lazy val id: TableField[Int, Int] = field("id")
+    lazy val id: TableField[Int, java.lang.Integer] = field("id")
     lazy val name: TableField[String, String] = field("name")
-    lazy val email: TableField[Option[String], String] = field("email")
+    lazy val email: TableField[Option[String], String] = field[Option[String], String]("email")
     lazy val interests: TableField[Seq[String], java.sql.Array] = field("interests")
     lazy val address: TableField[Json[Address], String] = field("address")
 
@@ -28,7 +28,7 @@ object Schema {
   class CoursesTable(val alias: String) extends Table { self =>
     override def src: String = "courses"
 
-    lazy val id: TableField[Int, Int] = field("id")
+    lazy val id: TableField[Int, java.lang.Integer] = field("id")
     lazy val name: TableField[String, String] = field("name")
 
     lazy val `*`: Seq[Field[_, _]] = Seq(id, name)
@@ -41,9 +41,9 @@ object Schema {
   class ExamsTable(val alias: String) extends Table { self =>
     override def src: String = "exams"
 
-    lazy val studentId: TableField[Int, Int] = field("student_id")
-    lazy val courseId: TableField[Int, Int] = field("course_id")
-    lazy val rate: TableField[Int, Int] = field("rate")
+    lazy val studentId: TableField[Int, java.lang.Integer] = field("student_id")
+    lazy val courseId: TableField[Int, java.lang.Integer] = field("course_id")
+    lazy val rate: TableField[Int, java.lang.Integer] = field("rate")
 
     lazy val `*`: Seq[Field[_, _]] = Seq(studentId, courseId, rate)
 

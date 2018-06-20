@@ -57,12 +57,12 @@ object implicits {
     def desc: Sort = DescSort(field)
   }
 
-  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String, String]) {
+  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String, java.lang.String]) {
     def like(ec: ExtendedClause[String, String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String], String]) {
+  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String], java.lang.String]) {
     def like(ec: ExtendedClause[String, String]): Expression =
       BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
   }
