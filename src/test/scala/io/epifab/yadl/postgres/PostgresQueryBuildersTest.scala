@@ -1,5 +1,6 @@
 package io.epifab.yadl.postgres
 
+import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
@@ -140,15 +141,17 @@ class PostgresQueryBuildersTest extends FlatSpec {
       Insert
         .into(students)
         .set(
+          students.id -> 123,
           students.name -> "John",
-          students.email -> Some("john@doe.com")
+          students.email -> Some("john@doe.com"),
+          students.address -> Json(Address("n1900", "123 Fake St.", None))
         )
 
     insert(query) shouldBe Query(
       "INSERT INTO students" +
-        " (name, email)" +
-        " VALUES (?, ?)",
-      Seq("John", "john@doe.com")
+        " (id, name, email, address)" +
+        " VALUES (?, ?, ?, ?)",
+      Seq(123, "John", "john@doe.com", """{"postcode":"n1900","line1":"123 Fake St.","line2":null}""")
     )
   }
 

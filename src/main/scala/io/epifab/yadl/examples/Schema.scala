@@ -4,7 +4,10 @@ import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
 
 object Schema {
+  import io.circe.generic.auto._
   import io.epifab.yadl.implicits._
+
+  case class Address(postcode: String, line1: String, line2: Option[String])
 
   class StudentsTable(val alias: String) extends Table { self =>
     override val src: String = "students"
@@ -13,7 +16,7 @@ object Schema {
     lazy val name: TableField[String, String] = field("name")
     lazy val email: TableField[Option[String], String] = field("email")
     lazy val interests: TableField[Seq[String], java.sql.Array] = field("interests")
-    lazy val address: TableField[Json[String], String] = field("address")
+    lazy val address: TableField[Json[Address], String] = field("address")
 
     lazy val `*`: Seq[Field[_, _]] = Seq(id, name, email)
 

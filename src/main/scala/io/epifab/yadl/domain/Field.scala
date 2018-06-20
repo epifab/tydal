@@ -103,7 +103,7 @@ case class TableField[T, U](name: String, dataSource: Table)(implicit val fieldA
 }
 
 case class FieldValue[T, U](field: TableField[T, U], value: T) {
-  def dbValue: U = field.fieldAdapter.inject(value)
+  lazy val dbValue: U = field.fieldAdapter.inject(value)
 }
 
 object FieldValue {
