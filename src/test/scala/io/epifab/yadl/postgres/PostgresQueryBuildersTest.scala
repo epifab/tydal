@@ -144,13 +144,14 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.address -> Json(Address("n1900", "123 Fake St.", None))
+          students.address -> Json(Address("n1900", "123 Fake St.", None)),
+          students.field[Option[Seq[String]], java.sql.Array]("yosushi") -> Some(Seq("asd"))
         )
 
     insert(query) shouldBe Query(
       "INSERT INTO students" +
         " (id, name, email, address)" +
-        " VALUES (?, ?, ?, ?)",
+        " VALUES (?, ?, ?, ?, ?)",
       Seq(123, "John", "john@doe.com", """{"postcode":"n1900","line1":"123 Fake St.","line2":null}""")
     )
   }

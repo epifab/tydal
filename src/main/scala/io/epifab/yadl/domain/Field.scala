@@ -15,13 +15,12 @@ object DbFieldType {
   implicit final case object ArrayDbType extends DbFieldType[java.sql.Array]
 }
 
-trait NullableField[T] {
-  def nullValue: T
+trait NullableField[-T] {
+  def nullValue[U <: T]: U
 }
 
 object NullableField {
-  implicit val NullableString: NullableField[String] = null
-  implicit val NullableInt: NullableField[Int] = null
+  implicit val nullableString: NullableField[Object] = null
 }
 
 trait FieldAdapter[T, U] {
