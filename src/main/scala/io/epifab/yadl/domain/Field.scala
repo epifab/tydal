@@ -1,19 +1,22 @@
 package io.epifab.yadl.domain
 
 import io.circe.{Decoder, Encoder, Printer}
-import io.epifab.yadl.domain.FieldAdapter.IntFieldAdapter.U
 import io.epifab.yadl.utils.EitherSupport._
 
 import scala.language.implicitConversions
-import scala.util.Try
 
 sealed trait DbType[T]
 
 object DbType {
   sealed trait ScalarDbType[T] extends DbType[T]
-  implicit final case object StringDbType extends ScalarDbType[java.lang.String]
-  implicit final case object IntDbType extends ScalarDbType[java.lang.Integer]
-  implicit final case object ArrayDbType extends DbType[java.sql.Array]
+  final case object StringDbType extends ScalarDbType[java.lang.String]
+  final case object IntDbType extends ScalarDbType[java.lang.Integer]
+  final class SeqDbType[T](dbType: ScalarDbType[T]) extends DbType[Seq[T]]
+
+  implicit val string: ScalarDbType[java.lang.String] = StringDbType
+  implicit val int: ScalarDbType[java.lang.Integer] = IntDbType
+  implicit def seq[T](implicit dbType: ScalarDbType[T]): DbType[Seq[T]] =
+    new SeqDbType[T](dbType)
 }
 
 trait NullableField[T] {
@@ -29,8 +32,8 @@ object NullableField {
     override def nullValue: java.lang.Integer = null
   }
 
-  implicit val nullableArray: NullableField[java.sql.Array] = new NullableField[java.sql.Array] {
-    override def nullValue: java.sql.Array = null
+  implicit def nullableArray[T]: NullableField[Seq[T]] = new NullableField[Seq[T]] {
+    override def nullValue: Seq[T] = null
   }
 }
 
@@ -50,9 +53,9 @@ object FieldAdapter {
     override def inject(t: T): T = t
   }
 
-  implicit final case object StringFieldAdapter extends SimpleFieldAdapter[String]
+  implicit case object StringFieldAdapter extends SimpleFieldAdapter[String]
 
-  implicit final case object IntFieldAdapter extends FieldAdapter[Int] {
+  implicit case object IntFieldAdapter extends FieldAdapter[Int] {
     type U = java.lang.Integer
     override implicit def dbType: DbType[Integer] = DbType.IntDbType
 
@@ -62,11 +65,11 @@ object FieldAdapter {
 
   case class Json[T](value: T)
 
-  implicit def jsonFieldAdapter[T](implicit
-                                   stringType: DbType[String],
-                                   stringAdapter: FieldAdapter[String],
-                                   decoder: Decoder[T],
-                                   encoder: Encoder[T]
+  implicit def jsonField[T](implicit
+                            stringType: DbType[String],
+                            stringAdapter: FieldAdapter[String],
+                            decoder: Decoder[T],
+                            encoder: Encoder[T]
   ): FieldAdapter[Json[T]] = new FieldAdapter[Json[T]] {
     type U = stringAdapter.U
 
@@ -103,16 +106,15 @@ object FieldAdapter {
       }
     }
 
-  implicit def seqField[T](implicit underneathFieldAdapter: FieldAdapter[T], dbFieldType: DbType.ScalarDbType[U]): FieldAdapter.Aux[Seq[T], java.sql.Array] = new FieldAdapter[Seq[T]] {
-    type U = java.sql.Array
-    override implicit val dbType: DbType[java.sql.Array] = DbType.ArrayDbType
+  implicit def seqField[T, S](implicit underneathFieldAdapter: FieldAdapter.Aux[T, S], seqDbType: DbType[Seq[S]]): FieldAdapter.Aux[Seq[T], Seq[S]] = new FieldAdapter[Seq[T]] {
+    type U = Seq[S]
+    override implicit val dbType: DbType[U] = seqDbType
 
-    override def extract(u: java.sql.Array): Either[ExtractorError, Seq[T]] =
-      Try(u.getArray().asInstanceOf[Array[underneathFieldAdapter.U]])
-        .map(array => firstLeftOrRights(array.toSeq.map(underneathFieldAdapter.extract)))
-        .getOrElse(Left(ExtractorError("Could not convert array")))
+    override def extract(u: U): Either[ExtractorError, Seq[T]] =
+      firstLeftOrRights(u.map(underneathFieldAdapter.extract))
 
-    override def inject(t: Seq[T]): java.sql.Array = ???
+    override def inject(t: Seq[T]): U =
+      t.map(underneathFieldAdapter.inject)
   }
 }
 
