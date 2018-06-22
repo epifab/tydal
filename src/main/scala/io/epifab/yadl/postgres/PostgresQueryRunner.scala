@@ -14,11 +14,11 @@ trait JDBCQueryRunner {
 
   protected def extractField[T, U](resultSet: ResultSet, index: Int, fieldAdapter: FieldAdapter[T, U]): Either[ExtractorError, T] = {
     val u: U = fieldAdapter.dbType match {
-      case DbFieldType.StringDbType =>
+      case DbType.StringDbType =>
         resultSet.getString(index).asInstanceOf[U]
-      case DbFieldType.IntDbType =>
+      case DbType.IntDbType =>
         resultSet.getInt(index).asInstanceOf[U]
-      case DbFieldType.ArrayDbType =>
+      case DbType.ArrayDbType =>
         resultSet.getArray(index).asInstanceOf[U]
     }
 
@@ -38,7 +38,7 @@ trait JDBCQueryRunner {
         override def get[FT](field: Field[FT, _]): Either[ExtractorError, FT] =
           fieldIndexes.get(field) match {
             case Some(index) =>
-              extractField(resultSet, index + 1, field.fieldAdapter)
+              extractField(resultSet, index + 1, field.adapter)
             case None =>
               Left(ExtractorError(s"Field ${field.src} is missing"))
           }
