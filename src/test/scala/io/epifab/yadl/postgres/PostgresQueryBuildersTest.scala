@@ -144,8 +144,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.address -> Json(Address("n1900", "123 Fake St.", None)),
-          students.field[Option[Seq[String]], java.sql.Array]("yosushi") -> Some(Seq("asd"))
+          students.interests -> Some(Seq("music", "art", "computer science")),
+          students.address -> Json(Address("n1900", "123 Fake St.", None))
         )
 
     insert(query) shouldBe Query(

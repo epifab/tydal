@@ -2,10 +2,10 @@ package io.epifab.yadl.domain
 
 import scala.language.higherKinds
 
-class Col[T, U](field: Field[T, U], result: T)
+class Col[T, U](field: Field[T], result: T)
 
 trait Row {
-  def get[T](field: Field[T, _]): Either[ExtractorError, T]
+  def get[T](field: Field[T]): Either[ExtractorError, T]
 }
 
 trait QueryRunner[F[_]] {

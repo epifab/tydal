@@ -20,9 +20,9 @@ object PostgresQueryBuilder {
   }
 
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case f: Filter.Expression.Clause.Field[_, _] =>
+    case f: Filter.Expression.Clause.Field[_] =>
       Query(f.field.src)
-    case literal: Filter.Expression.Clause.Literal[_, _] =>
+    case literal: Filter.Expression.Clause.Literal[_] =>
       literal.dbValue match {
         // todo: there must be a way to inject a sequence
         case iterable: Iterable[_] =>
@@ -50,8 +50,8 @@ object PostgresQueryBuilder {
     case Filter.Empty => Query("1 = 1")
   }
 
-  val fieldBuilder: QueryBuilder[Field[_, _]] =
-    (field: Field[_, _]) => Query(s"${field.src} AS ${field.alias}")
+  val fieldBuilder: QueryBuilder[Field[_]] =
+    (field: Field[_]) => Query(s"${field.src} AS ${field.alias}")
 
   val dataSourceBuilder: QueryBuilder[DataSource] =
     (ds: DataSource) => Query(s"${ds.src} AS ${ds.alias}")

@@ -1,6 +1,7 @@
 package io.epifab.yadl.domain
 
 import io.circe.{Decoder, Encoder, Printer}
+import io.epifab.yadl.domain.FieldAdapter.IntFieldAdapter.U
 import io.epifab.yadl.utils.EitherSupport._
 
 import scala.language.implicitConversions
@@ -33,21 +34,26 @@ object NullableField {
   }
 }
 
-trait FieldAdapter[T, U] {
+trait FieldAdapter[T] {
+  type U
   implicit def dbType: DbType[U]
   def extract(u: U): Either[ExtractorError, T]
   def inject(t: T): U
 }
 
 object FieldAdapter {
-  abstract class SimpleFieldAdapter[T](implicit val dbType: DbType[T]) extends FieldAdapter[T, T] {
+  type Aux[T, S] = FieldAdapter[T] { type U = S }
+
+  abstract class SimpleFieldAdapter[T](implicit val dbType: DbType[T]) extends FieldAdapter[T] {
+    type U = T
     override def extract(u: T): Either[ExtractorError, T] = Right(u)
     override def inject(t: T): T = t
   }
 
   implicit final case object StringFieldAdapter extends SimpleFieldAdapter[String]
 
-  implicit final case object IntFieldAdapter extends FieldAdapter[Int, java.lang.Integer] {
+  implicit final case object IntFieldAdapter extends FieldAdapter[Int] {
+    type U = java.lang.Integer
     override implicit def dbType: DbType[Integer] = DbType.IntDbType
 
     override def extract(u: java.lang.Integer): Either[ExtractorError, Int] = Right(u)
@@ -57,16 +63,17 @@ object FieldAdapter {
   case class Json[T](value: T)
 
   implicit def jsonFieldAdapter[T](implicit
-                                   dbType: DbType[String],
-                                   stringAdapter: FieldAdapter[String, String],
+                                   stringType: DbType[String],
+                                   stringAdapter: FieldAdapter[String],
                                    decoder: Decoder[T],
                                    encoder: Encoder[T]
-  ): FieldAdapter[Json[T], String] = new FieldAdapter[Json[T], String] {
+  ): FieldAdapter[Json[T]] = new FieldAdapter[Json[T]] {
+    type U = stringAdapter.U
 
     import io.circe.parser.decode
     import io.circe.syntax._
 
-    override def extract(u: String): Either[ExtractorError, Json[T]] = stringAdapter.extract(u)
+    override def extract(u: U): Either[ExtractorError, Json[T]] = stringAdapter.extract(u)
       .flatMap { json =>
         decode(json) match {
           case Left(e) => Left(ExtractorError(e.getMessage))
@@ -74,13 +81,14 @@ object FieldAdapter {
         }
       }
 
-    override def inject(t: Json[T]): String = t.value.asJson.pretty(Printer.noSpaces)
+    override def inject(t: Json[T]): U = stringAdapter.inject(t.value.asJson.pretty(Printer.noSpaces))
 
-    override implicit def dbType: DbType[String] = stringAdapter.dbType
+    override implicit def dbType: DbType[U] = stringAdapter.dbType
   }
 
-  implicit def optionalField[T, U](implicit underneathFieldAdapter: FieldAdapter[T, U], nullable: NullableField[U]): FieldAdapter[Option[T], U] =
-    new FieldAdapter[Option[T], U] {
+  implicit def optionalField[T, S](implicit underneathFieldAdapter: FieldAdapter.Aux[T, S], nullable: NullableField[S]): FieldAdapter.Aux[Option[T], S] =
+    new FieldAdapter[Option[T]] {
+      type U = S
       override implicit val dbType: DbType[U] = underneathFieldAdapter.dbType
 
       override def extract(u: U): Either[ExtractorError, Option[T]] =
@@ -95,11 +103,12 @@ object FieldAdapter {
       }
     }
 
-  implicit def arrayField[T, U](implicit underneathFieldAdapter: FieldAdapter[T, U], dbFieldType: DbType.ScalarDbType[U]): FieldAdapter[Seq[T], java.sql.Array] = new FieldAdapter[Seq[T], java.sql.Array] {
+  implicit def seqField[T](implicit underneathFieldAdapter: FieldAdapter[T], dbFieldType: DbType.ScalarDbType[U]): FieldAdapter.Aux[Seq[T], java.sql.Array] = new FieldAdapter[Seq[T]] {
+    type U = java.sql.Array
     override implicit val dbType: DbType[java.sql.Array] = DbType.ArrayDbType
 
     override def extract(u: java.sql.Array): Either[ExtractorError, Seq[T]] =
-      Try(u.getArray().asInstanceOf[Array[U]])
+      Try(u.getArray().asInstanceOf[Array[underneathFieldAdapter.U]])
         .map(array => firstLeftOrRights(array.toSeq.map(underneathFieldAdapter.extract)))
         .getOrElse(Left(ExtractorError("Could not convert array")))
 
@@ -107,26 +116,27 @@ object FieldAdapter {
   }
 }
 
-trait Field[T, U] extends DataSource {
-  def adapter: FieldAdapter[T, U]
+trait Field[T] extends DataSource {
+  def adapter: FieldAdapter[T]
 }
 
-trait Value[T, U] {
-  def adapter: FieldAdapter[T, U]
+trait Value[T] {
+  type U
+  def adapter: FieldAdapter.Aux[T, U]
   def value: T
   lazy val dbValue: U = adapter.inject(value)
 }
 
-case class TableField[T, U](name: String, dataSource: Table)(implicit val adapter: FieldAdapter[T, U]) extends Field[T, U] {
+case class TableField[T](name: String, dataSource: Table)(implicit val adapter: FieldAdapter[T]) extends Field[T] {
   override def src: String = s"${dataSource.alias}.$name"
   override def alias: String = s"${dataSource.alias}__$name"
 }
 
-case class FieldValue[T, U](field: TableField[T, U], value: T) extends Value[T, U] {
-  override val adapter: FieldAdapter[T, U] = field.adapter
+case class FieldValue[T](field: TableField[T], value: T) extends Value[T] {
+  type U = field.adapter.U
+  override val adapter: FieldAdapter.Aux[T, U] = field.adapter
 }
 
 object FieldValue {
-  implicit def apply[T, U](field: (TableField[T, U], T)): FieldValue[T, U] =
-    new FieldValue[T, U](field._1, field._2)
+  implicit def apply[T](field: (TableField[T], T)): FieldValue[T] = new FieldValue[T](field._1, field._2)
 }

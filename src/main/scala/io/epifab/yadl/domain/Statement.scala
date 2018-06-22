@@ -6,15 +6,15 @@ sealed trait SideEffect
 
 sealed trait Select extends Statement {
   def dataSource: DataSource
-  def fields: Seq[Field[_, _]]
+  def fields: Seq[Field[_]]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def take(field: Field[_, _], fields: Field[_, _]*): Select
+  def take(field: Field[_], fields: Field[_]*): Select
 
-  def take(fields: Seq[Field[_, _]]): Select
+  def take(fields: Seq[Field[_]]): Select
 
   def leftJoin(relation: DataSource with Relation): Select
 
@@ -36,16 +36,16 @@ sealed trait Select extends Statement {
 object Select {
   protected final case class SelectImpl(
     dataSource: DataSource,
-    fields: Seq[Field[_, _]] = Seq.empty,
+    fields: Seq[Field[_]] = Seq.empty,
     joins: Seq[Join] = Seq.empty,
     filter: Filter = Filter.Empty,
     sort: Seq[Sort] = Seq.empty,
     limit: Option[Limit] = None
   ) extends Select {
-    def take(fields: Seq[Field[_, _]]): Select =
+    def take(fields: Seq[Field[_]]): Select =
       copy(fields = this.fields ++ fields)
 
-    def take(field: Field[_, _], fields: Field[_, _]*): Select =
+    def take(field: Field[_], fields: Field[_]*): Select =
       copy(fields = this.fields ++ (field +: fields))
 
     def leftJoin(relation: DataSource with Relation): Select =
@@ -78,14 +78,14 @@ object Select {
 
 sealed trait Insert extends Statement with SideEffect {
   def dataSource: DataSource
-  def fieldValues: Seq[FieldValue[_, _]]
+  def fieldValues: Seq[FieldValue[_]]
 
-  def set(fieldValues: FieldValue[_, _]*): Insert
+  def set(fieldValues: FieldValue[_]*): Insert
 }
 
 object Insert {
-  protected final case class InsertImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_, _]] = Seq.empty) extends Insert {
-    def set(fieldValues: FieldValue[_, _]*): Insert =
+  protected final case class InsertImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_]] = Seq.empty) extends Insert {
+    def set(fieldValues: FieldValue[_]*): Insert =
       copy(fieldValues = this.fieldValues ++ fieldValues)
   }
 
@@ -94,16 +94,16 @@ object Insert {
 
 sealed trait Update extends Statement with SideEffect {
   def dataSource: DataSource
-  def fieldValues: Seq[FieldValue[_, _]]
+  def fieldValues: Seq[FieldValue[_]]
   def filter: Filter
 
-  def set(fieldValues: FieldValue[_, _]*): Update
+  def set(fieldValues: FieldValue[_]*): Update
   def where(filter: Filter): Update
 }
 
 object Update {
-  protected final case class UpdateImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_, _]] = Seq.empty, filter: Filter = Filter.Empty) extends Update {
-    def set(fieldValues: FieldValue[_, _]*): Update =
+  protected final case class UpdateImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update {
+    def set(fieldValues: FieldValue[_]*): Update =
       copy(fieldValues = this.fieldValues ++ fieldValues)
 
     def where(filter: Filter): Update =

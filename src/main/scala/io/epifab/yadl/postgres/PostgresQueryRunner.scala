@@ -12,30 +12,32 @@ import scala.concurrent.{ExecutionContext, Future, blocking}
 trait JDBCQueryRunner {
   protected def connection: Connection
 
-  protected def extractField[T, U](resultSet: ResultSet, index: Int, fieldAdapter: FieldAdapter[T, U]): Either[ExtractorError, T] = {
-    val u: U = fieldAdapter.dbType match {
-      case DbType.StringDbType =>
-        resultSet.getString(index).asInstanceOf[U]
-      case DbType.IntDbType =>
-        resultSet.getInt(index).asInstanceOf[U]
-      case DbType.ArrayDbType =>
-        resultSet.getArray(index).asInstanceOf[U]
-    }
+  protected def extractField[T](resultSet: ResultSet, index: Int, adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
+//    val u: U = adapter.dbType match {
+//      case DbType.StringDbType =>
+//        resultSet.getString(index).asInstanceOf[U]
+//      case DbType.IntDbType =>
+//        resultSet.getInt(index).asInstanceOf[U]
+//      case DbType.ArrayDbType =>
+//        resultSet.getArray(index).asInstanceOf[U]
+//    }
+//
+//    adapter.extract(u)
 
-    fieldAdapter.extract(u)
+    adapter.extract(resultSet.getObject(index).asInstanceOf[adapter.U])
   }
 
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val fieldIndexes: Map[Field[_, _], Int] =
+    val fieldIndexes: Map[Field[_], Int] =
       select.fields.zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 
     while (resultSet.next()) {
       val row = new Row {
-        override def get[FT](field: Field[FT, _]): Either[ExtractorError, FT] =
+        override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
           fieldIndexes.get(field) match {
             case Some(index) =>
               extractField(resultSet, index + 1, field.adapter)
