@@ -125,6 +125,19 @@ trait Value[T] {
   def adapter: FieldAdapter.Aux[T, U]
   def value: T
   lazy val dbValue: U = adapter.inject(value)
+
+  override def equals(obj: scala.Any): Boolean = obj match {
+    case t: Value[T] => t.value == value
+    case _ => false
+  }
+}
+
+object Value {
+  implicit def apply[T](v: T)(implicit a: FieldAdapter[T]): Value[T] = new Value[T] {
+    type U = a.U
+    override def adapter: FieldAdapter.Aux[T, U] = a
+    override def value: T = v
+  }
 }
 
 case class TableField[T](name: String, dataSource: Table)(implicit val adapter: FieldAdapter[T]) extends Field[T] {
@@ -132,11 +145,16 @@ case class TableField[T](name: String, dataSource: Table)(implicit val adapter: 
   override def alias: String = s"${dataSource.alias}__$name"
 }
 
-case class FieldValue[T](field: TableField[T], value: T) extends Value[T] {
-  type U = field.adapter.U
-  override val adapter: FieldAdapter.Aux[T, U] = field.adapter
+trait FieldValue[T] extends Value[T] {
+  def field: TableField[T]
+  def value: T
 }
 
 object FieldValue {
-  implicit def apply[T](field: (TableField[T], T)): FieldValue[T] = new FieldValue[T](field._1, field._2)
+  implicit def apply[T](fieldValue: (TableField[T], T)): FieldValue[T] = new FieldValue[T] {
+    type U = fieldValue._1.adapter.U
+    override val adapter: FieldAdapter.Aux[T, U] = fieldValue._1.adapter
+    override val field: TableField[T] = fieldValue._1
+    override val value: T = fieldValue._2
+  }
 }

@@ -22,18 +22,19 @@ object PostgresQueryBuilder {
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
     case f: Filter.Expression.Clause.Field[_] =>
       Query(f.field.src)
-    case literal: Filter.Expression.Clause.Literal[_] =>
-      literal.dbValue match {
-        // todo: there must be a way to inject a sequence
-        case iterable: Iterable[_] =>
-          iterable
-            .map(element => Query("?", Seq(element)))
-            .reduceOption(_ + "," ++ _)
-            .getOrElse(Query.empty)
-            .wrap("(", ")")
-        case any =>
-          Query("?", Seq(any))
-      }
+    case l: Filter.Expression.Clause.Literal[_, _] =>
+      Query("?", Seq(l))
+//      literal.dbValue match {
+//        // todo: there must be a way to inject a sequence
+//        case iterable: Iterable[_] =>
+//          iterable
+//            .map(element => Query("?", Seq(element)))
+//            .reduceOption(_ + "," ++ _)
+//            .getOrElse(Query.empty)
+//            .wrap("(", ")")
+//        case any =>
+//          Query("?", Seq(any))
+//      }
   }
 
   val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
@@ -103,7 +104,7 @@ object PostgresQueryBuilder {
           .wrap("(", ")") ++
       Query("VALUES") ++
         t.fieldValues
-          .map(fieldValue => Query("?", Seq(fieldValue.dbValue)))
+          .map(fieldValue => Query("?", Seq(fieldValue)))
           .reduce(_ + ", " + _)
           .wrap("(", ")")
 
@@ -113,7 +114,7 @@ object PostgresQueryBuilder {
         dataSourceBuilder(t.dataSource) ++
       Query("SET") ++
         t.fieldValues
-          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue.dbValue)))
+          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue)))
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)

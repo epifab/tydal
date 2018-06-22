@@ -46,7 +46,7 @@ object implicits {
       BinaryExpression(clause, ec.clause, Expression.Op.In)
   }
 
-  implicit class ExtendedValue[T](value: T)(implicit fieldType: FieldAdapter[T]) extends ExtendedClause[T] {
+  implicit class ExtendedValue[T, U](value: T)(implicit adapter: FieldAdapter.Aux[T, U]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Literal(value)
   }
 

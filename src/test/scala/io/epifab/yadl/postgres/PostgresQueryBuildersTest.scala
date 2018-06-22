@@ -2,6 +2,7 @@ package io.epifab.yadl.postgres
 
 import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
+import io.circe.generic.auto._
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 
@@ -66,8 +67,12 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
-        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN (?, ?, ?))",
-      Seq("Fabio", "epifab@%", 1, 2, 6)
+        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN ?)",
+      Seq(
+        Value("Fabio"),
+        Value("epifab@%"),
+        Value(Seq(1, 2, 6))
+      )
     )
   }
 
@@ -86,8 +91,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
-        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN (?, ?, ?))",
-      Seq("Fabio", "epifab@%", 1, 2, 6)
+        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN ?)",
+      Seq("Fabio", "epifab@%", Seq(1, 2, 6))
     )
   }
 
@@ -144,15 +149,19 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.interests -> Some(Seq("music", "art", "computer science")),
           students.address -> Json(Address("n1900", "123 Fake St.", None))
         )
 
     insert(query) shouldBe Query(
       "INSERT INTO students" +
         " (id, name, email, address)" +
-        " VALUES (?, ?, ?, ?, ?)",
-      Seq(123, "John", "john@doe.com", """{"postcode":"n1900","line1":"123 Fake St.","line2":null}""")
+        " VALUES (?, ?, ?, ?)",
+      Seq(
+        Value(123),
+        Value("John"),
+        Value(Option("john@doe.com")),
+        Value(Json(Address("n1900", "123 Fake St.", None)))
+      )
     )
   }
 
@@ -169,7 +178,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
-      Seq("Jane", "jane@doe.com", 2)
+      Seq(FieldValue(students.name, "Jane"), FieldValue(students.email, Some("jane@doe.com")), 2)
     )
   }
 
