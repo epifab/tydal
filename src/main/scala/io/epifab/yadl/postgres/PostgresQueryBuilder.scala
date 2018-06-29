@@ -22,8 +22,8 @@ object PostgresQueryBuilder {
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
     case f: Filter.Expression.Clause.Field[_] =>
       Query(f.field.src)
-    case l: Filter.Expression.Clause.Literal[_, _] =>
-      Query("?", Seq(l))
+    case l: Filter.Expression.Clause.Literal[_] =>
+      Query("?", Seq(l.value))
 //      literal.dbValue match {
 //        // todo: there must be a way to inject a sequence
 //        case iterable: Iterable[_] =>

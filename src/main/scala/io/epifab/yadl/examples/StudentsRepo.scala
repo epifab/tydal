@@ -16,7 +16,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
     Delete(Students)
-      .where(Students.id === id)
+      .where(Students.id === Value(id))
       .execute()
 
   def createStudent(student: Student): F[Either[DALError, Int]] =
@@ -35,14 +35,14 @@ trait StudentsRepo[F[_]] extends Repo[F] {
         Students.name -> student.name,
         Students.email -> student.email
       )
-      .where(Students.id === student.id)
+      .where(Students.id === Value(student.id))
       .execute()
 
   def findStudent(id: Int): F[Either[DALError, Option[Student]]] =
     Select
       .from(Students)
       .take(Students.id, Students.name, Students.email)
-      .where(Students.id === id)
+      .where(Students.id === Value(id))
       .sortBy(Students.id.asc)
       .inRange(0, 1)
       .fetchOne()
@@ -51,7 +51,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     Select
       .from(Students)
       .take(Students.*)
-      .where(Students.name like name)
+      .where(Students.name like Value(name))
       .sortBy(Students.id.asc)
       .fetchMany()
 
@@ -59,7 +59,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     Select
       .from(Students)
       .take(Students.*)
-      .where(Students.email like email)
+      .where(Students.email like Value(email))
       .sortBy(Students.id.asc)
       .fetchMany()
 
@@ -75,7 +75,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     Select
       .from(Students)
       .take(Students.*)
-      .where(Students.id in ids)
+      .where(Students.id in Value(ids))
       .sortBy(Students.id.asc)
       .fetchMany[Student]()
 }

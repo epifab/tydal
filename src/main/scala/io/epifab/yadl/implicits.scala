@@ -2,6 +2,7 @@ package io.epifab.yadl
 
 import cats.Applicative
 import cats.implicits._
+import io.epifab.yadl.domain.Filter.Expression.Clause
 import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.yadl.domain._
 
@@ -46,11 +47,11 @@ object implicits {
       BinaryExpression(clause, ec.clause, Expression.Op.In)
   }
 
-  implicit class ExtendedValue[T, U](value: T)(implicit adapter: FieldAdapter.Aux[T, U]) extends ExtendedClause[T] {
-    override val clause = Expression.Clause.Literal(value)
+  implicit class ExtendedValueClause[T](value: Value[T]) extends ExtendedClause[T] {
+    override val clause: Clause[T] = Expression.Clause.Literal(value)
   }
 
-  implicit class ExtendedField[T](field: io.epifab.yadl.domain.Field[T]) extends ExtendedClause[T] {
+  implicit class ExtendedFieldClause[T](field: io.epifab.yadl.domain.Field[T]) extends ExtendedClause[T] {
     override val clause = Expression.Clause.Field(field)
 
     def asc: Sort = AscSort(field)

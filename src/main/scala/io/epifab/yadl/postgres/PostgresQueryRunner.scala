@@ -3,7 +3,6 @@ package io.epifab.yadl.postgres
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
 import cats.Id
-import io.epifab.yadl._
 import io.epifab.yadl.domain._
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
@@ -12,20 +11,11 @@ import scala.concurrent.{ExecutionContext, Future, blocking}
 trait JDBCQueryRunner {
   protected def connection: Connection
 
-  protected def extractField[T](resultSet: ResultSet, index: Int, adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
-//    val u: U = adapter.dbType match {
-//      case DbType.StringDbType =>
-//        resultSet.getString(index).asInstanceOf[U]
-//      case DbType.IntDbType =>
-//        resultSet.getInt(index).asInstanceOf[U]
-//      case DbType.ArrayDbType =>
-//        resultSet.getArray(index).asInstanceOf[U]
-//    }
-//
-//    adapter.extract(u)
+  private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit =
+    ???
 
-    adapter.extract(resultSet.getObject(index).asInstanceOf[adapter.U])
-  }
+  private def getColumn[T](resultSet: ResultSet, index: Integer)(implicit fieldAdapter: FieldAdapter[T]): Either[ExtractorError, T] =
+    ???
 
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
@@ -40,9 +30,9 @@ trait JDBCQueryRunner {
         override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
           fieldIndexes.get(field) match {
             case Some(index) =>
-              extractField(resultSet, index + 1, field.adapter)
+              getColumn(resultSet, index + 1)(field.adapter)
             case None =>
-              Left(ExtractorError(s"Field ${field.src} is missing"))
+              Left(ExtractorError(s"Field `${field.src}` is missing"))
           }
       }
       results += extractor(row)
@@ -56,7 +46,8 @@ trait JDBCQueryRunner {
       .prepareStatement(query.query)
 
     query.params.zipWithIndex.foreach {
-      case (param, index) => statement.setObject(index + 1, param.dbValue)
+      case (value, index) =>
+        setParameter(statement, index + 1, value)
     }
 
     statement

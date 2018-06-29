@@ -1,6 +1,5 @@
 package io.epifab.yadl.postgres
 
-import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
 import io.circe.generic.auto._
 import org.scalatest.FlatSpec
@@ -47,12 +46,12 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query = Select
       .from(students)
       .take(students.name)
-      .where(students.name === "Fabio")
+      .where(students.name === Value("Fabio"))
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name" +
         " FROM students AS s" +
-        " WHERE s.name = ?", Seq("Fabio"))
+        " WHERE s.name = ?", Seq(Value("Fabio")))
   }
 
   it should "evaluate non trivial filters" in {
@@ -60,9 +59,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       Select
         .from(students)
         .where(
-          (students.name === "Fabio")
-            and (students.email like "epifab@%")
-            or (students.id in List(1, 2, 6)))
+          (students.name === Value("Fabio"))
+            and (students.email like Value("epifab@%"))
+            or (students.id in Value(Seq(1, 2, 6))))
 
     select(query) shouldBe Query(
       "SELECT 1" +
@@ -83,16 +82,16 @@ class PostgresQueryBuildersTest extends FlatSpec {
       Select
         .from(students)
         .where(
-          students.name === "Fabio"
+          students.name === Value("Fabio")
             and
-            (students.email like "epifab@%" or (students.id in List(1, 2, 6)))
+            (students.email like Value("epifab@%") or (students.id in Value(Seq(1, 2, 6))))
         )
 
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
         " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN ?)",
-      Seq("Fabio", "epifab@%", Seq(1, 2, 6))
+      Seq(Value("Fabio"), Value("epifab@%"), Value(Seq(1, 2, 6)))
     )
   }
 
@@ -172,25 +171,25 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.name -> "Jane",
           students.email -> Some("jane@doe.com")
         )
-        .where(students.id === 2)
+        .where(students.id === Value(2))
 
     update(query) shouldBe Query(
       "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
-      Seq(FieldValue(students.name, "Jane"), FieldValue(students.email, Some("jane@doe.com")), 2)
+      Seq(FieldValue(students.name, "Jane"), FieldValue(students.email, Some("jane@doe.com")), Value(2))
     )
   }
 
   it should "evaluate a delete query" in {
     val query =
       Delete(students)
-        .where(students.id === 2)
+        .where(students.id === Value(2))
 
     delete(query) shouldBe Query(
       "DELETE FROM students AS s" +
         " WHERE s.id = ?",
-      Seq(2)
+      Seq(Value(2))
     )
   }
 }

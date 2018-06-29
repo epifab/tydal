@@ -19,11 +19,10 @@ object Filter {
 
   object Expression {
     sealed trait Clause[T]
+
     object Clause {
-      case class Field[T](field: io.epifab.yadl.domain.Field[T]) extends Clause[T]
-      case class Literal[T, S](value: T)(implicit val adapter: FieldAdapter.Aux[T, S]) extends Clause[T] with Value[T] {
-        type U = S
-      }
+      final case class Field[T](field: io.epifab.yadl.domain.Field[T]) extends Clause[T]
+      final case class Literal[T](value: Value[T]) extends Clause[T]
     }
 
     sealed trait Op

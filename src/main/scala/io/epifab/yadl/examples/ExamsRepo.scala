@@ -31,7 +31,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .from(Exams)
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
-      .where(Exams.studentId === studentId)
+      .where(Exams.studentId === Value(studentId))
       .fetchMany()
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
@@ -39,7 +39,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .from(Exams)
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
-      .where(Exams.studentId in students.map(_.id))
+      .where(Exams.studentId in Value(students.map(_.id)))
       .fetchMany[Exam :: Course :: HNil]()
       .map(_.map { exams =>
         exams

@@ -1,6 +1,5 @@
 package io.epifab.yadl.examples
 
-import io.epifab.yadl.domain.FieldAdapter.Json
 import io.epifab.yadl.domain._
 
 object Schema {
@@ -15,7 +14,7 @@ object Schema {
     lazy val id: TableField[Int] = field("id")
     lazy val name: TableField[String] = field("name")
     lazy val email: TableField[Option[String]] = field("email")
-    lazy val interests: TableField[Option[Seq[String]]] = field[Option[Seq[String]]]("interests")
+    lazy val interests: TableField[Seq[String]] = field("interests")
     lazy val address: TableField[Json[Address]] = field("address")
 
     lazy val `*`: Seq[TableField[_]] = Seq(id, name, email)
