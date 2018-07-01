@@ -6,13 +6,13 @@ trait FieldAdapter[T] {
   type DBTYPE
   def dbType: DbType[DBTYPE]
   def toDb(value: T): DBTYPE
-  def fromDb(dbValue: DBTYPE): Either[Error, T]
+  def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
 }
 
 abstract class SimpleFieldAdapter[T](val dbType: DbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def toDb(value: T): DBTYPE = value
-  def fromDb(dbValue: DBTYPE): Either[Error, T] = Right(dbValue)
+  def fromDb(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
 }
 
 case object StringFieldAdapter extends SimpleFieldAdapter[String](StringDbType)
@@ -36,7 +36,7 @@ case class JsonFieldAdapter[T](override val dbType: DbType[String])(implicit dec
   override def toDb(value: Json[T]): DBTYPE =
     value.t.asJson.pretty(Printer.noSpaces)
 
-  override def fromDb(dbValue: String): Either[Error, Json[T]] =
+  override def fromDb(dbValue: String): Either[ExtractorError, Json[T]] =
     decode[T](dbValue) match {
       case Left(e) => Left(ExtractorError(e.getMessage))
       case Right(t) => Right(Json(t))

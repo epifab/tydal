@@ -1,13 +1,16 @@
 package io.epifab.yadl.domain
 
-sealed trait DbType[T]
+sealed trait DbType[T] {
+  type DBTYPE = T
+}
 
 sealed trait PrimitiveDbType[T] extends DbType[T]
 
 case object IntDbType extends PrimitiveDbType[Int]
 case object StringDbType extends PrimitiveDbType[String]
-case class OptionDbType[T](dbType: DbType[T]) extends DbType[Option[T]]
-case class SeqDbType[T](dbType: DbType[T]) extends DbType[Seq[T]]
+
+case class OptionDbType[T](dbType: PrimitiveDbType[T]) extends DbType[Option[T]]
+case class SeqDbType[T](dbType: PrimitiveDbType[T]) extends DbType[Seq[T]]
 
 object DbType {
   implicit val int: PrimitiveDbType[Int] = IntDbType

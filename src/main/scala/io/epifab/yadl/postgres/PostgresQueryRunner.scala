@@ -12,9 +12,44 @@ trait JDBCQueryRunner {
   protected def connection: Connection
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit =
-    ???
+    (value.adapter.dbType: DbType[_]) match {
+      case IntDbType =>
+        statement.setInt(index, value.dbValue.asInstanceOf[Int])
 
-  private def getColumn[T](resultSet: ResultSet, index: Integer)(implicit fieldAdapter: FieldAdapter[T]): Either[ExtractorError, T] =
+      case StringDbType =>
+        statement.setString(index, value.dbValue.asInstanceOf[String])
+
+      case SeqDbType(dbType) =>
+        (dbType: PrimitiveDbType[_]) match {
+          case IntDbType =>
+            val array: java.sql.Array = connection.createArrayOf(
+              "int",
+              value.dbValue.asInstanceOf[Seq[Int]].toArray.map(new Integer(_))
+            )
+            statement.setArray(index, array)
+
+          case StringDbType =>
+            val array: java.sql.Array = connection.createArrayOf(
+              "varchar",
+              value.dbValue.asInstanceOf[Seq[String]].toArray
+            )
+            statement.setArray(index, array)
+        }
+
+      case OptionDbType(dbType) =>
+        value.dbValue.asInstanceOf[Option[dbType.DBTYPE]] match {
+          case None => statement.setObject(index, null)
+          case Some(dbValue) =>
+            (dbType: PrimitiveDbType[_]) match {
+              case IntDbType =>
+                statement.setInt(index, dbValue.asInstanceOf[Int])
+              case StringDbType =>
+                statement.setString(index, dbValue.asInstanceOf[String])
+            }
+        }
+    }
+
+  private def getColumn[T](resultSet: ResultSet, index: Int)(implicit fieldAdapter: FieldAdapter[T]): Either[ExtractorError, T] =
     ???
 
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
