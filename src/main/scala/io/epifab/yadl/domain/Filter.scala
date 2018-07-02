@@ -23,6 +23,7 @@ object Filter {
     object Clause {
       final case class Field[T](field: io.epifab.yadl.domain.Field[T]) extends Clause[T]
       final case class Literal[T](value: Value[T]) extends Clause[T]
+      final case class AnyLiteral[T](value: Value[Seq[T]]) extends Clause[Seq[T]]
     }
 
     sealed trait Op
@@ -35,7 +36,6 @@ object Filter {
       final case object GTE extends BinaryOp
       final case object LTE extends BinaryOp
       final case object Like extends BinaryOp
-      final case object In extends BinaryOp
 
       sealed trait UnaryOp extends Op
       final case object IsDefined extends UnaryOp

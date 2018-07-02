@@ -23,7 +23,7 @@ trait JDBCQueryRunner {
         (dbType: PrimitiveDbType[_]) match {
           case IntDbType =>
             val array: java.sql.Array = connection.createArrayOf(
-              "int",
+              "integer",
               value.dbValue.asInstanceOf[Seq[Int]].toArray.map(new Integer(_))
             )
             statement.setArray(index, array)
@@ -76,7 +76,13 @@ trait JDBCQueryRunner {
         }
 
       case OptionDbType(dbType) =>
-        ???
+        (dbType: PrimitiveDbType[_]) match {
+          case IntDbType =>
+            adapter.fromDb(Option(resultSet.getInt(index)).asInstanceOf[adapter.DBTYPE])
+
+          case StringDbType =>
+            adapter.fromDb(Option(resultSet.getString(index)).asInstanceOf[adapter.DBTYPE])
+        }
     }
   }
 

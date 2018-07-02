@@ -40,7 +40,16 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     override implicit val A: Applicative[Future] = implicitly
   }
 
+  def tearDown(): Unit = {
+    repos.queryRunner.run(Delete(new Schema.ExamsTable("e")))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable("c"))))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable("s"))))
+      .eventually shouldBe 'Right
+  }
+
   override def beforeAll(): Unit = {
+    tearDown()
+
     Future.sequence(Seq(
       repos.createStudent(student1),
       repos.createStudent(student2),
@@ -58,10 +67,7 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   }
 
   override def afterAll(): Unit = {
-    repos.queryRunner.run(Delete(new Schema.ExamsTable("e")))
-      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable("c"))))
-      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable("s"))))
-      .eventually shouldBe 'Right
+    tearDown()
   }
 
   "The query runner" should "retrieve a student by ID" in {

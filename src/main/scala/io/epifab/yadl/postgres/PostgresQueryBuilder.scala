@@ -14,7 +14,6 @@ object PostgresQueryBuilder {
     case Filter.Expression.Op.LTE => Query("<=")
     case Filter.Expression.Op.NotEqual => Query("<>")
     case Filter.Expression.Op.Like => Query("LIKE")
-    case Filter.Expression.Op.In => Query("IN")
     case Filter.Expression.Op.IsDefined => Query("IS NOT NULL")
     case Filter.Expression.Op.IsNotDefined => Query("IS NULL")
   }
@@ -24,17 +23,8 @@ object PostgresQueryBuilder {
       Query(f.field.src)
     case l: Filter.Expression.Clause.Literal[_] =>
       Query("?", Seq(l.value))
-//      literal.dbValue match {
-//        // todo: there must be a way to inject a sequence
-//        case iterable: Iterable[_] =>
-//          iterable
-//            .map(element => Query("?", Seq(element)))
-//            .reduceOption(_ + "," ++ _)
-//            .getOrElse(Query.empty)
-//            .wrap("(", ")")
-//        case any =>
-//          Query("?", Seq(any))
-//      }
+    case l: Filter.Expression.Clause.AnyLiteral[_] =>
+      Query("ANY(?)", Seq(l.value))
   }
 
   val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {

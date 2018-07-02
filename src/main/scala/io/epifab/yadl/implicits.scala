@@ -3,6 +3,7 @@ package io.epifab.yadl
 import cats.Applicative
 import cats.implicits._
 import io.epifab.yadl.domain.Filter.Expression.Clause
+import io.epifab.yadl.domain.Filter.Expression.Clause.AnyLiteral
 import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.yadl.domain._
 
@@ -43,8 +44,8 @@ object implicits {
     def <= (ec: ExtendedClause[T]): Expression =
       BinaryExpression(clause, ec.clause, Expression.Op.LTE)
 
-    def in[V](ec: ExtendedClause[Seq[T]]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.In)
+    def in(v: Value[Seq[T]]): Expression =
+      BinaryExpression(clause, AnyLiteral(v), Expression.Op.Equal)
   }
 
   implicit class ExtendedValueClause[T](value: Value[T]) extends ExtendedClause[T] {
