@@ -4,7 +4,7 @@ import java.sql.{Connection, DriverManager}
 
 import cats.Applicative
 import cats.data.EitherT
-import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
+import io.epifab.yadl.domain.{DALError, Delete, Json, QueryRunner}
 import io.epifab.yadl.utils.EitherSupport._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
@@ -22,9 +22,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     def eventually: T = Await.result[T](f, 5.seconds)
   }
 
-  val student1 = Student(1, "John Doe", Some("john@doe.com"))
-  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"))
-  val student3 = Student(3, "Jack Roe", None)
+  val student1 = Student(1, "John Doe", Some("john@doe.com"), Address("N1001", "1 Fake St.", None), Seq("art", "math"))
+  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), Address("N1002", "2 Fake St.", None), Seq("art", "music"))
+  val student3 = Student(3, "Jack Roe", None, Address("N1003", "Fake St.", None), Seq("music"))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
   val exam1 = Exam(studentId = 1, courseId = 1, 24)
@@ -40,16 +40,13 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     override implicit val A: Applicative[Future] = implicitly
   }
 
-  def tearDown(): Unit = {
+  def tearDown(): Future[Either[DALError, Int]] = {
     repos.queryRunner.run(Delete(new Schema.ExamsTable("e")))
       .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable("c"))))
       .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable("s"))))
-      .eventually shouldBe 'Right
   }
 
-  override def beforeAll(): Unit = {
-    tearDown()
-
+  def setUp(): Future[Either[DALError, Seq[Int]]] = {
     Future.sequence(Seq(
       repos.createStudent(student1),
       repos.createStudent(student2),
@@ -63,11 +60,15 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
       repos.createExam(exam3)
     )))
     .map(firstLeftOrRights)
-    .eventually shouldBe 'Right
+  }
+
+  override def beforeAll(): Unit = {
+    tearDown().eventually shouldBe 'Right
+    setUp().eventually shouldBe 'Right
   }
 
   override def afterAll(): Unit = {
-    tearDown()
+    tearDown().eventually shouldBe 'Right
   }
 
   "The query runner" should "retrieve a student by ID" in {
@@ -88,6 +89,20 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
 
   it should "retrieve students with missing email" in {
     repos.findStudentsWithoutEmail().eventually shouldBe Right(Seq(student3))
+  }
+
+  it should "find students by list of interests (contains)" in {
+    repos.findStudentsByInterests(Seq.empty).eventually shouldBe Right(Seq(student1, student2, student3))
+    repos.findStudentsByInterests(Seq("music")).eventually shouldBe Right(Seq(student2, student3))
+    repos.findStudentsByInterests(Seq("music", "art")).eventually shouldBe Right(Seq(student2))
+    repos.findStudentsByInterests(Seq("music", "art", "chemestry")).eventually shouldBe Right(Seq.empty)
+  }
+
+  it should "find students by list of interests (intercepts)" in {
+    repos.findStudentsByAnyInterest(Seq.empty).eventually shouldBe Right(Seq.empty)
+    repos.findStudentsByAnyInterest(Seq("music")).eventually shouldBe Right(Seq(student2, student3))
+    repos.findStudentsByAnyInterest(Seq("music", "art")).eventually shouldBe Right(Seq(student1, student2, student3))
+    repos.findStudentsByAnyInterest(Seq("music", "art", "chemestry")).eventually shouldBe Right(Seq(student1, student2, student3))
   }
 
   it should "update a student" in {

@@ -43,7 +43,7 @@ case class SeqFieldAdapter[T, U](override val dbType: DbType[Seq[U]], baseAdapte
     firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
 }
 
-case class Json[T](t: T)
+case class Json[T](value: T)
 
 case class JsonFieldAdapter[T](override val dbType: DbType[String])(implicit decoder: Decoder[T], encoder: Encoder[T]) extends FieldAdapter[Json[T]] {
   import io.circe.parser.decode
@@ -52,7 +52,7 @@ case class JsonFieldAdapter[T](override val dbType: DbType[String])(implicit dec
   type DBTYPE = String
 
   override def toDb(value: Json[T]): DBTYPE =
-    value.t.asJson.pretty(Printer.noSpaces)
+    value.value.asJson.pretty(Printer.noSpaces)
 
   override def fromDb(dbValue: String): Either[ExtractorError, Json[T]] =
     decode[T](dbValue) match {

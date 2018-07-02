@@ -37,6 +37,9 @@ object Filter {
       final case object LTE extends BinaryOp
       final case object Like extends BinaryOp
 
+      final case object Contains extends BinaryOp
+      final case object Overlaps extends BinaryOp
+
       sealed trait UnaryOp extends Op
       final case object IsDefined extends UnaryOp
       final case object IsNotDefined extends UnaryOp

@@ -16,6 +16,8 @@ object PostgresQueryBuilder {
     case Filter.Expression.Op.Like => Query("LIKE")
     case Filter.Expression.Op.IsDefined => Query("IS NOT NULL")
     case Filter.Expression.Op.IsNotDefined => Query("IS NULL")
+    case Filter.Expression.Op.Contains => Query("@>")
+    case Filter.Expression.Op.Overlaps => Query("&&")
   }
 
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {

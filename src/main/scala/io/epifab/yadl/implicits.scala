@@ -76,4 +76,22 @@ object implicits {
     def isNotDefined: Expression =
       UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsNotDefined)
   }
+
+  trait ExtendedSeqClause[T] {
+    def clause: Clause[Seq[T]]
+
+    def contains(ec: ExtendedClause[Seq[T]]): Expression =
+      BinaryExpression(clause, ec.clause, Expression.Op.Contains)
+
+    def overlaps(ec: ExtendedClause[Seq[T]]): Expression =
+      BinaryExpression(clause, ec.clause, Expression.Op.Overlaps)
+  }
+
+  implicit class ExtendedSeqFieldClause[T](field: io.epifab.yadl.domain.Field[Seq[T]]) extends ExtendedSeqClause[T] {
+    override def clause: Clause[Seq[T]] = Clause.Field(field)
+  }
+
+  implicit class ExtendedSeqValueClause[T](value: Value[Seq[T]]) extends ExtendedSeqClause[T] {
+    override def clause: Clause[Seq[T]] = Clause.Literal(value)
+  }
 }

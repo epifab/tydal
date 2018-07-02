@@ -12,7 +12,9 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     id <- row.get(Students.id)
     name <- row.get(Students.name)
     email <- row.get(Students.email)
-  } yield Student(id, name, email)
+    address <- row.get(Students.address)
+    interests <- row.get(Students.interests)
+  } yield Student(id, name, email, address.value, interests)
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
     Delete(Students)
@@ -25,7 +27,9 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .set(
         Students.id -> student.id,
         Students.name -> student.name,
-        Students.email -> student.email
+        Students.email -> student.email,
+        Students.address -> Json(student.address),
+        Students.interests -> student.interests
       )
       .execute()
 
@@ -33,7 +37,9 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     Update(Students)
       .set(
         Students.name -> student.name,
-        Students.email -> student.email
+        Students.email -> student.email,
+        Students.address -> Json(student.address),
+        Students.interests -> student.interests
       )
       .where(Students.id === Value(student.id))
       .execute()
@@ -41,11 +47,27 @@ trait StudentsRepo[F[_]] extends Repo[F] {
   def findStudent(id: Int): F[Either[DALError, Option[Student]]] =
     Select
       .from(Students)
-      .take(Students.id, Students.name, Students.email)
+      .take(Students.*)
       .where(Students.id === Value(id))
       .sortBy(Students.id.asc)
       .inRange(0, 1)
       .fetchOne()
+
+  def findStudentsByInterests(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
+    Select
+      .from(Students)
+      .take(Students.*)
+      .where(Students.interests contains Value(interests))
+      .sortBy(Students.id.asc)
+      .fetchMany()
+
+  def findStudentsByAnyInterest(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
+    Select
+      .from(Students)
+      .take(Students.*)
+      .where(Students.interests overlaps Value(interests))
+      .sortBy(Students.id.asc)
+      .fetchMany()
 
   def findStudentByName(name: String): F[Either[DALError, Seq[Student]]] =
     Select

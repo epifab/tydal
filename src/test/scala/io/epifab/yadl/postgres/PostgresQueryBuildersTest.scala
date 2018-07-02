@@ -2,6 +2,7 @@ package io.epifab.yadl.postgres
 
 import io.epifab.yadl.domain._
 import io.circe.generic.auto._
+import io.epifab.yadl.examples.Address
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 

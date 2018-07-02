@@ -6,8 +6,6 @@ object Schema {
   import io.circe.generic.auto._
   import io.epifab.yadl.implicits._
 
-  case class Address(postcode: String, line1: String, line2: Option[String])
-
   class StudentsTable(val alias: String) extends Table { self =>
     override val src: String = "students"
 
@@ -17,7 +15,7 @@ object Schema {
     lazy val interests: TableField[Seq[String]] = field("interests")
     lazy val address: TableField[Json[Address]] = field("address")
 
-    lazy val `*`: Seq[TableField[_]] = Seq(id, name, email)
+    lazy val `*`: Seq[TableField[_]] = Seq(id, name, email, interests, address)
 
     lazy val exams: ExamsTable with Relation = new ExamsTable(self.alias + "__exams") with Relation {
       override def relationClause: Filter = self.id === studentId
