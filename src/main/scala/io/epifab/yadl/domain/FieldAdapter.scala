@@ -9,21 +9,39 @@ trait FieldAdapter[T] {
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
 }
 
-abstract class SimpleFieldAdapter[T](val dbType: DbType[T]) extends FieldAdapter[T] {
+abstract class PrimitiveFieldAdapter[T](val dbType: PrimitiveDbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def toDb(value: T): DBTYPE = value
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
 }
 
-case object StringFieldAdapter extends SimpleFieldAdapter[String](StringDbType)
+case object StringFieldAdapter extends PrimitiveFieldAdapter[String](StringDbType)
 
-case object IntFieldAdapter extends SimpleFieldAdapter[Int](IntDbType)
+case object IntFieldAdapter extends PrimitiveFieldAdapter[Int](IntDbType)
 
-case class OptionFieldAdapter[T](override val dbType: DbType[Option[T]], baseAdapter: FieldAdapter[T])
-  extends SimpleFieldAdapter[Option[T]](dbType)
+case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], baseAdapter: FieldAdapter.Aux[T, U])
+  extends FieldAdapter[Option[T]] {
+  override type DBTYPE = Option[baseAdapter.DBTYPE]
 
-case class SeqFieldAdapter[T](override val dbType: DbType[Seq[T]], baseAdapter: FieldAdapter[T])
-  extends SimpleFieldAdapter[Seq[T]](dbType)
+  override def toDb(value: Option[T]): DBTYPE = value.map(baseAdapter.toDb)
+
+  override def fromDb(dbValue: DBTYPE): Either[ExtractorError, Option[T]] = dbValue match {
+    case None => Right(None)
+    case Some(u) => baseAdapter.fromDb(u).map(Some(_))
+  }
+}
+
+case class SeqFieldAdapter[T, U](override val dbType: DbType[Seq[U]], baseAdapter: FieldAdapter.Aux[T, U])
+  extends FieldAdapter[Seq[T]] {
+  import io.epifab.yadl.utils.EitherSupport._
+
+  override type DBTYPE = Seq[U]
+
+  override def toDb(value: Seq[T]): Seq[baseAdapter.DBTYPE] = value.map(baseAdapter.toDb)
+
+  override def fromDb(dbValue: Seq[baseAdapter.DBTYPE]): Either[ExtractorError, Seq[T]] =
+    firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
+}
 
 case class Json[T](t: T)
 
@@ -46,15 +64,16 @@ case class JsonFieldAdapter[T](override val dbType: DbType[String])(implicit dec
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
 
-  implicit val string: FieldAdapter[String] = StringFieldAdapter
+  implicit val string: PrimitiveFieldAdapter[String] = StringFieldAdapter
 
-  implicit val int: FieldAdapter[Int] = IntFieldAdapter
+  implicit val int: PrimitiveFieldAdapter[Int] = IntFieldAdapter
 
-  implicit def option[T](implicit dbType: DbType[Option[T]], baseAdapter: FieldAdapter[T]): FieldAdapter[Option[T]] =
-    OptionFieldAdapter[T](dbType, baseAdapter)
+  implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] = {
+    OptionFieldAdapter(OptionDbType(baseAdapter.dbType), baseAdapter)
+  }
 
-  implicit def seq[T](implicit dbType: DbType[Seq[T]], baseAdapter: FieldAdapter[T]): FieldAdapter[Seq[T]] =
-    SeqFieldAdapter(dbType, baseAdapter)
+  implicit def seq[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Seq[T]] =
+    SeqFieldAdapter(SeqDbType(baseAdapter.dbType), baseAdapter)
 
   implicit def json[T](implicit stringDbType: DbType[String], encoder: Encoder[T], decoder: Decoder[T]): FieldAdapter[Json[T]] =
     JsonFieldAdapter(stringDbType)

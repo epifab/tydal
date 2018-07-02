@@ -49,8 +49,36 @@ trait JDBCQueryRunner {
         }
     }
 
-  private def getColumn[T](resultSet: ResultSet, index: Int)(implicit fieldAdapter: FieldAdapter[T]): Either[ExtractorError, T] =
-    ???
+  private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
+    (adapter.dbType: DbType[_]) match {
+      case IntDbType =>
+        adapter.fromDb(resultSet.getInt(index).asInstanceOf[adapter.DBTYPE])
+
+      case StringDbType =>
+        adapter.fromDb(resultSet.getString(index).asInstanceOf[adapter.DBTYPE])
+
+      case SeqDbType(dbType) =>
+        (dbType: PrimitiveDbType[_]) match {
+          case IntDbType =>
+            adapter.fromDb(
+              resultSet.getArray(index).getArray
+                .asInstanceOf[Array[IntDbType.DBTYPE]]
+                .toSeq
+                .asInstanceOf[adapter.DBTYPE]
+            )
+          case StringDbType =>
+            adapter.fromDb(
+              resultSet.getArray(index).getArray
+                .asInstanceOf[Array[StringDbType.DBTYPE]]
+                .toSeq
+                .asInstanceOf[adapter.DBTYPE]
+            )
+        }
+
+      case OptionDbType(dbType) =>
+        ???
+    }
+  }
 
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
