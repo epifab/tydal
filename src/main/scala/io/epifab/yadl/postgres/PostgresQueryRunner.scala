@@ -54,10 +54,19 @@ trait JDBCQueryRunner {
       case StringDbType =>
         resultSet.getString(index).asInstanceOf[dbType.DBTYPE]
 
-      case SeqDbType(primitive) =>
-        resultSet.getArray(index).getArray
-          .asInstanceOf[Array[primitive.DBTYPE]]
+      case SeqDbType(primitive) if primitive == StringDbType =>
+        resultSet.getArray(index)
+          .getArray
+          .asInstanceOf[Array[String]]
           .toSeq
+          .asInstanceOf[dbType.DBTYPE]
+
+      case SeqDbType(primitive) if primitive == IntDbType =>
+        resultSet.getArray(index)
+          .getArray
+          .asInstanceOf[Array[Integer]]
+          .toSeq
+          .map(_.toInt)
           .asInstanceOf[dbType.DBTYPE]
 
       case OptionDbType(innerType) =>
