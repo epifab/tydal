@@ -22,9 +22,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     def eventually: T = Await.result[T](f, 5.seconds)
   }
 
-  val student1 = Student(1, "John Doe", Some("john@doe.com"), Address("N1001", "1 Fake St.", None), Seq("art", "math"))
-  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), Address("N1002", "2 Fake St.", None), Seq("art", "music"))
-  val student3 = Student(3, "Jack Roe", None, Address("N1003", "Fake St.", None), Seq("music"))
+  val student1 = Student(1, "John Doe", Some("john@doe.com"), Some(Address("N1001", "1 Fake St.", None)), Seq("art", "math"))
+  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), Some(Address("N1002", "2 Fake St.", None)), Seq("art", "music"))
+  val student3 = Student(3, "Jack Roe", None, Some(Address("N1003", "Fake St.", None)), Seq("music"))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
   val exam1 = Exam(studentId = 1, courseId = 1, 24)

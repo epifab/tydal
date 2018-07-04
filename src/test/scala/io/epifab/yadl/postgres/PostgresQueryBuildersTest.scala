@@ -67,7 +67,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
-        " WHERE (s.name = ? AND s.email LIKE ? OR s.id IN ?)",
+        " WHERE (s.name = ? AND s.email LIKE ? OR s.id = ANY(?))",
       Seq(
         Value("Fabio"),
         Value("epifab@%"),
@@ -91,7 +91,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT 1" +
         " FROM students AS s" +
-        " WHERE s.name = ? AND (s.email LIKE ? OR s.id IN ?)",
+        " WHERE s.name = ? AND (s.email LIKE ? OR s.id = ANY(?))",
       Seq(Value("Fabio"), Value("epifab@%"), Value(Seq(1, 2, 6)))
     )
   }
@@ -149,7 +149,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.address -> Json(Address("n1900", "123 Fake St.", None))
+          students.address -> Some(Json(Address("n1900", "123 Fake St.", None)))
         )
 
     insert(query) shouldBe Query(
@@ -160,7 +160,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         Value(123),
         Value("John"),
         Value(Option("john@doe.com")),
-        Value(Json(Address("n1900", "123 Fake St.", None)))
+        Value(Option(Json(Address("n1900", "123 Fake St.", None))))
       )
     )
   }

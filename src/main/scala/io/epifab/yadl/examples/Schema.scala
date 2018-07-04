@@ -13,7 +13,7 @@ object Schema {
     lazy val name: TableField[String] = field("name")
     lazy val email: TableField[Option[String]] = field("email")
     lazy val interests: TableField[Seq[String]] = field("interests")
-    lazy val address: TableField[Json[Address]] = field("address")
+    lazy val address: TableField[Option[Json[Address]]] = field("address")
 
     lazy val `*`: Seq[TableField[_]] = Seq(id, name, email, interests, address)
 
