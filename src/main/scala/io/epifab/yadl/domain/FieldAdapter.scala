@@ -68,8 +68,8 @@ object FieldAdapter {
 
   implicit val int: PrimitiveFieldAdapter[Int] = IntFieldAdapter
 
-  implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] = {
-    OptionFieldAdapter(OptionDbType(baseAdapter.dbType), baseAdapter)
+  implicit def option[T](implicit baseAdapter: FieldAdapter[T]): FieldAdapter[Option[T]] = {
+    OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
   }
 
   implicit def seq[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Seq[T]] =
