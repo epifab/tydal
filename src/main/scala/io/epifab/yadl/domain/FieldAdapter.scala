@@ -1,8 +1,11 @@
 package io.epifab.yadl.domain
 
+import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalDateTime}
 
 import io.circe.{Decoder, Encoder, Printer}
+
+import scala.util.Try
 
 trait FieldAdapter[T] {
   type DBTYPE
@@ -72,8 +75,31 @@ case class JsonFieldAdapter[T]()(implicit decoder: Decoder[T], encoder: Encoder[
     }
 }
 
-case object DateFieldAdapter extends SimpleFieldAdapter[LocalDate](LocalDateDbType)
-case object DateTimeFieldAdapter extends SimpleFieldAdapter[LocalDateTime](LocalDateTimeDbType)
+//case object DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
+//  override type DBTYPE = String
+//  override def dbType: PrimitiveDbType[String] = StringDbType
+//
+//  override def toDb(value: LocalDate): String =
+//    value.format(DateTimeFormatter.ISO_DATE)
+//
+//  override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
+//    Try(LocalDate.parse(dbValue, DateTimeFormatter.ISO_DATE))
+//      .toEither
+//      .left.map(error => ExtractorError(error.getMessage))
+//}
+
+case object DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
+  override type DBTYPE = String
+  override def dbType: PrimitiveDbType[String] = StringDbType
+
+  override def toDb(value: LocalDateTime): String =
+    value.format(DateTimeFormatter.ISO_DATE_TIME)
+
+  override def fromDb(dbValue: String): Either[ExtractorError, LocalDateTime] =
+    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("y-M-d H:m:s.S")))
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+}
 
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
@@ -89,6 +115,6 @@ object FieldAdapter {
   implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
     JsonFieldAdapter()
 
-  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
+//  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
   implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = DateTimeFieldAdapter
 }

@@ -9,6 +9,7 @@ import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
 import io.epifab.yadl.utils.EitherSupport._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
+import shapeless._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -104,7 +105,10 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   }
 
   it should "find exams by date" in {
-    repos.findExamsByDate(LocalDate.of(2018, 11, 22)).eventually shouldBe Right(Seq(exam2, exam3))
+    repos.findExamsByDate(LocalDate.of(2018, 11, 22)).eventually shouldBe Right(Seq(
+      exam2 :: course1 :: HNil,
+      exam3 :: course2 :: HNil
+    ))
   }
 
   it should "update a student" in {

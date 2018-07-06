@@ -10,8 +10,6 @@ sealed trait PrimitiveDbType[T] extends DbType[T]
 
 case object IntDbType extends PrimitiveDbType[Int]
 case object StringDbType extends PrimitiveDbType[String]
-case object LocalDateDbType extends PrimitiveDbType[LocalDate]
-case object LocalDateTimeDbType extends PrimitiveDbType[LocalDateTime]
 
 sealed trait SeqDbType[T] extends PrimitiveDbType[Seq[T]]
 case object IntSeqDbType extends PrimitiveDbType[Seq[Int]] with SeqDbType[Int]

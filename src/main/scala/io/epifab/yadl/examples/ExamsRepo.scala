@@ -43,6 +43,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.dateTime >= Value(date.atStartOfDay) and Exams.dateTime < Value(date.plusDays(1).atStartOfDay))
+      .sortBy(Exams.studentId.asc)
       .fetchMany()
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {

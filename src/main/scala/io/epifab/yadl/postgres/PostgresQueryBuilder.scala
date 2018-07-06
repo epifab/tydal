@@ -1,5 +1,7 @@
 package io.epifab.yadl.postgres
 
+import java.time.{LocalDate, LocalDateTime}
+
 import io.epifab.yadl.domain.{Value, _}
 
 
@@ -25,6 +27,8 @@ object PostgresQueryBuilder {
       def toPlaceholder[T](t: T): String = t match {
         case Some(x) => toPlaceholder(x)
         case Json(x) => "cast(? as json)"
+        case _: LocalDate => ???
+        case _: LocalDateTime => "cast(? as timestamp without time zone)"
         case _ => "?"
       }
       Query(toPlaceholder(value.value), Seq(value))
