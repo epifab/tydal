@@ -9,15 +9,19 @@ trait FieldAdapter[T] {
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
 }
 
-abstract class PrimitiveFieldAdapter[T](val dbType: PrimitiveDbType[T]) extends FieldAdapter[T] {
+trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] {
+  override def dbType: PrimitiveDbType[DBTYPE]
+}
+
+abstract class SimpleFieldAdapter[T](override val dbType: PrimitiveDbType[T]) extends PrimitiveFieldAdapter[T] {
   type DBTYPE = T
   def toDb(value: T): DBTYPE = value
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
 }
 
-case object StringFieldAdapter extends PrimitiveFieldAdapter[String](StringDbType)
+case object StringFieldAdapter extends SimpleFieldAdapter[String](StringDbType)
 
-case object IntFieldAdapter extends PrimitiveFieldAdapter[Int](IntDbType)
+case object IntFieldAdapter extends SimpleFieldAdapter[Int](IntDbType)
 
 case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], baseAdapter: FieldAdapter.Aux[T, U])
   extends FieldAdapter[Option[T]] {
@@ -31,8 +35,8 @@ case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], base
   }
 }
 
-case class SeqFieldAdapter[T, U](override val dbType: DbType[Seq[U]], baseAdapter: FieldAdapter.Aux[T, U])
-  extends FieldAdapter[Seq[T]] {
+case class SeqFieldAdapter[T, U](override val dbType: PrimitiveDbType[Seq[U]], baseAdapter: FieldAdapter.Aux[T, U])
+  extends PrimitiveFieldAdapter[Seq[T]] {
   import io.epifab.yadl.utils.EitherSupport._
 
   override type DBTYPE = Seq[U]
@@ -43,9 +47,13 @@ case class SeqFieldAdapter[T, U](override val dbType: DbType[Seq[U]], baseAdapte
     firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
 }
 
+object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
+
+object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
+
 case class Json[T](value: T)
 
-case class JsonFieldAdapter[T](override val dbType: DbType[String])(implicit decoder: Decoder[T], encoder: Encoder[T]) extends FieldAdapter[Json[T]] {
+case class JsonFieldAdapter[T](override val dbType: PrimitiveDbType[String])(implicit decoder: Decoder[T], encoder: Encoder[T]) extends PrimitiveFieldAdapter[Json[T]] {
   import io.circe.parser.decode
   import io.circe.syntax._
 
@@ -65,16 +73,13 @@ object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
 
   implicit val string: PrimitiveFieldAdapter[String] = StringFieldAdapter
-
   implicit val int: PrimitiveFieldAdapter[Int] = IntFieldAdapter
+  implicit val stringSeq: PrimitiveFieldAdapter[Seq[String]] = StringSeqFieldAdapter
+  implicit val intSeq: PrimitiveFieldAdapter[Seq[Int]] = IntSeqFieldAdapter
 
-  implicit def option[T](implicit baseAdapter: FieldAdapter[T]): FieldAdapter[Option[T]] = {
+  implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
-  }
 
-  implicit def seq[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Seq[T]] =
-    SeqFieldAdapter(SeqDbType(baseAdapter.dbType), baseAdapter)
-
-  implicit def json[T](implicit stringDbType: DbType[String], encoder: Encoder[T], decoder: Decoder[T]): FieldAdapter[Json[T]] =
+  implicit def json[T](implicit stringDbType: PrimitiveDbType[String], encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
     JsonFieldAdapter(stringDbType)
 }

@@ -14,27 +14,27 @@ trait JDBCQueryRunner {
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
     def set[U](index: Int, dbValue: U, dbType: DbType[U]): Any = dbType match {
       case IntDbType =>
-        statement.setInt(index, dbValue.asInstanceOf[Int])
+        statement.setInt(index, dbValue)
 
       case StringDbType =>
-        statement.setString(index, dbValue.asInstanceOf[String])
+        statement.setString(index, dbValue)
 
-      case SeqDbType(primitive) if primitive == IntDbType =>
+      case StringSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
-          "integer",
-          dbValue.asInstanceOf[Seq[Int]].toArray.map(new Integer(_))
+          "varchar",
+          dbValue.toArray
         )
         statement.setArray(index, array)
 
-      case SeqDbType(primitive) if primitive == StringDbType =>
+      case IntSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
-          "varchar",
-          dbValue.asInstanceOf[Seq[String]].toArray
+          "integer",
+          dbValue.map((i: Int) => new Integer(i)).toArray
         )
         statement.setArray(index, array)
 
       case OptionDbType(innerType) =>
-        dbValue.asInstanceOf[Option[dbType.DBTYPE]] match {
+        dbValue match {
           case None =>
             statement.setObject(index, null)
 
@@ -49,29 +49,26 @@ trait JDBCQueryRunner {
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
     def get[U](index: Int, dbType: DbType[U]): dbType.DBTYPE = dbType match {
       case IntDbType =>
-        resultSet.getInt(index).asInstanceOf[dbType.DBTYPE]
+        resultSet.getInt(index)
 
       case StringDbType =>
-        resultSet.getString(index).asInstanceOf[dbType.DBTYPE]
+        resultSet.getString(index)
 
-      case SeqDbType(primitive) if primitive == StringDbType =>
+      case StringSeqDbType =>
         resultSet.getArray(index)
           .getArray
           .asInstanceOf[Array[String]]
           .toSeq
-          .asInstanceOf[dbType.DBTYPE]
 
-      case SeqDbType(primitive) if primitive == IntDbType =>
+      case IntSeqDbType =>
         resultSet.getArray(index)
           .getArray
           .asInstanceOf[Array[Integer]]
           .toSeq
           .map(_.toInt)
-          .asInstanceOf[dbType.DBTYPE]
 
       case OptionDbType(innerType) =>
         Option(get(index, innerType))
-          .asInstanceOf[dbType.DBTYPE]
     }
 
     adapter.fromDb(get(index, adapter.dbType))
