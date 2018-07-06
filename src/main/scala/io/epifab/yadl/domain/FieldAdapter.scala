@@ -1,5 +1,7 @@
 package io.epifab.yadl.domain
 
+import java.time.{LocalDate, LocalDateTime}
+
 import io.circe.{Decoder, Encoder, Printer}
 
 trait FieldAdapter[T] {
@@ -53,11 +55,12 @@ object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDb
 
 case class Json[T](value: T)
 
-case class JsonFieldAdapter[T](override val dbType: PrimitiveDbType[String])(implicit decoder: Decoder[T], encoder: Encoder[T]) extends PrimitiveFieldAdapter[Json[T]] {
+case class JsonFieldAdapter[T]()(implicit decoder: Decoder[T], encoder: Encoder[T]) extends PrimitiveFieldAdapter[Json[T]] {
   import io.circe.parser.decode
   import io.circe.syntax._
 
-  type DBTYPE = String
+  override type DBTYPE = String
+  override val dbType: PrimitiveDbType[String] = StringDbType
 
   override def toDb(value: Json[T]): DBTYPE =
     value.value.asJson.pretty(Printer.noSpaces)
@@ -68,6 +71,9 @@ case class JsonFieldAdapter[T](override val dbType: PrimitiveDbType[String])(imp
       case Right(t) => Right(Json(t))
     }
 }
+
+case object DateFieldAdapter extends SimpleFieldAdapter[LocalDate](LocalDateDbType)
+case object DateTimeFieldAdapter extends SimpleFieldAdapter[LocalDateTime](LocalDateTimeDbType)
 
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
@@ -80,6 +86,9 @@ object FieldAdapter {
   implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
 
-  implicit def json[T](implicit stringDbType: PrimitiveDbType[String], encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
-    JsonFieldAdapter(stringDbType)
+  implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
+    JsonFieldAdapter()
+
+  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
+  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = DateTimeFieldAdapter
 }

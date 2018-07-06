@@ -1,6 +1,6 @@
 package io.epifab.yadl.postgres
 
-import io.epifab.yadl.domain._
+import io.epifab.yadl.domain.{Value, _}
 
 
 object PostgresQueryBuilder {
@@ -20,13 +20,25 @@ object PostgresQueryBuilder {
     case Filter.Expression.Op.Overlaps => Query("&&")
   }
 
+  def valueBuilder: QueryBuilder[Value[_]] =
+    (value: Value[_]) => {
+      def toPlaceholder[T](t: T): String = t match {
+        case Some(x) => toPlaceholder(x)
+        case Json(x) => "cast(? as json)"
+        case _ => "?"
+      }
+      Query(toPlaceholder(value.value), Seq(value))
+    }
+
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case f: Filter.Expression.Clause.Field[_] =>
-      Query(f.field.src)
-    case l: Filter.Expression.Clause.Literal[_] =>
-      Query("?", Seq(l.value))
-    case l: Filter.Expression.Clause.AnyLiteral[_] =>
-      Query("ANY(?)", Seq(l.value))
+    case Filter.Expression.Clause.Field(field) =>
+      Query(field.src)
+
+    case Filter.Expression.Clause.Literal(value) =>
+      valueBuilder.apply(value)
+
+    case Filter.Expression.Clause.AnyLiteral(values) =>
+      Query("ANY(?)", Seq(values))
   }
 
   val filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
@@ -96,7 +108,7 @@ object PostgresQueryBuilder {
           .wrap("(", ")") ++
       Query("VALUES") ++
         t.fieldValues
-          .map(fieldValue => Query("?", Seq(fieldValue)))
+          .map(valueBuilder.apply)
           .reduce(_ + ", " + _)
           .wrap("(", ")")
 
@@ -106,7 +118,7 @@ object PostgresQueryBuilder {
         dataSourceBuilder(t.dataSource) ++
       Query("SET") ++
         t.fieldValues
-          .map(fieldValue => Query(s"${fieldValue.field.name} = ?", Seq(fieldValue)))
+          .map(fieldValue => Query(fieldValue.field.name) ++ Query("=") ++ valueBuilder(fieldValue))
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)

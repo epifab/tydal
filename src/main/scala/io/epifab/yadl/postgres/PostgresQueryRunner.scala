@@ -1,6 +1,7 @@
 package io.epifab.yadl.postgres
 
 import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
+import java.time.{LocalDate, ZoneId, ZoneOffset}
 
 import cats.Id
 import io.epifab.yadl.domain._
@@ -17,7 +18,13 @@ trait JDBCQueryRunner {
         statement.setInt(index, dbValue)
 
       case StringDbType =>
-        statement.setString(index, dbValue)
+        statement.setObject(index, dbValue)
+
+      case LocalDateDbType =>
+        statement.setDate(index, new java.sql.Date(1000 * dbValue.atStartOfDay.toEpochSecond(ZoneOffset.UTC)))
+
+      case LocalDateTimeDbType =>
+        statement.setDate(index, new java.sql.Date(1000 * dbValue.toEpochSecond(ZoneOffset.UTC)))
 
       case StringSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
@@ -52,7 +59,17 @@ trait JDBCQueryRunner {
         resultSet.getInt(index)
 
       case StringDbType =>
-        resultSet.getString(index)
+        resultSet.getObject(index).toString
+
+      case LocalDateDbType =>
+        resultSet.getDate(index).toInstant
+          .atZone(ZoneOffset.UTC)
+          .toLocalDate
+
+      case LocalDateTimeDbType =>
+        resultSet.getDate(index).toInstant
+          .atZone(ZoneOffset.UTC)
+          .toLocalDateTime
 
       case StringSeqDbType =>
         resultSet.getArray(index)
@@ -68,7 +85,7 @@ trait JDBCQueryRunner {
           .map(_.toInt)
 
       case OptionDbType(innerType) =>
-        Option(get(index, innerType))
+        Option(resultSet.getObject(index)).map(_ => get(index, innerType))
     }
 
     adapter.fromDb(get(index, adapter.dbType))

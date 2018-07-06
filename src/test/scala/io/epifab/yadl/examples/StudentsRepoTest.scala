@@ -1,10 +1,11 @@
 package io.epifab.yadl.examples
 
 import java.sql.{Connection, DriverManager}
+import java.time.{LocalDate, LocalDateTime}
 
 import cats.Applicative
 import cats.data.EitherT
-import io.epifab.yadl.domain.{DALError, Delete, Json, QueryRunner}
+import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
 import io.epifab.yadl.utils.EitherSupport._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
@@ -27,9 +28,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   val student3 = Student(3, "Jack Roe", None, Some(Address("N1003", "Fake St.", None)), Seq("music"))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
-  val exam1 = Exam(studentId = 1, courseId = 1, 24)
-  val exam2 = Exam(studentId = 2, courseId = 1, 29)
-  val exam3 = Exam(studentId = 2, courseId = 2, 30)
+  val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 11, 23, 17, 30, 20, 0))
+  val exam2 = Exam(studentId = 2, courseId = 1, 29, LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0))
+  val exam3 = Exam(studentId = 2, courseId = 2, 30, LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0))
 
   val connection: Connection = DriverManager
     .getConnection(
@@ -50,16 +51,13 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     Future.sequence(Seq(
       repos.createStudent(student1),
       repos.createStudent(student2),
-      repos.createStudent(student3)
-    )).flatMap(_ => Future.sequence(Seq(
+      repos.createStudent(student3),
       repos.createCourse(course1),
-      repos.createCourse(course2)
-    ))).flatMap(_ => Future.sequence(Seq(
+      repos.createCourse(course2),
       repos.createExam(exam1),
       repos.createExam(exam2),
       repos.createExam(exam3)
-    )))
-    .map(firstLeftOrRights)
+    )).map(firstLeftOrRights)
   }
 
   override def beforeAll(): Unit = {
@@ -103,6 +101,10 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     repos.findStudentsByAnyInterest(Seq("music")).eventually shouldBe Right(Seq(student2, student3))
     repos.findStudentsByAnyInterest(Seq("music", "art")).eventually shouldBe Right(Seq(student1, student2, student3))
     repos.findStudentsByAnyInterest(Seq("music", "art", "chemestry")).eventually shouldBe Right(Seq(student1, student2, student3))
+  }
+
+  it should "find exams by date" in {
+    repos.findExamsByDate(LocalDate.of(2018, 11, 22)).eventually shouldBe Right(Seq(exam2, exam3))
   }
 
   it should "update a student" in {
