@@ -75,18 +75,18 @@ case class JsonFieldAdapter[T]()(implicit decoder: Decoder[T], encoder: Encoder[
     }
 }
 
-//case object DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
-//  override type DBTYPE = String
-//  override def dbType: PrimitiveDbType[String] = StringDbType
-//
-//  override def toDb(value: LocalDate): String =
-//    value.format(DateTimeFormatter.ISO_DATE)
-//
-//  override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
-//    Try(LocalDate.parse(dbValue, DateTimeFormatter.ISO_DATE))
-//      .toEither
-//      .left.map(error => ExtractorError(error.getMessage))
-//}
+case object DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
+  override type DBTYPE = String
+  override def dbType: PrimitiveDbType[String] = StringDbType
+
+  override def toDb(value: LocalDate): String =
+    value.format(DateTimeFormatter.ISO_DATE)
+
+  override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
+    Try(LocalDate.parse(dbValue, DateTimeFormatter.ISO_DATE))
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+}
 
 case object DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
   override type DBTYPE = String
@@ -115,6 +115,6 @@ object FieldAdapter {
   implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
     JsonFieldAdapter()
 
-//  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
+  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
   implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = DateTimeFieldAdapter
 }

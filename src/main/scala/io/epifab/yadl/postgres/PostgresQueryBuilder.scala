@@ -27,7 +27,7 @@ object PostgresQueryBuilder {
       def toPlaceholder[T](t: T): String = t match {
         case Some(x) => toPlaceholder(x)
         case Json(x) => "cast(? as json)"
-        case _: LocalDate => ???
+        case _: LocalDate => "cast(? as date)"
         case _: LocalDateTime => "cast(? as timestamp without time zone)"
         case _ => "?"
       }

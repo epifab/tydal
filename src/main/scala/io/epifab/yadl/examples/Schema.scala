@@ -1,6 +1,6 @@
 package io.epifab.yadl.examples
 
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain._
 
@@ -14,10 +14,11 @@ object Schema {
     lazy val id: TableField[Int] = field("id")
     lazy val name: TableField[String] = field("name")
     lazy val email: TableField[Option[String]] = field("email")
+    lazy val dateOfBirth: TableField[LocalDate] = field("date_of_birth")
     lazy val interests: TableField[Seq[String]] = field("interests")
     lazy val address: TableField[Option[Json[Address]]] = field("address")
 
-    lazy val `*`: Seq[TableField[_]] = Seq(id, name, email, interests, address)
+    lazy val `*`: Seq[TableField[_]] = Seq(id, name, email, dateOfBirth, interests, address)
 
     lazy val exams: ExamsTable with Relation = new ExamsTable(self.alias + "__exams") with Relation {
       override def relationClause: Filter = self.id === studentId

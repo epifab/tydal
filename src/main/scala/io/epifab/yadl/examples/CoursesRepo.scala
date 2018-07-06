@@ -5,7 +5,7 @@ import io.epifab.yadl.implicits._
 
 import scala.language.higherKinds
 
-trait CourseRepo[F[_]] extends Repo[F] {
+trait CoursesRepo[F[_]] extends Repo[F] {
   object Courses extends Schema.CoursesTable("c")
 
   def createCourse(course: Course): F[Either[DALError, Int]] =

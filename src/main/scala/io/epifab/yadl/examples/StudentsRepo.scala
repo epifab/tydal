@@ -12,9 +12,10 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     id <- row.get(Students.id)
     name <- row.get(Students.name)
     email <- row.get(Students.email)
+    dateOfBirth <- row.get(Students.dateOfBirth)
     address <- row.get(Students.address)
     interests <- row.get(Students.interests)
-  } yield Student(id, name, email, address.map(_.value), interests)
+  } yield Student(id, name, email, dateOfBirth, address.map(_.value), interests)
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
     Delete(Students)
@@ -28,6 +29,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
         Students.id -> student.id,
         Students.name -> student.name,
         Students.email -> student.email,
+        Students.dateOfBirth -> student.dateOfBirth,
         Students.address -> student.address.map(Json(_)),
         Students.interests -> student.interests
       )
@@ -38,6 +40,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .set(
         Students.name -> student.name,
         Students.email -> student.email,
+        Students.dateOfBirth -> student.dateOfBirth,
         Students.address -> student.address.map(Json(_)),
         Students.interests -> student.interests
       )

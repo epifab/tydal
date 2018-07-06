@@ -2,6 +2,7 @@ create table students(
   id int primary key,
   name varchar(128) not null,
   email varchar(128),
+  date_of_birth date not null,
   interests varchar(128)[] not null,
   address json
 );

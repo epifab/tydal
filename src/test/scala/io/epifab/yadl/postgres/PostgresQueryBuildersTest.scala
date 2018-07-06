@@ -1,5 +1,7 @@
 package io.epifab.yadl.postgres
 
+import java.time.LocalDate
+
 import io.epifab.yadl.domain._
 import io.circe.generic.auto._
 import io.epifab.yadl.examples.Address
@@ -149,18 +151,20 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.address -> Some(Json(Address("n1900", "123 Fake St.", None)))
+          students.address -> Some(Json(Address("n1900", "123 Fake St.", None))),
+          students.dateOfBirth -> LocalDate.of(1985, 11, 15)
         )
 
     insert(query) shouldBe Query(
       "INSERT INTO students" +
-        " (id, name, email, address)" +
-        " VALUES (?, ?, ?, ?)",
+        " (id, name, email, address, date_of_birth)" +
+        " VALUES (?, ?, ?, cast(? as json), cast(? as date))",
       Seq(
         Value(123),
         Value("John"),
         Value(Option("john@doe.com")),
-        Value(Option(Json(Address("n1900", "123 Fake St.", None))))
+        Value(Option(Json(Address("n1900", "123 Fake St.", None)))),
+        Value(LocalDate.of(1985, 11, 15))
       )
     )
   }

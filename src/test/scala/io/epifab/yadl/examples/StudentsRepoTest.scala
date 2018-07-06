@@ -24,9 +24,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     def eventually: T = Await.result[T](f, 5.seconds)
   }
 
-  val student1 = Student(1, "John Doe", Some("john@doe.com"), Some(Address("N1001", "1 Fake St.", None)), Seq("art", "math"))
-  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), Some(Address("N1002", "2 Fake St.", None)), Seq("art", "music"))
-  val student3 = Student(3, "Jack Roe", None, Some(Address("N1003", "Fake St.", None)), Seq("music"))
+  val student1 = Student(1, "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq("art", "math"))
+  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq("art", "music"))
+  val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq("music"))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
   val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 11, 23, 17, 30, 20, 0))
@@ -37,7 +37,7 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
 
-  object repos extends StudentsRepo[Future] with ExamsRepo[Future] with CourseRepo[Future] {
+  object repos extends StudentsRepo[Future] with ExamsRepo[Future] with CoursesRepo[Future] {
     override implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
     override implicit val A: Applicative[Future] = implicitly
   }
