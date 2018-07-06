@@ -13,11 +13,14 @@ trait JDBCQueryRunner {
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
     def set[U](index: Int, dbValue: U, dbType: DbType[U]): Any = dbType match {
+      case StringDbType =>
+        statement.setObject(index, dbValue)
+
       case IntDbType =>
         statement.setInt(index, dbValue)
 
-      case StringDbType =>
-        statement.setObject(index, dbValue)
+      case DoubleDbType =>
+        statement.setDouble(index, dbValue)
 
       case StringSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
@@ -30,6 +33,13 @@ trait JDBCQueryRunner {
         val array: java.sql.Array = connection.createArrayOf(
           "integer",
           dbValue.map((i: Int) => new Integer(i)).toArray
+        )
+        statement.setArray(index, array)
+
+      case DoubleSeqDbType =>
+        val array: java.sql.Array = connection.createArrayOf(
+          "double",
+          dbValue.map(new java.lang.Double(_)).toArray
         )
         statement.setArray(index, array)
 
@@ -48,11 +58,14 @@ trait JDBCQueryRunner {
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
     def get[U](index: Int, dbType: DbType[U]): dbType.DBTYPE = dbType match {
+      case StringDbType =>
+        resultSet.getObject(index).toString
+
       case IntDbType =>
         resultSet.getInt(index)
 
-      case StringDbType =>
-        resultSet.getObject(index).toString
+      case DoubleDbType =>
+        resultSet.getDouble(index)
 
       case StringSeqDbType =>
         resultSet.getArray(index)
@@ -66,6 +79,13 @@ trait JDBCQueryRunner {
           .asInstanceOf[Array[Integer]]
           .toSeq
           .map(_.toInt)
+
+      case DoubleSeqDbType =>
+        resultSet.getArray(index)
+          .getArray
+          .asInstanceOf[Array[Double]]
+          .toSeq
+          .map(_.toDouble)
 
       case OptionDbType(innerType) =>
         Option(resultSet.getObject(index)).map(_ => get(index, innerType))

@@ -28,6 +28,8 @@ case object StringFieldAdapter extends SimpleFieldAdapter[String](StringDbType)
 
 case object IntFieldAdapter extends SimpleFieldAdapter[Int](IntDbType)
 
+case object DoubleFieldAdapter extends SimpleFieldAdapter[Double](DoubleDbType)
+
 case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], baseAdapter: FieldAdapter.Aux[T, U])
   extends FieldAdapter[Option[T]] {
   override type DBTYPE = Option[baseAdapter.DBTYPE]
@@ -52,9 +54,9 @@ case class SeqFieldAdapter[T, U](override val dbType: PrimitiveDbType[Seq[U]], b
     firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
 }
 
-object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
-
 object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
+object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
+object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
 
 case class Json[T](value: T)
 
@@ -106,8 +108,10 @@ object FieldAdapter {
 
   implicit val string: PrimitiveFieldAdapter[String] = StringFieldAdapter
   implicit val int: PrimitiveFieldAdapter[Int] = IntFieldAdapter
+  implicit val double: PrimitiveFieldAdapter[Double] = DoubleFieldAdapter
   implicit val stringSeq: PrimitiveFieldAdapter[Seq[String]] = StringSeqFieldAdapter
   implicit val intSeq: PrimitiveFieldAdapter[Seq[Int]] = IntSeqFieldAdapter
+  implicit val doubleSeq: PrimitiveFieldAdapter[Seq[Double]] = DoubleSeqFieldAdapter
 
   implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
