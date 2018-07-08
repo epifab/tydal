@@ -1,5 +1,7 @@
 package io.epifab.yadl.domain
 
+import io.epifab.yadl.domain.Field._
+
 import scala.language.implicitConversions
 
 sealed trait DbFuction[T, U]
@@ -8,19 +10,16 @@ sealed trait Grouping[T, U] extends DbFuction[T, U] {
   def name: String
 }
 
-sealed trait Avg[T] extends Grouping[T, Double] {
+sealed trait Avg[T] extends Grouping[T, Option[Double]] {
   override val name: String = "avg"
 }
 
 object Avg {
-  case object IntAvg extends Avg[Int]
-  case object DoubleAvg extends Avg[Double]
+  def apply(field: IntField)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Int, Option[Double]] =
+    Field(field.field, new Avg[Int] {})(adapter)
 
-  def apply(field: Field[Int])(implicit adapter: FieldAdapter[Double]): Aggregation[Int, Double] =
-    Field(field, IntAvg)(adapter)
-
-  def apply(field: Field[Double]): Aggregation[Double, Double] =
-    Field(field, DoubleAvg)(field.adapter)
+  def apply(field: DoubleField)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Double, Option[Double]] =
+    Field(field.field, new Avg[Double] {})(adapter)
 }
 
 sealed trait Sum[T] extends Grouping[T, T] {
@@ -31,11 +30,11 @@ object Sum {
   case object IntSum extends Sum[Int]
   case object DoubleSum extends Sum[Double]
 
-  def ofInt(field: Field[Int]): Field[Int] =
-    Field(field, IntSum)(field.adapter)
+  def apply(field: IntField): Field[Int] =
+    Field(field.field, new Sum[Int] {})(field.field.adapter)
 
-  def ofDouble(field: Field[Double]): Field[Double] =
-    Field(field, DoubleSum)(field.adapter)
+  def apply(field: DoubleField): Field[Double] =
+    Field(field.field, new Sum[Double] {})(field.field.adapter)
 }
 
 final case class Count[T]() extends Grouping[T, Int] {

@@ -19,6 +19,22 @@ case class Aggregation[T, U](field: Field[T], dbFunction: Grouping[T, U])(implic
   )
 
 object Field {
+  implicit class StringField(val field: Field[String])
+  implicit class IntField(val field: Field[Int])
+  implicit class DoubleField(val field: Field[Double])
+
+  implicit class SeqStringField(val field: Field[Seq[String]])
+  implicit class SeqIntField(val field: Field[Seq[String]])
+  implicit class SeqDoubleField(val field: Field[Seq[String]])
+
+  implicit class OptionalStringField(val field: Field[Option[String]])
+  implicit class OptionalIntField(val field: Field[Option[Int]])
+  implicit class OptionalDoubleField(val field: Field[Option[Double]])
+
+  implicit class OptionalSeqStringField(val field: Field[Option[Seq[String]]])
+  implicit class OptionalSeqIntField(val field: Field[Option[Seq[String]]])
+  implicit class OptionalSeqDoubleField(val field: Field[Option[Seq[String]]])
+
   def apply[T](name: String, dataSource: Table)(implicit adapter: FieldAdapter[T]): Column[T] =
     Column(name, dataSource)
 
