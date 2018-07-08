@@ -6,15 +6,18 @@ sealed trait SideEffect
 
 sealed trait Select extends Statement {
   def dataSource: DataSource
-  def fields: Seq[Field[_]]
+  def fields: Seq[Column[_]]
+  def aggregations: Seq[Field[_]]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def take(field: Field[_], fields: Field[_]*): Select
+  def take(field: Column[_], fields: Column[_]*): Select
 
-  def take(fields: Seq[Field[_]]): Select
+  def take(fields: Seq[Column[_]]): Select
+
+  def aggregateBy(aggregations: Aggregation[_, _]*): Select
 
   def leftJoin(relation: DataSource with Relation): Select
 
@@ -35,18 +38,22 @@ sealed trait Select extends Statement {
 
 object Select {
   protected final case class SelectImpl(
-    dataSource: DataSource,
-    fields: Seq[Field[_]] = Seq.empty,
-    joins: Seq[Join] = Seq.empty,
-    filter: Filter = Filter.Empty,
-    sort: Seq[Sort] = Seq.empty,
-    limit: Option[Limit] = None
+                                         dataSource: DataSource,
+                                         fields: Seq[Column[_]] = Seq.empty,
+                                         aggregations: Seq[Field[_]] = Seq.empty,
+                                         joins: Seq[Join] = Seq.empty,
+                                         filter: Filter = Filter.Empty,
+                                         sort: Seq[Sort] = Seq.empty,
+                                         limit: Option[Limit] = None
   ) extends Select {
-    def take(fields: Seq[Field[_]]): Select =
+    def take(fields: Seq[Column[_]]): Select =
       copy(fields = this.fields ++ fields)
 
-    def take(field: Field[_], fields: Field[_]*): Select =
+    def take(field: Column[_], fields: Column[_]*): Select =
       copy(fields = this.fields ++ (field +: fields))
+
+    def aggregateBy(aggregations: Aggregation[_, _]*): Select =
+      copy(aggregations = this.aggregations ++ aggregations)
 
     def leftJoin(relation: DataSource with Relation): Select =
       leftJoin(relation, relation.relationClause)
@@ -78,15 +85,15 @@ object Select {
 
 sealed trait Insert extends Statement with SideEffect {
   def dataSource: DataSource
-  def fieldValues: Seq[FieldValue[_]]
+  def values: Seq[ColumnValue[_]]
 
-  def set(fieldValues: FieldValue[_]*): Insert
+  def set(fieldValues: ColumnValue[_]*): Insert
 }
 
 object Insert {
-  protected final case class InsertImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_]] = Seq.empty) extends Insert {
-    def set(fieldValues: FieldValue[_]*): Insert =
-      copy(fieldValues = this.fieldValues ++ fieldValues)
+  protected final case class InsertImpl(dataSource: DataSource, values: Seq[ColumnValue[_]] = Seq.empty) extends Insert {
+    def set(fieldValues: ColumnValue[_]*): Insert =
+      copy(values = this.values ++ fieldValues)
   }
 
   def into(dataSource: DataSource) = InsertImpl(dataSource)
@@ -94,17 +101,17 @@ object Insert {
 
 sealed trait Update extends Statement with SideEffect {
   def dataSource: DataSource
-  def fieldValues: Seq[FieldValue[_]]
+  def values: Seq[ColumnValue[_]]
   def filter: Filter
 
-  def set(fieldValues: FieldValue[_]*): Update
+  def set(fieldValues: ColumnValue[_]*): Update
   def where(filter: Filter): Update
 }
 
 object Update {
-  protected final case class UpdateImpl(dataSource: DataSource, fieldValues: Seq[FieldValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update {
-    def set(fieldValues: FieldValue[_]*): Update =
-      copy(fieldValues = this.fieldValues ++ fieldValues)
+  protected final case class UpdateImpl(dataSource: DataSource, values: Seq[ColumnValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update {
+    def set(fieldValues: ColumnValue[_]*): Update =
+      copy(values = this.values ++ fieldValues)
 
     def where(filter: Filter): Update =
       copy(filter = this.filter and filter)

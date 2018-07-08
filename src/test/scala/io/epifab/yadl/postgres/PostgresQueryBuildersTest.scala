@@ -14,6 +14,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.yadl.postgres.PostgresQueryBuilder._
 
   val students = new StudentsTable("s")
+  val exams = new ExamsTable("e")
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)
@@ -104,11 +105,11 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .from(students)
         .leftJoin(students.exams, students.exams.studentId === students.id)
         .innerJoin(students.exams.course)
-        .take(students.name, students.exams.rate, students.exams.course.name)
+        .take(students.name, students.exams.score, students.exams.course.name)
 
     select(query) shouldBe Query(
       "SELECT s.name AS s__name," +
-        " s__exams.rate AS s__exams__rate," +
+        " s__exams.score AS s__exams__score," +
         " s__exams__course.name AS s__exams__course__name" +
         " FROM students AS s" +
         " LEFT JOIN exams AS s__exams ON s__exams.student_id = s.id" +
@@ -182,7 +183,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
-      Seq(FieldValue(students.name, "Jane"), FieldValue(students.email, Some("jane@doe.com")), Value(2))
+      Seq(ColumnValue(students.name, "Jane"), ColumnValue(students.email, Some("jane@doe.com")), Value(2))
     )
   }
 
@@ -195,6 +196,31 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "DELETE FROM students AS s" +
         " WHERE s.id = ?",
       Seq(Value(2))
+    )
+  }
+
+  it should "aggregate fields" in {
+    val query =
+      Select
+        .from(exams)
+        .take(exams.studentId)
+        .aggregateBy(
+          Avg(exams.score),
+          Count(exams.courseId),
+          Max(exams.score),
+          Min(exams.score)
+        )
+
+    select(query) shouldBe Query(
+      "SELECT" +
+        " e.student_id AS e__student_id," +
+        " avg(e.score) AS e__score_avg," +
+        " count(e.course_id) AS e__course_id_count," +
+        " max(e.score) AS e__score_max," +
+        " min(e.score) AS e__score_min" +
+        " FROM exams AS e" +
+        " WHERE 1 = 1" +
+        " GROUP BY e.student_id"
     )
   }
 }

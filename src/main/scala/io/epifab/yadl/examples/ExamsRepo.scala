@@ -13,11 +13,11 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   object Exams extends Schema.ExamsTable("e")
 
   implicit private val examExtractor: Extractor[Exam] = row => for {
-    rate <- row.get(Exams.rate)
+    score <- row.get(Exams.score)
     courseId <- row.get(Exams.courseId)
     studentId <- row.get(Exams.studentId)
     dateTime <- row.get(Exams.dateTime)
-  } yield Exam(studentId, courseId, rate, dateTime)
+  } yield Exam(studentId, courseId, score, dateTime)
 
   implicit private val courseExtractor: Extractor[Course] = row => for {
     id <- row.get(Exams.courseId)
@@ -71,7 +71,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .set(
         Exams.studentId -> exam.studentId,
         Exams.courseId -> exam.courseId,
-        Exams.rate -> exam.rate,
+        Exams.score -> exam.score,
         Exams.dateTime -> exam.dateTime
       )
       .execute()

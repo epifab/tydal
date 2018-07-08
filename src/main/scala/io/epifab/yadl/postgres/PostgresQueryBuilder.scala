@@ -85,7 +85,7 @@ object PostgresQueryBuilder {
   val select: QueryBuilder[Select] =
     (t: Select) =>
       Query("SELECT") ++
-        t.fields
+        (t.fields ++ t.aggregations)
           .map(fieldBuilder.apply)
           .reduceOption(_ + "," ++ _)
           .getOrElse(Query("1")) ++
@@ -94,6 +94,13 @@ object PostgresQueryBuilder {
             .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
         Query("WHERE") ++
           filterBuilder(t.filter) ++
+        t.aggregations
+          .headOption
+          .flatMap(_ =>
+            t.fields.map(field => Query(field.src))
+            .reduceOption(_ + "," ++ _)
+            .map(fields => Query("GROUP BY") ++ fields)
+          ) ++
         t.sort
           .map(sortBuilder.apply)
           .reduceOption(_ + "," ++ _)
@@ -106,12 +113,12 @@ object PostgresQueryBuilder {
     (t: Insert) =>
       Query("INSERT INTO") ++
         t.dataSource.src ++
-        t.fieldValues
-          .map(fieldValue => Query(fieldValue.field.name))
+        t.values
+          .map(colValue => Query(colValue.column.name))
           .reduce(_ + "," ++ _)
           .wrap("(", ")") ++
       Query("VALUES") ++
-        t.fieldValues
+        t.values
           .map(valueBuilder.apply)
           .reduce(_ + ", " + _)
           .wrap("(", ")")
@@ -121,8 +128,8 @@ object PostgresQueryBuilder {
       Query("UPDATE") ++
         dataSourceBuilder(t.dataSource) ++
       Query("SET") ++
-        t.fieldValues
-          .map(fieldValue => Query(fieldValue.field.name) ++ Query("=") ++ valueBuilder(fieldValue))
+        t.values
+          .map(colValue => Query(colValue.column.name) ++ Query("=") ++ valueBuilder(colValue))
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)

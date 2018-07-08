@@ -10,7 +10,7 @@ create table students(
 create table exams(
   student_id int,
   course_id int,
-  rate int,
+  score int,
   exam_timestamp timestamp without time zone,
   primary key (student_id, course_id)
 );

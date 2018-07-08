@@ -2,8 +2,28 @@ package io.epifab.yadl.domain
 
 import scala.language.implicitConversions
 
-trait Field[T] extends DataSource {
-  def adapter: FieldAdapter[T]
+abstract class Field[T](override val src: String, override val alias: String, val adapter: FieldAdapter[T]) extends DataSource
+
+case class Column[T](name: String, table: Table)(implicit adapter: FieldAdapter[T])
+  extends Field[T](
+    s"${table.alias}.$name",
+    s"${table.alias}__$name",
+    adapter
+  )
+
+case class Aggregation[T, U](field: Field[T], dbFunction: Grouping[T, U])(implicit adapter: FieldAdapter[U])
+  extends Field[U](
+    s"${dbFunction.name}(${field.src})",
+    s"${field.alias}_${dbFunction.name}",
+    adapter
+  )
+
+object Field {
+  def apply[T](name: String, dataSource: Table)(implicit adapter: FieldAdapter[T]): Column[T] =
+    Column(name, dataSource)
+
+  def apply[T, U](field: Field[T], dbFunction: Grouping[T, U])(implicit adapter: FieldAdapter[U]): Aggregation[T, U] =
+    Aggregation(field, dbFunction)
 }
 
 trait Value[T] {
@@ -26,22 +46,17 @@ object Value {
   }
 }
 
-case class TableField[T](name: String, dataSource: Table)(implicit val adapter: FieldAdapter[T]) extends Field[T] {
-  override def src: String = s"${dataSource.alias}.$name"
-  override def alias: String = s"${dataSource.alias}__$name"
-}
-
-trait FieldValue[T] extends Value[T] {
-  def field: TableField[T]
+trait ColumnValue[T] extends Value[T] {
+  def column: Column[T]
   def value: T
 }
 
-object FieldValue {
-  implicit def apply[T](fieldValue: (TableField[T], T)): FieldValue[T] = new FieldValue[T] {
+object ColumnValue {
+  implicit def apply[T](fieldValue: (Column[T], T)): ColumnValue[T] = new ColumnValue[T] {
     override type U = fieldValue._1.adapter.DBTYPE
     override val adapter: FieldAdapter.Aux[T, U] = fieldValue._1.adapter
 
-    override val field: TableField[T] = fieldValue._1
+    override val column: Column[T] = fieldValue._1
     override val value: T = fieldValue._2
   }
 }
