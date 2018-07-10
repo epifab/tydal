@@ -24,7 +24,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " WHERE 1 = 1")
   }
 
-  it should "evaluate a query with 1 field" in {
+  it should "evaluate a query with 1 column" in {
     val query = Select
       .from(students)
       .take(students.name)
@@ -35,7 +35,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " WHERE 1 = 1")
   }
 
-  it should "evaluate a query with 2 fields" in {
+  it should "evaluate a query with 2 columns" in {
     val query = Select
       .from(students)
       .take(students.name, students.email)
@@ -183,7 +183,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
       "UPDATE students AS s" +
         " SET name = ?, email = ?" +
         " WHERE s.id = ?",
-      Seq(ColumnValue(students.name, "Jane"), ColumnValue(students.email, Some("jane@doe.com")), Value(2))
+      Seq(Value("Jane"), Value(Option("jane@doe.com")), Value(2))
     )
   }
 
@@ -199,7 +199,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     )
   }
 
-  it should "aggregate fields" in {
+  it should "aggregate columns" in {
     val query =
       Select
         .from(exams)

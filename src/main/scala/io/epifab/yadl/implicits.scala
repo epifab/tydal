@@ -52,29 +52,29 @@ object implicits {
     override val clause: Clause[T] = Expression.Clause.Literal(value)
   }
 
-  implicit class ExtendedFieldClause[T](field: io.epifab.yadl.domain.Field[T]) extends ExtendedClause[T] {
-    override val clause = Expression.Clause.Field(field)
+  implicit class ExtendedColumnClause[T](column: io.epifab.yadl.domain.Column[T]) extends ExtendedClause[T] {
+    override val clause = Expression.Clause.Column(column)
 
-    def asc: Sort = AscSort(field)
-    def desc: Sort = DescSort(field)
+    def asc: Sort = AscSort(column)
+    def desc: Sort = DescSort(column)
   }
 
-  implicit class ExtendedStringField(field: io.epifab.yadl.domain.Field[String]) {
+  implicit class ExtendedStringColumn(column: io.epifab.yadl.domain.Column[String]) {
     def like(ec: ExtendedClause[String]): Expression =
-      BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
+      BinaryExpression(Expression.Clause.Column(column), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionStringField(field: io.epifab.yadl.domain.Field[Option[String]]) {
+  implicit class ExtendedOptionStringColumn(column: io.epifab.yadl.domain.Column[Option[String]]) {
     def like(ec: ExtendedClause[String]): Expression =
-      BinaryExpression(Expression.Clause.Field(field), ec.clause, Expression.Op.Like)
+      BinaryExpression(Expression.Clause.Column(column), ec.clause, Expression.Op.Like)
   }
 
-  implicit class ExtendedOptionField[T](field: io.epifab.yadl.domain.Field[Option[T]]) {
+  implicit class ExtendedOptionColumn[T](column: io.epifab.yadl.domain.Column[Option[T]]) {
     def isDefined: Expression =
-      UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsDefined)
+      UniaryExpression(Expression.Clause.Column(column), Expression.Op.IsDefined)
 
     def isNotDefined: Expression =
-      UniaryExpression(Expression.Clause.Field(field), Expression.Op.IsNotDefined)
+      UniaryExpression(Expression.Clause.Column(column), Expression.Op.IsNotDefined)
   }
 
   trait ExtendedSeqClause[T] {
@@ -87,8 +87,8 @@ object implicits {
       BinaryExpression(clause, ec.clause, Expression.Op.Overlaps)
   }
 
-  implicit class ExtendedSeqFieldClause[T](field: io.epifab.yadl.domain.Field[Seq[T]]) extends ExtendedSeqClause[T] {
-    override def clause: Clause[Seq[T]] = Clause.Field(field)
+  implicit class ExtendedSeqColumnClause[T](column: io.epifab.yadl.domain.Column[Seq[T]]) extends ExtendedSeqClause[T] {
+    override def clause: Clause[Seq[T]] = Clause.Column(column)
   }
 
   implicit class ExtendedSeqValueClause[T](value: Value[Seq[T]]) extends ExtendedSeqClause[T] {

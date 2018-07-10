@@ -35,8 +35,8 @@ object PostgresQueryBuilder {
     }
 
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case Filter.Expression.Clause.Field(field) =>
-      Query(field.src)
+    case Filter.Expression.Clause.Column(column) =>
+      Query(column.src)
 
     case Filter.Expression.Clause.Literal(value) =>
       valueBuilder.apply(value)
@@ -59,8 +59,8 @@ object PostgresQueryBuilder {
     case Filter.Empty => Query("1 = 1")
   }
 
-  val fieldBuilder: QueryBuilder[Field[_]] =
-    (field: Field[_]) => Query(s"${field.src} AS ${field.alias}")
+  val columnBuilder: QueryBuilder[Column[_]] =
+    (column: Column[_]) => Query(s"${column.src} AS ${column.alias}")
 
   val dataSourceBuilder: QueryBuilder[DataSource] =
     (ds: DataSource) => Query(s"${ds.src} AS ${ds.alias}")
@@ -85,8 +85,8 @@ object PostgresQueryBuilder {
   val select: QueryBuilder[Select] =
     (t: Select) =>
       Query("SELECT") ++
-        (t.fields ++ t.aggregations)
-          .map(fieldBuilder.apply)
+        (t.columns ++ t.aggregations)
+          .map(columnBuilder.apply)
           .reduceOption(_ + "," ++ _)
           .getOrElse(Query("1")) ++
         Query("FROM") ++
@@ -97,9 +97,9 @@ object PostgresQueryBuilder {
         t.aggregations
           .headOption
           .flatMap(_ =>
-            t.fields.map(field => Query(field.src))
+            t.columns.map(column => Query(column.src))
             .reduceOption(_ + "," ++ _)
-            .map(fields => Query("GROUP BY") ++ fields)
+            .map(columns => Query("GROUP BY") ++ columns)
           ) ++
         t.sort
           .map(sortBuilder.apply)
@@ -113,13 +113,13 @@ object PostgresQueryBuilder {
     (t: Insert) =>
       Query("INSERT INTO") ++
         t.dataSource.src ++
-        t.values
+        t.columnValues
           .map(colValue => Query(colValue.column.name))
           .reduce(_ + "," ++ _)
           .wrap("(", ")") ++
       Query("VALUES") ++
-        t.values
-          .map(valueBuilder.apply)
+        t.columnValues
+          .map(columnValue => valueBuilder(columnValue.value))
           .reduce(_ + ", " + _)
           .wrap("(", ")")
 
@@ -129,7 +129,7 @@ object PostgresQueryBuilder {
         dataSourceBuilder(t.dataSource) ++
       Query("SET") ++
         t.values
-          .map(colValue => Query(colValue.column.name) ++ Query("=") ++ valueBuilder(colValue))
+          .map(colValue => Query(colValue.column.name) ++ Query("=") ++ valueBuilder(colValue.value))
           .reduce(_ + "," ++ _) ++
       Query("WHERE") ++
         filterBuilder(t.filter)

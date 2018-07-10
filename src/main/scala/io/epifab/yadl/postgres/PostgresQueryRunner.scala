@@ -97,19 +97,19 @@ trait JDBCQueryRunner {
   protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val fieldIndexes: Map[Field[_], Int] =
-      select.fields.zipWithIndex.toMap
+    val columnIndexes: Map[Column[_], Int] =
+      select.columns.zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 
     while (resultSet.next()) {
       val row = new Row {
-        override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
-          fieldIndexes.get(field) match {
+        override def get[FT](column: Column[FT]): Either[ExtractorError, FT] =
+          columnIndexes.get(column) match {
             case Some(index) =>
-              getColumn(resultSet, index + 1)(field.adapter)
+              getColumn(resultSet, index + 1)(column.adapter)
             case None =>
-              Left(ExtractorError(s"Field `${field.src}` is missing"))
+              Left(ExtractorError(s"Column `${column.src}` is missing"))
           }
       }
       results += extractor(row)
