@@ -98,7 +98,7 @@ trait JDBCQueryRunner {
     import io.epifab.yadl.utils.EitherSupport._
 
     val columnIndexes: Map[Column[_], Int] =
-      select.columns.zipWithIndex.toMap
+      (select.columns ++ select.aggregations).zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 

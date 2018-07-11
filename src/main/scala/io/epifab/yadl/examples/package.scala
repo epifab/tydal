@@ -14,9 +14,9 @@ package object examples {
     interests: Seq[String]
   )
   case class StudentExams(
-    id: Int,
+    studentId: Int,
     count: Option[Int],
-    averageScore: Option[Double],
+    avgScore: Option[Double],
     minScore: Option[Int],
     maxScore: Option[Int]
   )

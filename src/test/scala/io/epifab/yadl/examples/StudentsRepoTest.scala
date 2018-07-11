@@ -111,6 +111,24 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     ))
   }
 
+  it should "find student exam stats" in {
+    repos.findStudentExamStats(2).eventually shouldBe Right(
+      Some(
+        StudentExams(
+          studentId=2,
+          count=Some(2),
+          avgScore=Some(29.5),
+          minScore=Some(29),
+          maxScore=Some(30)
+        )
+      )
+    )
+  }
+
+  it should "not find exams for unexisting student" in {
+    repos.findStudentExamStats(123).eventually shouldBe Right(None)
+  }
+
   it should "update a student" in {
     val edited: EitherT[Future, DALError, Option[Student]] = for {
       _ <- EitherT(repos.updateStudent(student3.copy(name = "Edited")))

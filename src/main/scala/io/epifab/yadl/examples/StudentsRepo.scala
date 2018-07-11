@@ -8,6 +8,16 @@ import scala.language.higherKinds
 trait StudentsRepo[F[_]] extends Repo[F] {
   object Students extends Schema.StudentsTable("s")
 
+  object ExamsView {
+    val table = new Schema.ExamsTable("e")
+
+    val studentId: TableColumn[Int] = table.studentId
+    val count: AggregateColumn[Int, Option[Int]] = Count(table.courseId)
+    val avgScore: AggregateColumn[Int, Option[Double]] = Avg(table.score)
+    val minScore: AggregateColumn[Int, Option[Int]] = Min(table.score)
+    val maxScore: AggregateColumn[Int, Option[Int]] = Max(table.score)
+  }
+
   implicit private val studentExtractor: Extractor[Student] = row => for {
     id <- row.get(Students.id)
     name <- row.get(Students.name)
@@ -16,6 +26,14 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     address <- row.get(Students.address)
     interests <- row.get(Students.interests)
   } yield Student(id, name, email, dateOfBirth, address.map(_.value), interests)
+
+  implicit private val examsExtractor: Extractor[StudentExams] = row => for {
+    id <- row.get(ExamsView.studentId)
+    count <- row.get(ExamsView.count)
+    avgScore <- row.get(ExamsView.avgScore)
+    minScore <- row.get(ExamsView.minScore)
+    maxScore <- row.get(ExamsView.maxScore)
+  } yield StudentExams(id, count, avgScore, minScore, maxScore)
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
     Delete(Students)
@@ -102,5 +120,18 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .take(Students.*)
       .where(Students.id in Value(ids))
       .sortBy(Students.id.asc)
-      .fetchMany[Student]()
+      .fetchMany()
+
+  def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] =
+    Select
+      .from(ExamsView.table)
+      .take(ExamsView.studentId)
+      .aggregateBy(
+        ExamsView.count,
+        ExamsView.avgScore,
+        ExamsView.minScore,
+        ExamsView.maxScore
+      )
+      .where(ExamsView.studentId === Value(id))
+      .fetchOne()
 }
