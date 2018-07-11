@@ -57,7 +57,7 @@ trait JDBCQueryRunner {
   }
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
-    def get[U](index: Int, dbType: DbType[U]): dbType.DBTYPE = dbType match {
+    def get[U](index: Int, dbType: DbType[U]): U = dbType match {
       case StringDbType =>
         resultSet.getObject(index).toString
 

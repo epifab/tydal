@@ -1,10 +1,6 @@
 package io.epifab.yadl.domain
 
-import java.time.{LocalDate, LocalDateTime}
-
-sealed trait DbType[T] {
-  type DBTYPE = T
-}
+sealed trait DbType[T]
 
 sealed trait PrimitiveDbType[T] extends DbType[T]
 
