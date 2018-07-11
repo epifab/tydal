@@ -3,28 +3,19 @@ package io.epifab.yadl.domain
 import scala.language.implicitConversions
 
 
-trait Expression[T]
-
-trait Field[T] extends Expression[T] {
+trait Expression[T] {
   def adapter: FieldAdapter[T]
 }
 
-sealed abstract class Column[T](override val src: String, override val alias: String, val adapter: FieldAdapter[T])
-  extends Expression[T] with DataSource
+trait Field[T] extends Expression[T]
 
-final case class TableColumn[T](name: String, table: Table)(implicit adapter: FieldAdapter[T])
-  extends Column[T](
-    s"${table.alias}.$name",
-    s"${table.alias}__$name",
-    adapter
-  )
+sealed trait Column[T] extends Expression[T]
 
-final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U])
-  extends Column[U](
-    s"${dbFunction.name}(${column.src})",
-    s"${column.alias}_${dbFunction.name}",
-    adapter
-  )
+final case class TableColumn[T](name: String, table: Table)(implicit val adapter: FieldAdapter[T])
+  extends Column[T]
+
+final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
+  extends Column[U]
 
 object Column {
   implicit class StringColumn(val value: Column[String])

@@ -109,7 +109,7 @@ trait JDBCQueryRunner {
             case Some(index) =>
               getColumn(resultSet, index + 1)(column.adapter)
             case None =>
-              Left(ExtractorError(s"Column `${column.src}` is missing"))
+              Left(ExtractorError(s"Column $column is missing"))
           }
       }
       results += extractor(row)

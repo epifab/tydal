@@ -34,9 +34,25 @@ object PostgresQueryBuilder {
       Query(toPlaceholder(value.value), Seq(value))
     }
 
+  val columnSrcQueryBuilder: QueryBuilder[Column[_]] = {
+    case TableColumn(name, table) =>
+      s"${table.tableAlias}.$name"
+
+    case AggregateColumn(column, aggregateFunction) =>
+      Query(aggregateFunction.name) + "(" + columnSrcQueryBuilder(column) + ")"
+  }
+
+  val columnAliasQueryBuilder: QueryBuilder[Column[_]] = {
+    case TableColumn(name, table) =>
+      s"${table.tableAlias}__$name"
+
+    case AggregateColumn(column, aggregateFunction) =>
+      Query(aggregateFunction.name) + "_" + columnAliasQueryBuilder(column)
+  }
+
   val filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
     case Filter.Expression.Clause.Column(column) =>
-      Query(column.src)
+      columnSrcQueryBuilder(column)
 
     case Filter.Expression.Clause.Literal(value) =>
       valueBuilder.apply(value)
@@ -60,23 +76,23 @@ object PostgresQueryBuilder {
   }
 
   val columnBuilder: QueryBuilder[Column[_]] =
-    (column: Column[_]) => Query(s"${column.src} AS ${column.alias}")
+    (column: Column[_]) => columnSrcQueryBuilder(column) ++ "AS" ++ columnAliasQueryBuilder(column)
 
-  val dataSourceBuilder: QueryBuilder[DataSource] =
-    (ds: DataSource) => Query(s"${ds.src} AS ${ds.alias}")
+  val tableWithAliasBuilder: QueryBuilder[Table] =
+    (table: Table) => Query(s"${table.tableName} AS ${table.tableAlias}")
 
   val joinBuilder: QueryBuilder[Join] = {
     case InnerJoin(source, clauses) =>
-      Query("INNER JOIN") ++ dataSourceBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+      Query("INNER JOIN") ++ tableWithAliasBuilder(source) ++ "ON" ++ filterBuilder(clauses)
     case LeftJoin(source, clauses) =>
-      Query("LEFT JOIN") ++ dataSourceBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+      Query("LEFT JOIN") ++ tableWithAliasBuilder(source) ++ "ON" ++ filterBuilder(clauses)
     case CrossJoin(source) =>
-      Query("CROSS JOIN") ++ dataSourceBuilder(source)
+      Query("CROSS JOIN") ++ tableWithAliasBuilder(source)
   }
 
   val sortBuilder: QueryBuilder[Sort] =
     (s: Sort) => {
-      Query(s.source.src) ++ (s match {
+      columnSrcQueryBuilder(s.column) ++ (s match {
         case _: AscSort => "ASC"
         case _: DescSort => "DESC"
       })
@@ -91,13 +107,13 @@ object PostgresQueryBuilder {
           .getOrElse(Query("1")) ++
         Query("FROM") ++
           t.joins
-            .foldLeft(dataSourceBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
+            .foldLeft(tableWithAliasBuilder(t.table))((from, join) => from ++ joinBuilder(join)) ++
         Query("WHERE") ++
           filterBuilder(t.filter) ++
         t.aggregations
           .headOption
           .flatMap(_ =>
-            t.columns.map(column => Query(column.src))
+            t.columns.map(columnSrcQueryBuilder.apply)
             .reduceOption(_ + "," ++ _)
             .map(columns => Query("GROUP BY") ++ columns)
           ) ++
@@ -112,7 +128,7 @@ object PostgresQueryBuilder {
   val insert: QueryBuilder[Insert] =
     (t: Insert) =>
       Query("INSERT INTO") ++
-        t.dataSource.src ++
+        t.table.tableName ++
         t.columnValues
           .map(colValue => Query(colValue.column.name))
           .reduce(_ + "," ++ _)
@@ -126,7 +142,7 @@ object PostgresQueryBuilder {
   val update: QueryBuilder[Update] =
     (t: Update) =>
       Query("UPDATE") ++
-        dataSourceBuilder(t.dataSource) ++
+        tableWithAliasBuilder(t.table) ++
       Query("SET") ++
         t.values
           .map(colValue => Query(colValue.column.name) ++ Query("=") ++ valueBuilder(colValue.value))
@@ -137,7 +153,7 @@ object PostgresQueryBuilder {
   val delete: QueryBuilder[Delete] =
     (t: Delete) =>
       Query("DELETE FROM") ++
-        dataSourceBuilder(t.dataSource) ++
+        tableWithAliasBuilder(t.table) ++
       Query("WHERE") ++
         filterBuilder(t.filter)
 

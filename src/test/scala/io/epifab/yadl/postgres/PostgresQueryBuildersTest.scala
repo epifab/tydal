@@ -214,10 +214,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
     select(query) shouldBe Query(
       "SELECT" +
         " e.student_id AS e__student_id," +
-        " avg(e.score) AS e__score_avg," +
-        " count(e.course_id) AS e__course_id_count," +
-        " max(e.score) AS e__score_max," +
-        " min(e.score) AS e__score_min" +
+        " avg(e.score) AS avg_e__score," +
+        " count(e.course_id) AS count_e__course_id," +
+        " max(e.score) AS max_e__score," +
+        " min(e.score) AS min_e__score" +
         " FROM exams AS e" +
         " WHERE 1 = 1" +
         " GROUP BY e.student_id"

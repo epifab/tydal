@@ -1,8 +1,8 @@
 package io.epifab.yadl.domain
 
-trait Table extends DataSource {
-  def alias: String
-  def src: String
+trait Table {
+  def tableAlias: String
+  def tableName: String
 
   def column[T](name: String)(implicit fieldAdapter: FieldAdapter[T]): TableColumn[T] =
     TableColumn[T](name, this)
