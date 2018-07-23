@@ -33,6 +33,10 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   val exam2 = Exam(studentId = 2, courseId = 1, 29, LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0))
   val exam3 = Exam(studentId = 2, courseId = 2, 30, LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0))
 
+  val student1Exams: Seq[Exam :: Course :: HNil] = Seq(exam1 :: course1 :: HNil)
+  val student2Exams: Seq[Exam :: Course :: HNil] = Seq(exam2 :: course1 :: HNil, exam3 :: course2 :: HNil)
+  val student3Exams: Seq[Exam :: Course :: HNil] = Seq.empty
+
   val connection: Connection = DriverManager
     .getConnection(
       s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
@@ -108,6 +112,14 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     repos.findExamsByDate(LocalDate.of(2018, 11, 22)).eventually shouldBe Right(Seq(
       exam2 :: course1 :: HNil,
       exam3 :: course2 :: HNil
+    ))
+  }
+
+  it should "find student exams" in {
+    repos.findStudentsExams(student1, student2, student3).eventually shouldBe Right(Seq(
+      student1 :: student1Exams :: HNil,
+      student2 :: student2Exams :: HNil,
+      student3 :: student3Exams :: HNil
     ))
   }
 

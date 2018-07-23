@@ -47,22 +47,20 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .fetchMany()
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
-    Select
+    val examsFE = Select
       .from(Exams)
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.studentId in Value(students.map(_.id)))
       .fetchMany[Exam :: Course :: HNil]()
-      .map(_.map { exams =>
-        exams
-          .groupBy(_.head.studentId)
-          .flatMap { case (studentId, studentExams) =>
-            students
-              .find(_.id == studentId)
-              .map(student =>
-                student :: studentExams :: HNil)
-          }
-      })
+
+    examsFE.map(_.map(
+      exams =>
+        students.map(student =>
+          student :: exams.filter(_.head.studentId == student.id) :: HNil
+        )
+      )
+    )
   }
 
   def createExam(exam: Exam): F[Either[DALError, Int]] =
