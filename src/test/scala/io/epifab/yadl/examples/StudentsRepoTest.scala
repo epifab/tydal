@@ -29,7 +29,7 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq("music"))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
-  val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 11, 23, 17, 30, 20, 0))
+  val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 3, 8, 9, 5, 6, 0))
   val exam2 = Exam(studentId = 2, courseId = 1, 29, LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0))
   val exam3 = Exam(studentId = 2, courseId = 2, 30, LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0))
 

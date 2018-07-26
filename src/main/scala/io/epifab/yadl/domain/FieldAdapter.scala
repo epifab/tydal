@@ -98,7 +98,7 @@ case object DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
     value.format(DateTimeFormatter.ISO_DATE_TIME)
 
   override def fromDb(dbValue: String): Either[ExtractorError, LocalDateTime] =
-    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("y-M-d H:m:s.S")))
+    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }
