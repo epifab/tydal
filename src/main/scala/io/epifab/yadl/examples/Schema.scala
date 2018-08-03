@@ -8,9 +8,7 @@ object Schema {
   import io.circe.generic.auto._
   import io.epifab.yadl.implicits._
 
-  class StudentsTable(val tableAlias: String) extends Table { self =>
-    override val tableName: String = "students"
-
+  class StudentsTable(override val tableAlias: String) extends Table("students") { self =>
     lazy val id: TableColumn[Int] = column("id")
     lazy val name: TableColumn[String] = column("name")
     lazy val email: TableColumn[Option[String]] = column("email")
@@ -25,8 +23,7 @@ object Schema {
     }
   }
 
-  class CoursesTable(val tableAlias: String) extends Table { self =>
-    override def tableName: String = "courses"
+  class CoursesTable(override val tableAlias: String) extends Table("courses") { self =>
 
     lazy val id: TableColumn[Int] = column("id")
     lazy val name: TableColumn[String] = column("name")
@@ -38,8 +35,7 @@ object Schema {
     }
   }
 
-  class ExamsTable(val tableAlias: String) extends Table { self =>
-    override def tableName: String = "exams"
+  class ExamsTable(override val tableAlias: String) extends Table("exams") { self =>
 
     lazy val studentId: TableColumn[Int] = column("student_id")
     lazy val courseId: TableColumn[Int] = column("course_id")
