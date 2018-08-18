@@ -1,22 +1,13 @@
 package io.epifab.yadl.examples
 
 import io.epifab.yadl.domain._
+import io.epifab.yadl.examples.Schema.{ExamsSubQuery, ExamsTable}
 import io.epifab.yadl.implicits._
 
 import scala.language.higherKinds
 
 trait StudentsRepo[F[_]] extends Repo[F] {
-  object Students extends Schema.StudentsTable("s")
-
-  object ExamsView {
-    val table = new Schema.ExamsTable("e")
-
-    val studentId: TableColumn[Int] = table.studentId
-    val count: AggregateColumn[Int, Option[Int]] = Count(table.courseId)
-    val avgScore: AggregateColumn[Int, Option[Double]] = Avg(table.score)
-    val minScore: AggregateColumn[Int, Option[Int]] = Min(table.score)
-    val maxScore: AggregateColumn[Int, Option[Int]] = Max(table.score)
-  }
+  object Students extends Schema.StudentsTable
 
   implicit private val studentExtractor: Extractor[Student] = row => for {
     id <- row.get(Students.id)
@@ -28,11 +19,11 @@ trait StudentsRepo[F[_]] extends Repo[F] {
   } yield Student(id, name, email, dateOfBirth, address.map(_.value), interests)
 
   implicit private val examsExtractor: Extractor[StudentExams] = row => for {
-    id <- row.get(ExamsView.studentId)
-    count <- row.get(ExamsView.count)
-    avgScore <- row.get(ExamsView.avgScore)
-    minScore <- row.get(ExamsView.minScore)
-    maxScore <- row.get(ExamsView.maxScore)
+    id <- row.get(Students.examsProjection.studentId)
+    count <- row.get(Students.examsProjection.count)
+    avgScore <- row.get(Students.examsProjection.avgScore)
+    minScore <- row.get(Students.examsProjection.minScore)
+    maxScore <- row.get(Students.examsProjection.maxScore)
   } yield StudentExams(id, count, avgScore, minScore, maxScore)
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
@@ -124,14 +115,26 @@ trait StudentsRepo[F[_]] extends Repo[F] {
 
   def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] =
     Select
-      .from(ExamsView.table)
-      .take(ExamsView.studentId)
+      .from(Students.examsProjection.exams)
+      .take(Students.examsProjection.studentId)
       .aggregateBy(
-        ExamsView.count,
-        ExamsView.avgScore,
-        ExamsView.minScore,
-        ExamsView.maxScore
+        Students.examsProjection.count,
+        Students.examsProjection.avgScore,
+        Students.examsProjection.minScore,
+        Students.examsProjection.maxScore
       )
-      .where(ExamsView.studentId === Value(id))
+      .where(Students.examsProjection.studentId === Value(id))
       .fetchOne()
+
+  def findBestStudents: F[Either[DALError, Seq[Student]]] = {
+    val avgStudent = new ExamsSubQuery
+
+    Select
+      .from(Students)
+      .take(Students.*)
+      .innerJoin(Students.examsProjection.exams, Students.examsProjection.studentId === Students.id)
+      .innerJoin(avgStudent, avgStudent.avgScore <= Students.examsProjection.avgScore)
+      .inRange(0, 10)
+      .fetchMany()
+  }
 }

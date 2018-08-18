@@ -5,29 +5,29 @@ sealed trait Statement
 sealed trait SideEffect
 
 sealed trait Select extends Statement {
-  def table: Table
-  def columns: Seq[TableColumn[_]]
+  def dataSource: DataSource
+  def columns: Seq[Column[_]]
   def aggregations: Seq[Column[_]]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def take(column: TableColumn[_], columns: TableColumn[_]*): Select
+  def take(column: Column[_], columns: Column[_]*): Select
 
-  def take(columns: Seq[TableColumn[_]]): Select
+  def take(columns: Seq[Column[_]]): Select
 
-  def aggregateBy(aggregations: AggregateColumn[_, _]*): Select
+  def aggregateBy(aggregations: Column[_]*): Select
 
-  def leftJoin(relation: Table with Relation): Select
+  def leftJoin(relation: DataSource with Relation): Select
 
-  def leftJoin(table: Table, where: Filter = Filter.Empty): Select
+  def leftJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select
 
-  def innerJoin(relation: Table with Relation): Select
+  def innerJoin(relation: DataSource with Relation): Select
 
-  def innerJoin(table: Table, where: Filter = Filter.Empty): Select
+  def innerJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select
 
-  def crossJoin(table: Table): Select
+  def crossJoin(dataSource: DataSource): Select
 
   def where(filter: Filter): Select
 
@@ -38,37 +38,37 @@ sealed trait Select extends Statement {
 
 object Select {
   protected final case class SelectImpl(
-                                         table: Table,
-                                         columns: Seq[TableColumn[_]] = Seq.empty,
+                                         dataSource: DataSource,
+                                         columns: Seq[Column[_]] = Seq.empty,
                                          aggregations: Seq[Column[_]] = Seq.empty,
                                          joins: Seq[Join] = Seq.empty,
                                          filter: Filter = Filter.Empty,
                                          sort: Seq[Sort] = Seq.empty,
                                          limit: Option[Limit] = None
   ) extends Select {
-    def take(columns: Seq[TableColumn[_]]): Select =
+    def take(columns: Seq[Column[_]]): Select =
       copy(columns = this.columns ++ columns)
 
-    def take(column: TableColumn[_], columns: TableColumn[_]*): Select =
+    def take(column: Column[_], columns: Column[_]*): Select =
       copy(columns = this.columns ++ (column +: columns))
 
-    def aggregateBy(aggregations: AggregateColumn[_, _]*): Select =
+    def aggregateBy(aggregations: Column[_]*): Select =
       copy(aggregations = this.aggregations ++ aggregations)
 
-    def leftJoin(relation: Table with Relation): Select =
+    def leftJoin(relation: DataSource with Relation): Select =
       leftJoin(relation, relation.relationClause)
 
-    def leftJoin(table: Table, where: Filter = Filter.Empty): Select =
-      copy(joins = joins :+ LeftJoin(table, where))
+    def leftJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select =
+      copy(joins = joins :+ LeftJoin(dataSource, where))
 
-    def innerJoin(relation: Table with Relation): Select =
+    def innerJoin(relation: DataSource with Relation): Select =
       innerJoin(relation, relation.relationClause)
 
-    def innerJoin(table: Table, where: Filter = Filter.Empty): Select =
-      copy(joins = joins :+ InnerJoin(table, where))
+    def innerJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select =
+      copy(joins = joins :+ InnerJoin(dataSource, where))
 
-    def crossJoin(table: Table): Select =
-      copy(joins = joins :+ CrossJoin(table))
+    def crossJoin(dataSource: DataSource): Select =
+      copy(joins = joins :+ CrossJoin(dataSource))
 
     def where(filter: Filter): Select =
       copy(filter = this.filter and filter)
@@ -80,7 +80,7 @@ object Select {
       copy(limit = Some(Limit(start, stop)))
   }
 
-  def from(table: Table) = SelectImpl(table)
+  def from(dataSource: DataSource) = SelectImpl(dataSource)
 }
 
 sealed trait Insert extends Statement with SideEffect {

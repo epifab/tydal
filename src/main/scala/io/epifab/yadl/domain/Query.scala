@@ -16,7 +16,3 @@ object Query {
   def apply(src: String, params: Seq[Value[_]] = Seq.empty): Query = new Query(src, params)
   val empty: Query = Query("")
 }
-
-trait QueryBuilder[T] {
-  def apply(t: T): Query
-}

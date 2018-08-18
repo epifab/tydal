@@ -7,8 +7,6 @@ trait Expression[T] {
   def adapter: FieldAdapter[T]
 }
 
-trait Field[T] extends Expression[T]
-
 sealed trait Column[T] extends Expression[T]
 
 final case class TableColumn[T](name: String, table: Table)(implicit val adapter: FieldAdapter[T])
@@ -16,6 +14,10 @@ final case class TableColumn[T](name: String, table: Table)(implicit val adapter
 
 final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
   extends Column[U]
+
+final case class SubQueryColumn[T](column: Column[T], subQuery: SubQuery) extends Column[T] {
+  override def adapter: FieldAdapter[T] = column.adapter
+}
 
 object Column {
   implicit class StringColumn(val value: Column[String])

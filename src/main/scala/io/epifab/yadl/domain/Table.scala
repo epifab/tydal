@@ -1,11 +1,19 @@
 package io.epifab.yadl.domain
 
-abstract class Table(val tableName: String) {
-  def tableAlias: String
+sealed trait DataSource
 
-  def column[T](name: String)(implicit fieldAdapter: FieldAdapter[T]): TableColumn[T] =
+abstract class Table(val tableName: String) extends DataSource {
+  def column[T](name: String)(implicit adapter: FieldAdapter[T]): TableColumn[T] =
     TableColumn[T](name, this)
 }
+
+trait SubQuery extends DataSource {
+  def select: Select
+
+  def column[T](column: Column[T]): SubQueryColumn[T] =
+    SubQueryColumn[T](column, this)
+}
+
 
 trait Relation {
   def relationClause: Filter

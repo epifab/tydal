@@ -47,9 +47,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   }
 
   def tearDown(): Future[Either[DALError, Int]] = {
-    repos.queryRunner.run(Delete(new Schema.ExamsTable("e")))
-      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable("c"))))
-      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable("s"))))
+    repos.queryRunner.run(Delete(new Schema.ExamsTable))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.CoursesTable)))
+      .flatMap(_ => repos.queryRunner.run(Delete(new Schema.StudentsTable)))
   }
 
   def setUp(): Future[Either[DALError, Seq[Int]]] = {

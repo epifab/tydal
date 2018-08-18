@@ -8,7 +8,28 @@ object Schema {
   import io.circe.generic.auto._
   import io.epifab.yadl.implicits._
 
-  class StudentsTable(override val tableAlias: String) extends Table("students") { self =>
+  class ExamsSubQuery extends SubQuery {
+    private val exams = new ExamsTable
+
+    val avgScore: SubQueryColumn[Option[Double]] =
+      column(Avg(exams.score))
+
+    lazy val select: Select = Select
+      .from(exams)
+      .aggregateBy(avgScore.column)
+  }
+
+  class StudentsTable extends Table("students") { self =>
+    object examsProjection {
+      val exams = new ExamsTable
+
+      val studentId: TableColumn[Int] = exams.studentId
+      val count: AggregateColumn[Int, Option[Int]] = Count(exams.courseId)
+      val avgScore: AggregateColumn[Int, Option[Double]] = Avg(exams.score)
+      val minScore: AggregateColumn[Int, Option[Int]] = Min(exams.score)
+      val maxScore: AggregateColumn[Int, Option[Int]] = Max(exams.score)
+    }
+
     lazy val id: TableColumn[Int] = column("id")
     lazy val name: TableColumn[String] = column("name")
     lazy val email: TableColumn[Option[String]] = column("email")
@@ -18,25 +39,23 @@ object Schema {
 
     lazy val `*`: Seq[TableColumn[_]] = Seq(id, name, email, dateOfBirth, interests, address)
 
-    lazy val exams: ExamsTable with Relation = new ExamsTable(self.tableAlias + "__exams") with Relation {
+    lazy val exams: ExamsTable with Relation = new ExamsTable with Relation {
       override def relationClause: Filter = self.id === studentId
     }
   }
 
-  class CoursesTable(override val tableAlias: String) extends Table("courses") { self =>
-
+  class CoursesTable extends Table("courses") { self =>
     lazy val id: TableColumn[Int] = column("id")
     lazy val name: TableColumn[String] = column("name")
 
     lazy val `*`: Seq[TableColumn[_]] = Seq(id, name)
 
-    lazy val exams: ExamsTable with Relation = new ExamsTable(self.tableAlias + "__exams") with Relation {
+    lazy val exams: ExamsTable with Relation = new ExamsTable with Relation {
       override def relationClause: Filter = self.id === courseId
     }
   }
 
-  class ExamsTable(override val tableAlias: String) extends Table("exams") { self =>
-
+  class ExamsTable extends Table("exams") { self =>
     lazy val studentId: TableColumn[Int] = column("student_id")
     lazy val courseId: TableColumn[Int] = column("course_id")
     lazy val score: TableColumn[Int] = column("score")
@@ -44,11 +63,11 @@ object Schema {
 
     lazy val `*`: Seq[TableColumn[_]] = Seq(studentId, courseId, score, dateTime)
 
-    lazy val course: CoursesTable with Relation = new CoursesTable(self.tableAlias + "__course") with Relation {
+    lazy val course: CoursesTable with Relation = new CoursesTable with Relation {
       override def relationClause: Filter = id === self.courseId
     }
 
-    lazy val student: StudentsTable with Relation = new StudentsTable(self.tableAlias + "__student") with Relation {
+    lazy val student: StudentsTable with Relation = new StudentsTable with Relation {
       override def relationClause: Filter = id === self.studentId
     }
   }

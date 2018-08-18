@@ -2,8 +2,8 @@ package io.epifab.yadl.postgres
 
 import java.time.LocalDate
 
-import io.epifab.yadl.domain._
 import io.circe.generic.auto._
+import io.epifab.yadl.domain._
 import io.epifab.yadl.examples.Address
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
@@ -11,16 +11,16 @@ import org.scalatest.Matchers._
 class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.yadl.examples.Schema._
   import io.epifab.yadl.implicits._
-  import io.epifab.yadl.postgres.PostgresQueryBuilder._
+  import io.epifab.yadl.postgres.PostgresQueryBuilder.build
 
-  val students = new StudentsTable("s")
-  val exams = new ExamsTable("e")
+  val students = new StudentsTable
+  val exams = new ExamsTable
 
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)
-    select(query) shouldBe Query(
+    build(query) shouldBe Query(
       "SELECT 1" +
-        " FROM students AS s" +
+        " FROM students AS ds1" +
         " WHERE 1 = 1")
   }
 
@@ -29,9 +29,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       .from(students)
       .take(students.name)
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name" +
-        " FROM students AS s" +
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name" +
+        " FROM students AS ds1" +
         " WHERE 1 = 1")
   }
 
@@ -40,9 +40,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       .from(students)
       .take(students.name, students.email)
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name, s.email AS s__email" +
-        " FROM students AS s" +
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name, ds1.email AS ds1__email" +
+        " FROM students AS ds1" +
         " WHERE 1 = 1")
   }
 
@@ -52,10 +52,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
       .take(students.name)
       .where(students.name === Value("Fabio"))
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name" +
-        " FROM students AS s" +
-        " WHERE s.name = ?", Seq(Value("Fabio")))
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name" +
+        " FROM students AS ds1" +
+        " WHERE ds1.name = ?", Seq(Value("Fabio")))
   }
 
   it should "evaluate non trivial filters" in {
@@ -67,10 +67,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
             and (students.email like Value("epifab@%"))
             or (students.id in Value(Seq(1, 2, 6))))
 
-    select(query) shouldBe Query(
+    build(query) shouldBe Query(
       "SELECT 1" +
-        " FROM students AS s" +
-        " WHERE (s.name = ? AND s.email LIKE ? OR s.id = ANY(?))",
+        " FROM students AS ds1" +
+        " WHERE (ds1.name = ? AND ds1.email LIKE ? OR ds1.id = ANY(?))",
       Seq(
         Value("Fabio"),
         Value("epifab@%"),
@@ -91,10 +91,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
             (students.email like Value("epifab@%") or (students.id in Value(Seq(1, 2, 6))))
         )
 
-    select(query) shouldBe Query(
+    build(query) shouldBe Query(
       "SELECT 1" +
-        " FROM students AS s" +
-        " WHERE s.name = ? AND (s.email LIKE ? OR s.id = ANY(?))",
+        " FROM students AS ds1" +
+        " WHERE ds1.name = ? AND (ds1.email LIKE ? OR ds1.id = ANY(?))",
       Seq(Value("Fabio"), Value("epifab@%"), Value(Seq(1, 2, 6)))
     )
   }
@@ -107,13 +107,13 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .innerJoin(students.exams.course)
         .take(students.name, students.exams.score, students.exams.course.name)
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name," +
-        " s__exams.score AS s__exams__score," +
-        " s__exams__course.name AS s__exams__course__name" +
-        " FROM students AS s" +
-        " LEFT JOIN exams AS s__exams ON s__exams.student_id = s.id" +
-        " INNER JOIN courses AS s__exams__course ON s__exams__course.id = s__exams.course_id" +
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name," +
+        " ds2.score AS ds2__score," +
+        " ds3.name AS ds3__name" +
+        " FROM students AS ds1" +
+        " LEFT JOIN exams AS ds2 ON ds2.student_id = ds1.id" +
+        " INNER JOIN courses AS ds3 ON ds3.id = ds2.course_id" +
         " WHERE 1 = 1"
     )
   }
@@ -124,11 +124,11 @@ class PostgresQueryBuildersTest extends FlatSpec {
       .take(students.name)
       .sortBy(students.email.asc, students.id.desc)
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name" +
-        " FROM students AS s" +
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name" +
+        " FROM students AS ds1" +
         " WHERE 1 = 1" +
-        " ORDER BY s.email ASC, s.id DESC")
+        " ORDER BY ds1.email ASC, ds1.id DESC")
   }
 
   it should "evaluate limit" in {
@@ -137,9 +137,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       .take(students.name)
       .inRange(1, 4)
 
-    select(query) shouldBe Query(
-      "SELECT s.name AS s__name" +
-        " FROM students AS s" +
+    build(query) shouldBe Query(
+      "SELECT ds1.name AS ds1__name" +
+        " FROM students AS ds1" +
         " WHERE 1 = 1" +
         " OFFSET 1 LIMIT 4")
   }
@@ -156,7 +156,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.dateOfBirth -> LocalDate.of(1985, 11, 15)
         )
 
-    insert(query) shouldBe Query(
+    build(query) shouldBe Query(
       "INSERT INTO students" +
         " (id, name, email, address, date_of_birth)" +
         " VALUES (?, ?, ?, cast(? as json), cast(? as date))",
@@ -179,10 +179,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
         )
         .where(students.id === Value(2))
 
-    update(query) shouldBe Query(
-      "UPDATE students AS s" +
+    build(query) shouldBe Query(
+      "UPDATE students AS ds1" +
         " SET name = ?, email = ?" +
-        " WHERE s.id = ?",
+        " WHERE ds1.id = ?",
       Seq(Value("Jane"), Value(Option("jane@doe.com")), Value(2))
     )
   }
@@ -192,9 +192,9 @@ class PostgresQueryBuildersTest extends FlatSpec {
       Delete(students)
         .where(students.id === Value(2))
 
-    delete(query) shouldBe Query(
-      "DELETE FROM students AS s" +
-        " WHERE s.id = ?",
+    build(query) shouldBe Query(
+      "DELETE FROM students AS ds1" +
+        " WHERE ds1.id = ?",
       Seq(Value(2))
     )
   }
@@ -211,16 +211,16 @@ class PostgresQueryBuildersTest extends FlatSpec {
           Min(exams.score)
         )
 
-    select(query) shouldBe Query(
+    build(query) shouldBe Query(
       "SELECT" +
-        " e.student_id AS e__student_id," +
-        " avg(e.score) AS avg_e__score," +
-        " count(e.course_id) AS count_e__course_id," +
-        " max(e.score) AS max_e__score," +
-        " min(e.score) AS min_e__score" +
-        " FROM exams AS e" +
+        " ds1.student_id AS ds1__student_id," +
+        " avg(ds1.score) AS avg_ds1__score," +
+        " count(ds1.course_id) AS count_ds1__course_id," +
+        " max(ds1.score) AS max_ds1__score," +
+        " min(ds1.score) AS min_ds1__score" +
+        " FROM exams AS ds1" +
         " WHERE 1 = 1" +
-        " GROUP BY e.student_id"
+        " GROUP BY ds1.student_id"
     )
   }
 }

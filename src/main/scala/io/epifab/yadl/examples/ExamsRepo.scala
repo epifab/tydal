@@ -10,7 +10,7 @@ import shapeless._
 import scala.language.higherKinds
 
 trait ExamsRepo[F[_]] extends Repo[F] {
-  object Exams extends Schema.ExamsTable("e")
+  object Exams extends Schema.ExamsTable
 
   implicit private val examExtractor: Extractor[Exam] = row => for {
     score <- row.get(Exams.score)
@@ -57,7 +57,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
     examsFE.map(_.map(
       exams =>
         students.map(student =>
-          student :: exams.filter(_.head.studentId == student.id) :: HNil
+          student :: exams.filter(_.select[Exam].studentId == student.id) :: HNil
         )
       )
     )
