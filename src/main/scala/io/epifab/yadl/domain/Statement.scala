@@ -17,15 +17,13 @@ sealed trait Select extends Statement {
 
   def take(columns: Seq[Column[_]]): Select
 
-  def aggregateBy(aggregations: Column[_]*): Select
+  def aggregateBy(aggregation: Column[_], aggregations: Column[_]*): Select
 
-  def leftJoin(relation: DataSource with Relation): Select
+  def aggregateBy(aggregations: Seq[Column[_]]): Select
 
-  def leftJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select
+  def leftJoin[T <: DataSource](relation: Relation[T]): Select
 
-  def innerJoin(relation: DataSource with Relation): Select
-
-  def innerJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select
+  def innerJoin[T <: DataSource](relation: Relation[T]): Select
 
   def crossJoin(dataSource: DataSource): Select
 
@@ -52,20 +50,17 @@ object Select {
     def take(column: Column[_], columns: Column[_]*): Select =
       copy(columns = this.columns ++ (column +: columns))
 
-    def aggregateBy(aggregations: Column[_]*): Select =
+    def aggregateBy(aggregations: Seq[Column[_]]): Select =
       copy(aggregations = this.aggregations ++ aggregations)
 
-    def leftJoin(relation: DataSource with Relation): Select =
-      leftJoin(relation, relation.relationClause)
+    def aggregateBy(aggregation: Column[_], aggregations: Column[_]*): Select =
+      copy(aggregations = this.aggregations ++ (aggregation +: aggregations))
 
-    def leftJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select =
-      copy(joins = joins :+ LeftJoin(dataSource, where))
+    def leftJoin[T <: DataSource](relation: Relation[T]): Select =
+      copy(joins = joins :+ LeftJoin(relation, relation.clause))
 
-    def innerJoin(relation: DataSource with Relation): Select =
-      innerJoin(relation, relation.relationClause)
-
-    def innerJoin(dataSource: DataSource, where: Filter = Filter.Empty): Select =
-      copy(joins = joins :+ InnerJoin(dataSource, where))
+    def innerJoin[T <: DataSource](relation: Relation[T]): Select =
+      copy(joins = joins :+ InnerJoin(relation, relation.clause))
 
     def crossJoin(dataSource: DataSource): Select =
       copy(joins = joins :+ CrossJoin(dataSource))

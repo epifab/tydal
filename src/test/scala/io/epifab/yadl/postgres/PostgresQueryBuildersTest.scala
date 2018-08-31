@@ -16,6 +16,14 @@ class PostgresQueryBuildersTest extends FlatSpec {
   val students = new StudentsTable
   val exams = new ExamsTable
 
+  class ExamsSubQuery extends SubQuery {
+    val studentId: Column[Int] = column(exams.studentId)
+
+    override def select: Select =
+      Select.from(exams)
+        .take(exams.studentId)
+  }
+
   "PostgresQuery" should "evaluate a the simplest query" in {
     val query = Select.from(students)
     build(query) shouldBe Query(
@@ -103,9 +111,13 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       Select
         .from(students)
-        .leftJoin(students.exams, students.exams.studentId === students.id)
+        .leftJoin(students.exams.on(_.studentId === students.id))
         .innerJoin(students.exams.course)
-        .take(students.name, students.exams.score, students.exams.course.name)
+        .take(
+          students.name,
+          students.exams.score,
+          students.exams.course.name
+        )
 
     build(query) shouldBe Query(
       "SELECT ds1.name AS ds1__name," +
@@ -221,6 +233,41 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " FROM exams AS ds1" +
         " WHERE 1 = 1" +
         " GROUP BY ds1.student_id"
+    )
+  }
+
+  it should "evaluate a simple subquery" in {
+    val exams = new ExamsSubQuery
+
+    val query = Select
+      .from(exams)
+      .take(exams.studentId)
+
+    build(query) shouldBe Query(
+      "SELECT" +
+        " ds1.ds2__student_id AS ds1__ds2__student_id" +
+        " FROM (SELECT ds2.student_id AS ds2__student_id FROM exams AS ds2 WHERE 1 = 1) AS ds1" +
+        " WHERE 1 = 1"
+    )
+  }
+
+  it should "evaluate a subquery in a join" in {
+    val exams = new ExamsSubQuery
+
+    val query = Select
+      .from(students)
+      .innerJoin(exams.on(_.studentId === students.id))
+      .take(students.id)
+      .take(exams.studentId)
+
+    build(query) shouldBe Query(
+      "SELECT" +
+        " ds1.id AS ds1__id," +
+        " ds2.ds3__student_id AS ds2__ds3__student_id" +
+        " FROM students AS ds1" +
+        " INNER JOIN (SELECT ds3.student_id AS ds3__student_id FROM exams AS ds3 WHERE 1 = 1) AS ds2" +
+        " ON ds2.ds3__student_id = ds1.id" +
+        " WHERE 1 = 1"
     )
   }
 }

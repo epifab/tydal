@@ -13,13 +13,15 @@ package object examples {
     address: Option[Address],
     interests: Seq[String]
   )
+
   case class StudentExams(
-    studentId: Int,
     count: Option[Int],
     avgScore: Option[Double],
     minScore: Option[Int],
     maxScore: Option[Int]
   )
+
   case class Exam(studentId: Int, courseId: Int, score: Int, dateTime: LocalDateTime)
+
   case class Course(id: Int, name: String)
 }

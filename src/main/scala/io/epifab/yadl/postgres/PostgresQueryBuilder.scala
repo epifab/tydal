@@ -21,8 +21,6 @@ class AliasLookup[T](prefix: String) {
 }
 
 object PostgresQueryBuilder {
-  implicit private val fromString: String => Query = Query(_)
-
   def build: QueryBuilder[Statement] = new QueryBuilder[Statement] {
     val aliasLookup = new AliasLookup[DataSource]("ds")
 
@@ -54,24 +52,24 @@ object PostgresQueryBuilder {
 
     def columnSrcQueryBuilder: QueryBuilder[Column[_]] = {
       case TableColumn(name, table) =>
-        aliasLookup(table) + "." + name
+        Query(aliasLookup(table) + "." + name)
 
       case AggregateColumn(column, aggregateFunction) =>
-        Query(aggregateFunction.name) + "(" + columnSrcQueryBuilder(column) + ")"
+        Query(aggregateFunction.name) :+ "(" :+ columnSrcQueryBuilder(column) :+ ")"
 
       case SubQueryColumn(column, subQuery) =>
-        aliasLookup(subQuery) + "__" + columnAliasQueryBuilder(column)
+        Query(aliasLookup(subQuery)) :+ "." :+ columnAliasQueryBuilder(column)
     }
 
     def columnAliasQueryBuilder: QueryBuilder[Column[_]] = {
       case TableColumn(name, table) =>
-        aliasLookup(table) + "__" + name
+        Query(aliasLookup(table) + "__" + name)
 
       case AggregateColumn(column, aggregateFunction) =>
-        Query(aggregateFunction.name) + "_" + columnAliasQueryBuilder(column)
+        Query(aggregateFunction.name) :+ "_" :+ columnAliasQueryBuilder(column)
 
       case SubQueryColumn(column, subQuery) =>
-        aliasLookup(subQuery) + "." + columnAliasQueryBuilder(column)
+        Query(aliasLookup(subQuery)) :+ "__" :+ columnAliasQueryBuilder(column)
     }
 
     def filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
@@ -87,102 +85,102 @@ object PostgresQueryBuilder {
 
     def filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
       case Filter.BinaryExpression(left, right, op) =>
-        filterClauseBuilder(left) ++ filterOpBuilder(op) ++ filterClauseBuilder(right)
+        filterClauseBuilder(left) :++ filterOpBuilder(op) :++ filterClauseBuilder(right)
       case Filter.UniaryExpression(left, op) =>
-        filterClauseBuilder(left) ++ filterOpBuilder(op)
+        filterClauseBuilder(left) :++ filterOpBuilder(op)
     }
 
     def filterBuilder: QueryBuilder[Filter] = {
       case e: Filter.Expression => filterExpressionBuilder(e)
-      case Filter.And(f1, f2) => filterBuilder(f1) ++ "AND" ++ filterBuilder(f2)
-      case Filter.Or(f1, f2) => Query("(") + filterBuilder(f1) ++ "OR" ++ filterBuilder(f2) + ")"
+      case Filter.And(f1, f2) => filterBuilder(f1) :++ "AND" :++ filterBuilder(f2)
+      case Filter.Or(f1, f2) => (filterBuilder(f1) :++ "OR" :++ filterBuilder(f2)).wrap("(", ")")
       case Filter.Empty => Query("1 = 1")
     }
 
     def columnBuilder: QueryBuilder[Column[_]] =
-      (column: Column[_]) => columnSrcQueryBuilder(column) ++ "AS" ++ columnAliasQueryBuilder(column)
+      (column: Column[_]) => columnSrcQueryBuilder(column) :++ "AS" :++ columnAliasQueryBuilder(column)
 
     def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
       case dataSource: Table =>
-        dataSource.tableName + " AS " + aliasLookup(dataSource)
+        Query(dataSource.tableName + " AS " + aliasLookup(dataSource))
       case dataSource: SubQuery =>
-        select(dataSource.select).wrap("(", ")") ++ "AS" ++ aliasLookup(dataSource)
+        select(dataSource.select).wrap("(", ")") :++ "AS" :++ aliasLookup(dataSource)
     }
 
     def joinBuilder: QueryBuilder[Join] = {
       case InnerJoin(source, clauses) =>
-        Query("INNER JOIN") ++ dataSourceWithAliasBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+        Query("INNER JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterBuilder(clauses)
       case LeftJoin(source, clauses) =>
-        Query("LEFT JOIN") ++ dataSourceWithAliasBuilder(source) ++ "ON" ++ filterBuilder(clauses)
+        Query("LEFT JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterBuilder(clauses)
       case CrossJoin(source) =>
-        Query("CROSS JOIN") ++ dataSourceWithAliasBuilder(source)
+        Query("CROSS JOIN") :++ dataSourceWithAliasBuilder(source)
     }
 
     def sortBuilder: QueryBuilder[Sort] =
       (s: Sort) => {
-        columnSrcQueryBuilder(s.column) ++ (s match {
-          case _: AscSort => "ASC"
-          case _: DescSort => "DESC"
+        columnSrcQueryBuilder(s.column) :++ (s match {
+          case _: AscSort => Query("ASC")
+          case _: DescSort => Query("DESC")
         })
       }
 
     def select: QueryBuilder[Select] =
       (t: Select) =>
-        Query("SELECT") ++
+        Query("SELECT") :++
           (t.columns ++ t.aggregations)
             .map(columnBuilder.apply)
-            .reduceOption(_ + "," ++ _)
-            .getOrElse(Query("1")) ++
-          Query("FROM") ++
+            .reduceOption(_ :+ "," :++ _)
+            .getOrElse(Query("1")) :++
+          Query("FROM") :++
           t.joins
-            .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from ++ joinBuilder(join)) ++
-          Query("WHERE") ++
-          filterBuilder(t.filter) ++
+            .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
+          Query("WHERE") :++
+          filterBuilder(t.filter) :++
           t.aggregations
             .headOption
             .flatMap(_ =>
               t.columns.map(columnSrcQueryBuilder.apply)
-                .reduceOption(_ + "," ++ _)
-                .map(columns => Query("GROUP BY") ++ columns)
-            ) ++
+                .reduceOption(_ :+ "," :++ _)
+                .map(columns => Query("GROUP BY") :++ columns)
+            ) :++
           t.sort
             .map(sortBuilder.apply)
-            .reduceOption(_ + "," ++ _)
-            .map(sort => Query("ORDER BY") ++ sort) ++
+            .reduceOption(_ :+ "," :++ _)
+            .map(sort => Query("ORDER BY") :++ sort) :++
           t.limit.map(limit =>
-            Query("OFFSET") ++ limit.start.toString ++
-              Query("LIMIT") ++ limit.stop.toString)
+            Query("OFFSET") :++ limit.start.toString :++
+              Query("LIMIT") :++ limit.stop.toString)
 
     def insert: QueryBuilder[Insert] =
       (t: Insert) =>
-        Query("INSERT INTO") ++
-          t.table.tableName ++
+        Query("INSERT INTO") :++
+          t.table.tableName :++
           t.columnValues
             .map(colValue => Query(colValue.column.name))
-            .reduce(_ + "," ++ _)
-            .wrap("(", ")") ++
-          Query("VALUES") ++
+            .reduce(_ :+ "," :++ _)
+            .wrap("(", ")") :++
+          Query("VALUES") :++
           t.columnValues
             .map(columnValue => valueBuilder(columnValue.value))
-            .reduce(_ + ", " + _)
+            .reduce(_ :+ ", " :+ _)
             .wrap("(", ")")
 
     def update: QueryBuilder[Update] =
       (t: Update) =>
-        Query("UPDATE") ++
-          dataSourceWithAliasBuilder(t.table) ++
-          Query("SET") ++
+        Query("UPDATE") :++
+          dataSourceWithAliasBuilder(t.table) :++
+          Query("SET") :++
           t.values
-            .map(colValue => Query(colValue.column.name) ++ Query("=") ++ valueBuilder(colValue.value))
-            .reduce(_ + "," ++ _) ++
-          Query("WHERE") ++
+            .map(colValue => Query(colValue.column.name) :++ Query("=") :++ valueBuilder(colValue.value))
+            .reduce(_ :+ "," :++ _) :++
+          Query("WHERE") :++
           filterBuilder(t.filter)
 
     def delete: QueryBuilder[Delete] =
       (t: Delete) =>
-        Query("DELETE FROM") ++
-          dataSourceWithAliasBuilder(t.table) ++
-          Query("WHERE") ++
+        Query("DELETE FROM") :++
+          dataSourceWithAliasBuilder(t.table) :++
+          Query("WHERE") :++
           filterBuilder(t.filter)
 
     override def apply(statement: Statement): Query = statement match {

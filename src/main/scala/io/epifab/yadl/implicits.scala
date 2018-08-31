@@ -11,10 +11,10 @@ import scala.language.higherKinds
 
 object implicits {
   implicit class ExtendedSelect[F[_]](select: Select)(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
-    def fetchOne[T]()(implicit extractor: Extractor[T]): F[Either[DALError, Option[T]]] =
+    def fetchOne[T](implicit extractor: Extractor[T]): F[Either[DALError, Option[T]]] =
       queryRunner.run(select).map(_.map(_.headOption))
 
-    def fetchMany[T]()(implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]] =
+    def fetchMany[T](implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]] =
       queryRunner.run(select)
   }
 

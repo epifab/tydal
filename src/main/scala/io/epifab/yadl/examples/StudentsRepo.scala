@@ -1,140 +1,149 @@
 package io.epifab.yadl.examples
 
 import io.epifab.yadl.domain._
-import io.epifab.yadl.examples.Schema.{ExamsSubQuery, ExamsTable}
+import io.epifab.yadl.examples.Schema.{ExamsProjection, ExamsSubquery, StudentsTable}
 import io.epifab.yadl.implicits._
 
 import scala.language.higherKinds
 
 trait StudentsRepo[F[_]] extends Repo[F] {
-  object Students extends Schema.StudentsTable
+  val studentDataSource = new Schema.StudentsTable
 
-  implicit private val studentExtractor: Extractor[Student] = row => for {
-    id <- row.get(Students.id)
-    name <- row.get(Students.name)
-    email <- row.get(Students.email)
-    dateOfBirth <- row.get(Students.dateOfBirth)
-    address <- row.get(Students.address)
-    interests <- row.get(Students.interests)
+  private def studentExtractor(studentDataSource: StudentsTable): Extractor[Student] = row => for {
+    id <- row.get(studentDataSource.id)
+    name <- row.get(studentDataSource.name)
+    email <- row.get(studentDataSource.email)
+    dateOfBirth <- row.get(studentDataSource.dateOfBirth)
+    address <- row.get(studentDataSource.address)
+    interests <- row.get(studentDataSource.interests)
   } yield Student(id, name, email, dateOfBirth, address.map(_.value), interests)
 
-  implicit private val examsExtractor: Extractor[StudentExams] = row => for {
-    id <- row.get(Students.examsProjection.studentId)
-    count <- row.get(Students.examsProjection.count)
-    avgScore <- row.get(Students.examsProjection.avgScore)
-    minScore <- row.get(Students.examsProjection.minScore)
-    maxScore <- row.get(Students.examsProjection.maxScore)
-  } yield StudentExams(id, count, avgScore, minScore, maxScore)
+  private def examsProjectionsExtractor(exams: ExamsProjection): Extractor[StudentExams] = row => for {
+    count <- row.get(exams.examsCount)
+    avgScore <- row.get(exams.avgScore)
+    minScore <- row.get(exams.minScore)
+    maxScore <- row.get(exams.maxScore)
+  } yield StudentExams(count, avgScore, minScore, maxScore)
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
-    Delete(Students)
-      .where(Students.id === Value(id))
+    Delete(studentDataSource)
+      .where(studentDataSource.id === Value(id))
       .execute()
 
   def createStudent(student: Student): F[Either[DALError, Int]] =
     Insert
-      .into(Students)
+      .into(studentDataSource)
       .set(
-        Students.id -> student.id,
-        Students.name -> student.name,
-        Students.email -> student.email,
-        Students.dateOfBirth -> student.dateOfBirth,
-        Students.address -> student.address.map(Json(_)),
-        Students.interests -> student.interests
+        studentDataSource.id -> student.id,
+        studentDataSource.name -> student.name,
+        studentDataSource.email -> student.email,
+        studentDataSource.dateOfBirth -> student.dateOfBirth,
+        studentDataSource.address -> student.address.map(Json(_)),
+        studentDataSource.interests -> student.interests
       )
       .execute()
 
   def updateStudent(student: Student): F[Either[DALError, Int]] =
-    Update(Students)
+    Update(studentDataSource)
       .set(
-        Students.name -> student.name,
-        Students.email -> student.email,
-        Students.dateOfBirth -> student.dateOfBirth,
-        Students.address -> student.address.map(Json(_)),
-        Students.interests -> student.interests
+        studentDataSource.name -> student.name,
+        studentDataSource.email -> student.email,
+        studentDataSource.dateOfBirth -> student.dateOfBirth,
+        studentDataSource.address -> student.address.map(Json(_)),
+        studentDataSource.interests -> student.interests
       )
-      .where(Students.id === Value(student.id))
+      .where(studentDataSource.id === Value(student.id))
       .execute()
 
   def findStudent(id: Int): F[Either[DALError, Option[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.id === Value(id))
-      .sortBy(Students.id.asc)
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.id === Value(id))
+      .sortBy(studentDataSource.id.asc)
       .inRange(0, 1)
-      .fetchOne()
+      .fetchOne(studentExtractor(studentDataSource))
 
   def findStudentsByInterests(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.interests contains Value(interests))
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.interests contains Value(interests))
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
   def findStudentsByAnyInterest(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.interests overlaps Value(interests))
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.interests overlaps Value(interests))
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
   def findStudentByName(name: String): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.name like Value(name))
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.name like Value(name))
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
   def findStudentByEmail(email: String): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.email like Value(email))
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.email like Value(email))
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
   def findStudentsWithoutEmail(): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.email.isNotDefined)
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.email.isNotDefined)
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
   def findStudents(ids: Int*): F[Either[DALError, Seq[Student]]] =
     Select
-      .from(Students)
-      .take(Students.*)
-      .where(Students.id in Value(ids))
-      .sortBy(Students.id.asc)
-      .fetchMany()
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.id in Value(ids))
+      .sortBy(studentDataSource.id.asc)
+      .fetchMany(studentExtractor(studentDataSource))
 
-  def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] =
+  def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] = {
+    val examsProjections = ExamsProjection()
+
     Select
-      .from(Students.examsProjection.exams)
-      .take(Students.examsProjection.studentId)
+      .from(examsProjections)
+      .take(examsProjections.studentId)
       .aggregateBy(
-        Students.examsProjection.count,
-        Students.examsProjection.avgScore,
-        Students.examsProjection.minScore,
-        Students.examsProjection.maxScore
+        examsProjections.examsCount,
+        examsProjections.avgScore,
+        examsProjections.minScore,
+        examsProjections.maxScore
       )
-      .where(Students.examsProjection.studentId === Value(id))
-      .fetchOne()
+      .where(examsProjections.studentId === Value(id))
+      .fetchOne(examsProjectionsExtractor(examsProjections))
+  }
 
-  def findBestStudents: F[Either[DALError, Seq[Student]]] = {
-    val avgStudent = new ExamsSubQuery
+  def findStudentExamStats2(id: Int): F[Either[DALError, Option[(Int, Option[Double])]]] = {
+    val examsSubquery = new ExamsSubquery
 
     Select
-      .from(Students)
-      .take(Students.*)
-      .innerJoin(Students.examsProjection.exams, Students.examsProjection.studentId === Students.id)
-      .innerJoin(avgStudent, avgStudent.avgScore <= Students.examsProjection.avgScore)
-      .inRange(0, 10)
-      .fetchMany()
+      .from(studentDataSource)
+      .innerJoin(examsSubquery on (_.studentId === studentDataSource.id))
+      .take(
+        studentDataSource.id,
+        examsSubquery.avgScore
+      )
+      .where(examsSubquery.studentId === Value(id))
+      .fetchOne(
+        row => for {
+          studentId <- row.get(studentDataSource.id)
+          avgScore <- row.get(examsSubquery.avgScore)
+        } yield (studentId, avgScore)
+      )
   }
 }
