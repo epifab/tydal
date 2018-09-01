@@ -120,7 +120,7 @@ trait JDBCQueryRunner {
 
   protected def preparedStatement(query: Query): PreparedStatement = {
     val statement: PreparedStatement = connection
-      .prepareStatement(query.query)
+      .prepareStatement(query.sql)
 
     query.params.zipWithIndex.foreach {
       case (value, index) =>

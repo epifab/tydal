@@ -2,16 +2,16 @@ package io.epifab.yadl.domain
 
 import scala.language.higherKinds
 
-case class Query(query: String, params: Seq[Value[_]]) {
-  def :+(s: String) = Query(query + s, params)
-  def :+(q2: Query) = Query(query + q2.query, params ++ q2.params)
+case class Query(sql: String, params: Seq[Value[_]]) {
+  def :+(s: String) = Query(sql + s, params)
+  def :+(q2: Query) = Query(sql + q2.sql, params ++ q2.params)
   def :+(oq: Option[Query]): Query = oq.map(e => this :+ e).getOrElse(this)
 
-  def :++(s: String) = Query(query + " " + s, params)
-  def :++(e2: Query) = Query(query + " " + e2.query, params ++ e2.params)
+  def :++(s: String) = Query(sql + " " + s, params)
+  def :++(e2: Query) = Query(sql + " " + e2.sql, params ++ e2.params)
   def :++(oq: Option[Query]): Query = oq.map(e => this :++ e).getOrElse(this)
 
-  def wrap(before: String, after: String): Query = copy(before + query + after)
+  def wrap(before: String, after: String): Query = copy(before + sql + after)
 }
 
 object Query {
