@@ -12,19 +12,19 @@ import scala.language.higherKinds
 trait ExamsRepo[F[_]] extends Repo[F] {
   object Exams extends Schema.ExamsTable
 
-  implicit private val examExtractor: Extractor[Exam] = row => for {
+  private val examExtractor: Extractor[Exam] = row => for {
     score <- row.get(Exams.score)
     courseId <- row.get(Exams.courseId)
     studentId <- row.get(Exams.studentId)
     dateTime <- row.get(Exams.dateTime)
   } yield Exam(studentId, courseId, score, dateTime)
 
-  implicit private val courseExtractor: Extractor[Course] = row => for {
+  private val courseExtractor: Extractor[Course] = row => for {
     id <- row.get(Exams.courseId)
     name <- row.get(Exams.course.name)
   } yield Course(id, name)
 
-  implicit private val examCourseExtractor: Extractor[Exam :: Course :: HNil] = row => for {
+  private val examCourseExtractor: Extractor[Exam :: Course :: HNil] = row => for {
     exam <- examExtractor(row)
     course <- courseExtractor(row)
   } yield exam :: course :: HNil
@@ -35,7 +35,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.studentId === Value(studentId))
-      .fetchMany()
+      .fetchMany(examCourseExtractor)
 
   def findExamsByDate(date: LocalDate): F[Either[DALError, Seq[Exam :: Course ::HNil]]] =
     Select
@@ -44,7 +44,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.dateTime >= Value(date.atStartOfDay) and Exams.dateTime < Value(date.plusDays(1).atStartOfDay))
       .sortBy(Exams.studentId.asc)
-      .fetchMany()
+      .fetchMany(examCourseExtractor)
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
     val examsFE = Select
@@ -52,7 +52,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.studentId in Value(students.map(_.id)))
-      .fetchMany[Exam :: Course :: HNil]()
+      .fetchMany(examCourseExtractor)
 
     examsFE.map(_.map(
       exams =>
