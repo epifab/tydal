@@ -14,8 +14,19 @@ trait FieldAdapter[T] {
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
 }
 
-trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] {
+trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
   override def dbType: PrimitiveDbType[DBTYPE]
+
+  def bimap[U](f: T => Either[ExtractorError, U], g: U => T): PrimitiveFieldAdapter[U] =
+    new PrimitiveFieldAdapter[U] {
+      override type DBTYPE = outer.DBTYPE
+      override def dbType: PrimitiveDbType[outer.DBTYPE] = outer.dbType
+      override def toDb(value: U): outer.DBTYPE = outer.toDb(g(value))
+      override def fromDb(dbValue: outer.DBTYPE): Either[ExtractorError, U] = for {
+        t <- outer.fromDb(dbValue)
+        u <- f(t)
+      } yield u
+    }
 }
 
 abstract class SimpleFieldAdapter[T](override val dbType: PrimitiveDbType[T]) extends PrimitiveFieldAdapter[T] {
@@ -60,49 +71,6 @@ object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDb
 
 case class Json[T](value: T)
 
-case class JsonFieldAdapter[T]()(implicit decoder: Decoder[T], encoder: Encoder[T]) extends PrimitiveFieldAdapter[Json[T]] {
-  import io.circe.parser.decode
-  import io.circe.syntax._
-
-  override type DBTYPE = String
-  override val dbType: PrimitiveDbType[String] = StringDbType
-
-  override def toDb(value: Json[T]): DBTYPE =
-    value.value.asJson.pretty(Printer.noSpaces)
-
-  override def fromDb(dbValue: String): Either[ExtractorError, Json[T]] =
-    decode[T](dbValue) match {
-      case Left(e) => Left(ExtractorError(e.getMessage))
-      case Right(t) => Right(Json(t))
-    }
-}
-
-case object DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
-  override type DBTYPE = String
-  override def dbType: PrimitiveDbType[String] = StringDbType
-
-  override def toDb(value: LocalDate): String =
-    value.format(DateTimeFormatter.ISO_DATE)
-
-  override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(LocalDate.parse(dbValue, DateTimeFormatter.ISO_DATE))
-      .toEither
-      .left.map(error => ExtractorError(error.getMessage))
-}
-
-case object DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
-  override type DBTYPE = String
-  override def dbType: PrimitiveDbType[String] = StringDbType
-
-  override def toDb(value: LocalDateTime): String =
-    value.format(DateTimeFormatter.ISO_DATE_TIME)
-
-  override def fromDb(dbValue: String): Either[ExtractorError, LocalDateTime] =
-    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
-      .toEither
-      .left.map(error => ExtractorError(error.getMessage))
-}
-
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
 
@@ -116,9 +84,33 @@ object FieldAdapter {
   implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
 
-  implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] =
-    JsonFieldAdapter()
+  implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] = {
+    import io.circe.parser.decode
+    import io.circe.syntax._
 
-  implicit val date: PrimitiveFieldAdapter[LocalDate] = DateFieldAdapter
-  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = DateTimeFieldAdapter
+    string.bimap[Json[T]](
+      json => decode(json)
+        .right.map(Json(_))
+        .left.map(error => ExtractorError(error.getMessage)),
+      _.value.asJson.noSpaces
+    )
+  }
+
+  implicit val date: PrimitiveFieldAdapter[LocalDate] = {
+    string.bimap[LocalDate](
+      (dbValue: String) => Try(LocalDate.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+        .toEither
+        .left.map(error => ExtractorError(error.getMessage)),
+      _.format(DateTimeFormatter.ISO_DATE)
+    )
+  }
+
+  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = {
+    string.bimap[LocalDateTime](
+      (dbValue: String) => Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
+        .toEither
+        .left.map(error => ExtractorError(error.getMessage)),
+      _.format(DateTimeFormatter.ISO_DATE_TIME)
+    )
+  }
 }
