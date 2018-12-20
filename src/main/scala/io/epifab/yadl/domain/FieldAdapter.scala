@@ -17,6 +17,25 @@ trait FieldAdapter[T] {
 trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
   override def dbType: PrimitiveDbType[DBTYPE]
 
+  def bimap[U](f: T => U, g: U => T): PrimitiveFieldAdapter[U] = {
+    bimap[U](
+      (dbValue: T) => Try(f(dbValue))
+        .toEither
+        .left.map(error => ExtractorError(error.getMessage)),
+      g
+    )
+  }
+
+  def bimap[U](f: T => Option[U], g: U => T): PrimitiveFieldAdapter[U] = {
+    bimap[U](
+      (dbValue: T) => f(dbValue) match {
+        case Some(value) => Right(value)
+        case None => Left(ExtractorError(s"Could not decode $dbValue"))
+      },
+      g
+    )
+  }
+
   def bimap[U](f: T => Either[ExtractorError, U], g: U => T): PrimitiveFieldAdapter[U] =
     new PrimitiveFieldAdapter[U] {
       override type DBTYPE = outer.DBTYPE
