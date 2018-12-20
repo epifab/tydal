@@ -27,6 +27,25 @@ trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
         u <- f(t)
       } yield u
     }
+
+  def bimap[U](f: T => U, g: U => T)(implicit d1: DummyImplicit): PrimitiveFieldAdapter[U] = {
+    bimap[U](
+      (dbValue: T) => Try(f(dbValue))
+        .toEither
+        .left.map(error => ExtractorError(error.getMessage)),
+      g
+    )
+  }
+
+  def bimap[U](f: T => Option[U], g: U => T)(implicit d1: DummyImplicit, d2: DummyImplicit): PrimitiveFieldAdapter[U] = {
+    bimap[U](
+      (dbValue: T) => f(dbValue) match {
+        case Some(value) => Right(value)
+        case None => Left(ExtractorError(s"Could not decode $dbValue"))
+      },
+      g
+    )
+  }
 }
 
 abstract class SimpleFieldAdapter[T](override val dbType: PrimitiveDbType[T]) extends PrimitiveFieldAdapter[T] {
@@ -89,10 +108,10 @@ object FieldAdapter {
     import io.circe.syntax._
 
     string.bimap[Json[T]](
-      json => decode(json)
+      (json: String) => decode[T](json)
         .right.map(Json(_))
         .left.map(error => ExtractorError(error.getMessage)),
-      _.value.asJson.noSpaces
+      (t: Json[T]) => t.value.asJson.noSpaces
     )
   }
 
@@ -101,7 +120,7 @@ object FieldAdapter {
       (dbValue: String) => Try(LocalDate.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd")))
         .toEither
         .left.map(error => ExtractorError(error.getMessage)),
-      _.format(DateTimeFormatter.ISO_DATE)
+      (value: LocalDate) => value.format(DateTimeFormatter.ISO_DATE)
     )
   }
 
@@ -110,7 +129,7 @@ object FieldAdapter {
       (dbValue: String) => Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
         .toEither
         .left.map(error => ExtractorError(error.getMessage)),
-      _.format(DateTimeFormatter.ISO_DATE_TIME)
+      (value: LocalDateTime) => value.format(DateTimeFormatter.ISO_DATE_TIME)
     )
   }
 }
