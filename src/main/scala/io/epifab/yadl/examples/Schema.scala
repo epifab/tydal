@@ -52,7 +52,7 @@ object Schema {
     lazy val email: TableColumn[Option[String]] = column("email")
     lazy val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
     lazy val interests: TableColumn[Seq[String]] = column("interests")
-    lazy val address: TableColumn[Option[Json[Address]]] = column("address")
+    lazy val address: TableColumn[Option[Address]] = column("address")(FieldAdapter.json)
 
     lazy val `*`: Seq[TableColumn[_]] = Seq(id, name, email, dateOfBirth, interests, address)
 

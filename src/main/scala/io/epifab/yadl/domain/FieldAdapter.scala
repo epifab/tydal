@@ -84,11 +84,58 @@ case class SeqFieldAdapter[T, U](override val dbType: PrimitiveDbType[Seq[U]], b
     firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
 }
 
+class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) extends FieldAdapter[T] {
+  import io.circe.parser.decode
+  import io.circe.syntax._
+
+  override type DBTYPE = String
+
+  override def dbType: DbType[String] = JsonDbType
+
+  override def toDb(value: T): String =
+    value.asJson.noSpaces
+
+  override def fromDb(dbValue: String): Either[ExtractorError, T] =
+    decode[T](dbValue)
+      .left.map(error => ExtractorError(error.getMessage))
+}
+
+class EnumFieldAdapter(name: String) extends PrimitiveFieldAdapter[String] {
+  override type DBTYPE = String
+  override def dbType: EnumDbType = EnumDbType(name)
+  override def toDb(value: String): String = value
+  override def fromDb(dbValue: String): Either[ExtractorError, String] = Right(dbValue)
+}
+
+class DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
+  override type DBTYPE = String
+  override def dbType: DateDbType.type = DateDbType
+
+  override def toDb(value: LocalDate): String =
+    value.format(DateTimeFormatter.ISO_DATE)
+
+  override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
+    Try(LocalDate.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+}
+
+class DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
+  override type DBTYPE = String
+  override def dbType: PrimitiveDbType[String] = DateTimeDbType
+
+  override def toDb(value: LocalDateTime): String =
+    value.format(DateTimeFormatter.ISO_DATE_TIME)
+
+  override def fromDb(dbValue: String): Either[ExtractorError, LocalDateTime] =
+    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+}
+
 object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
 object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
 object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
-
-case class Json[T](value: T)
 
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
@@ -103,33 +150,13 @@ object FieldAdapter {
   implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
 
-  implicit def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[Json[T]] = {
-    import io.circe.parser.decode
-    import io.circe.syntax._
+  def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): FieldAdapter[T] =
+    new JsonFieldAdapter[T]
 
-    string.bimap[Json[T]](
-      (json: String) => decode[T](json)
-        .right.map(Json(_))
-        .left.map(error => ExtractorError(error.getMessage)),
-      (t: Json[T]) => t.value.asJson.noSpaces
-    )
-  }
+  def enum[T](name: String, encode: T => String, decode: String => T): FieldAdapter[T] =
+    new EnumFieldAdapter(name).bimap[T](decode, encode)
 
-  implicit val date: PrimitiveFieldAdapter[LocalDate] = {
-    string.bimap[LocalDate](
-      (dbValue: String) => Try(LocalDate.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd")))
-        .toEither
-        .left.map(error => ExtractorError(error.getMessage)),
-      (value: LocalDate) => value.format(DateTimeFormatter.ISO_DATE)
-    )
-  }
+  implicit val date: PrimitiveFieldAdapter[LocalDate] = new DateFieldAdapter
 
-  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = {
-    string.bimap[LocalDateTime](
-      (dbValue: String) => Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
-        .toEither
-        .left.map(error => ExtractorError(error.getMessage)),
-      (value: LocalDateTime) => value.format(DateTimeFormatter.ISO_DATE_TIME)
-    )
-  }
+  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = new DateTimeFieldAdapter
 }

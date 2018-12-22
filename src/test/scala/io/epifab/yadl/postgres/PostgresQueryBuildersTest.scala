@@ -164,7 +164,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
           students.id -> 123,
           students.name -> "John",
           students.email -> Some("john@doe.com"),
-          students.address -> Some(Json(Address("n1900", "123 Fake St.", None))),
+          students.address -> Some(Address("n1900", "123 Fake St.", None)),
           students.dateOfBirth -> LocalDate.of(1985, 11, 15)
         )
 
@@ -173,11 +173,11 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " (id, name, email, address, date_of_birth)" +
         " VALUES (?, ?, ?, cast(? as json), cast(? as date))",
       Seq(
-        Value(123),
-        Value("John"),
-        Value(Option("john@doe.com")),
-        Value(Option(Json(Address("n1900", "123 Fake St.", None)))),
-        Value(LocalDate.of(1985, 11, 15))
+        students.id.value(123),
+        students.name.value("John"),
+        students.email.value(Option("john@doe.com")),
+        students.address.value(Option(Address("n1900", "123 Fake St.", None))),
+        students.dateOfBirth.value(LocalDate.of(1985, 11, 15))
       )
     )
   }

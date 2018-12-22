@@ -7,7 +7,9 @@ trait Expression[T] {
   def adapter: FieldAdapter[T]
 }
 
-sealed trait Column[T] extends Expression[T]
+sealed trait Column[T] extends Expression[T] {
+  def value(t: T): Value[T] = Value(t)(adapter)
+}
 
 final case class TableColumn[T](name: String, table: Table)(implicit val adapter: FieldAdapter[T])
   extends Column[T]

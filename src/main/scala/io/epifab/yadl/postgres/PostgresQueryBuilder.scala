@@ -38,14 +38,16 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
 
   def valueBuilder: QueryBuilder[Value[_]] =
     (value: Value[_]) => {
-      def toPlaceholder[T](t: T): String = t match {
-        case Some(x) => toPlaceholder(x)
-        case Json(x) => "cast(? as json)"
-        case _: LocalDate => "cast(? as date)"
-        case _: LocalDateTime => "cast(? as timestamp without time zone)"
+      def toPlaceholder[T](dbType: DbType[T]): String = dbType match {
+        case OptionDbType(innerDbType) => toPlaceholder(innerDbType)
+        case JsonDbType => "cast(? as json)"
+        case EnumDbType(name) => s"cast(? as $name)"
+        case DateDbType => "cast(? as date)"
+        case DateTimeDbType => "cast(? as timestamp without time zone)"
         case _ => "?"
       }
-      Query(toPlaceholder(value.value), Seq(value))
+
+      Query(toPlaceholder(value.adapter.dbType), Seq(value))
     }
 
   def columnSrcQueryBuilder: QueryBuilder[Column[_]] = {

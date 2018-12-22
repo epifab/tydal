@@ -13,7 +13,7 @@ trait JDBCQueryRunner {
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
     def set[U](index: Int, dbValue: U, dbType: DbType[U]): Any = dbType match {
-      case StringDbType =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
         statement.setObject(index, dbValue)
 
       case IntDbType =>
@@ -58,7 +58,7 @@ trait JDBCQueryRunner {
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
     def get[U](index: Int, dbType: DbType[U]): U = dbType match {
-      case StringDbType =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
         resultSet.getObject(index).toString
 
       case IntDbType =>

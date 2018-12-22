@@ -16,7 +16,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     dateOfBirth <- row.get(studentDataSource.dateOfBirth)
     address <- row.get(studentDataSource.address)
     interests <- row.get(studentDataSource.interests)
-  } yield Student(id, name, email, dateOfBirth, address.map(_.value), interests)
+  } yield Student(id, name, email, dateOfBirth, address, interests)
 
   private def examsProjectionsExtractor(exams: ExamsProjection): Extractor[StudentExams] = row => for {
     count <- row.get(exams.examsCount)
@@ -38,7 +38,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
         studentDataSource.name -> student.name,
         studentDataSource.email -> student.email,
         studentDataSource.dateOfBirth -> student.dateOfBirth,
-        studentDataSource.address -> student.address.map(Json(_)),
+        studentDataSource.address -> student.address,
         studentDataSource.interests -> student.interests
       )
       .execute()
@@ -49,7 +49,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
         studentDataSource.name -> student.name,
         studentDataSource.email -> student.email,
         studentDataSource.dateOfBirth -> student.dateOfBirth,
-        studentDataSource.address -> student.address.map(Json(_)),
+        studentDataSource.address -> student.address,
         studentDataSource.interests -> student.interests
       )
       .where(studentDataSource.id === Value(student.id))
