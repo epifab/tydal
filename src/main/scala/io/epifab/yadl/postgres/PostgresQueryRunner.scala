@@ -4,6 +4,7 @@ import java.sql.{Connection, PreparedStatement, ResultSet, SQLException}
 
 import cats.Id
 import io.epifab.yadl.domain._
+import io.epifab.yadl.utils.LoggingSupport
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
 
@@ -132,17 +133,18 @@ trait JDBCQueryRunner {
 }
 
 
-class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner {
+class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner with LoggingSupport {
   override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 
     try {
-      statement.execute()
       extractResults(select, extractor)(statement.executeQuery())
     }
     catch {
-      case error: SQLException => Left(DriverError(error))
+      case error: SQLException =>
+        withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
+        Left(DriverError(error))
     }
   }
 
@@ -155,24 +157,27 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
       Right(statement.getUpdateCount)
     }
     catch {
-      case error: SQLException => Left(DriverError(error))
+      case error: SQLException =>
+        withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
+        Left(DriverError(error))
     }
   }
 }
 
 
-class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner {
+class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner with LoggingSupport {
   override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 
     Future {
       try {
-        blocking(statement.execute())
-        extractResults(select, extractor)(statement.executeQuery())
+        extractResults(select, extractor)(blocking(statement.executeQuery))
       }
       catch {
-        case error: SQLException => Left(DriverError(error))
+        case error: SQLException =>
+          withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
+          Left(DriverError(error))
       }
     }
   }
@@ -187,7 +192,9 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
         Right(statement.getUpdateCount)
       }
       catch {
-        case error: SQLException => Left(DriverError(error))
+        case error: SQLException =>
+          withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
+          Left(DriverError(error))
       }
     }
   }

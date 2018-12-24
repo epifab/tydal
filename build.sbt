@@ -1,10 +1,24 @@
-name := "yadl"
-organization := "epifab.io"
-version := "0.1"
+import sbt.Global
 
-scalaVersion := "2.12.4"
-
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warnings", "-Ypartial-unification")
+/*****************************************************************
+ Global Settings & Configs
+  *****************************************************************/
+Global / name := "yadl"
+Global / version := sys.env.getOrElse("BUILD_NUMBER", "LOCAL")
+Global / organization := "epifab.io"
+Global / scalaVersion := "2.12.8"
+Global / exportJars := true
+Global / parallelExecution := false
+Global / scalacOptions ++= Seq(
+  "-unchecked",
+  "-deprecation",
+  "-feature",
+  "-Xfatal-warnings",
+  "-language:existentials",
+  "-language:higherKinds",
+  // "-Xlint:_,-missing-interpolator",
+  "-Ypartial-unification"
+)
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "1.0.1",
@@ -20,3 +34,11 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
+
+libraryDependencies ++= Seq(
+  "org.slf4j" % "slf4j-simple" % "1.7.22",
+  "org.slf4j" % "slf4j-api" % "1.7.22",
+  // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
+  "ch.qos.logback" % "logback-core" % "1.1.7",
+  "ch.qos.logback" % "logback-classic" % "1.1.7"
+)
