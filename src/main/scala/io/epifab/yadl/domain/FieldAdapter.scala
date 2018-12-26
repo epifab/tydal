@@ -111,7 +111,7 @@ object DateFieldAdapter extends FieldAdapter[LocalDate] {
     value.format(DateTimeFormatter.ISO_DATE)
 
   override def fromDb(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(LocalDate.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+    Try(LocalDate.parse(dbValue.take(10), DateTimeFormatter.ofPattern("yyyy-MM-dd")))
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }
@@ -143,7 +143,7 @@ object FieldAdapter {
   implicit val double: FieldAdapter[Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter[LocalDate] = DateFieldAdapter
   implicit val dateTime: FieldAdapter[LocalDateTime] = DateTimeFieldAdapter
-  def enum[T](name: String, encode: T => String, decode: String => T): FieldAdapter[T] =
+  def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
 
   implicit val stringSeq: FieldAdapter[Seq[String]] = StringSeqFieldAdapter
