@@ -7,6 +7,8 @@ import io.epifab.yadl.implicits._
 import scala.language.higherKinds
 
 trait StudentsRepo[F[_]] extends Repo[F] {
+  import Adapters._
+
   val studentDataSource = new Schema.StudentsTable
 
   private def studentExtractor(studentDataSource: StudentsTable): Extractor[Student] = row => for {
@@ -64,7 +66,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .inRange(0, 1)
       .fetchOne(studentExtractor(studentDataSource))
 
-  def findStudentsByInterests(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
+  def findStudentsByInterests(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
     Select
       .from(studentDataSource)
       .take(studentDataSource.*)
@@ -72,7 +74,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .sortBy(studentDataSource.id.asc)
       .fetchMany(studentExtractor(studentDataSource))
 
-  def findStudentsByAnyInterest(interests: Seq[String]): F[Either[DALError, Seq[Student]]] =
+  def findStudentsByAnyInterest(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
     Select
       .from(studentDataSource)
       .take(studentDataSource.*)

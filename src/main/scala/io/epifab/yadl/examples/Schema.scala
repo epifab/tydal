@@ -3,10 +3,43 @@ package io.epifab.yadl.examples
 import java.time.{LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain._
+import io.epifab.yadl.implicits._
+
+sealed abstract class Interest(val value: String)
+
+object Interest {
+  def apply(value: String): Interest = value match {
+    case Math.value => Math
+    case History.value => History
+    case Art.value => Art
+    case Music.value => Music
+    case _ => throw new IllegalArgumentException(s"Interest $value not found")
+  }
+
+  case object Math extends Interest("math")
+  case object History extends Interest("history")
+  case object Art extends Interest("art")
+  case object Music extends Interest("music")
+}
+
+object Adapters {
+  implicit val interestsFieldAdapter: EnumFieldAdapter[Interest] =
+    new EnumFieldAdapter[Interest](
+    "interest",
+    _.value,
+    string => scala.util.Try(Interest(string))
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+  )
+
+  implicit val addressFieldAdapter: PrimitiveFieldAdapter[Address] = {
+    import io.circe.generic.auto._
+    FieldAdapter.json[Address]
+  }
+}
 
 object Schema {
-  import io.circe.generic.auto._
-  import io.epifab.yadl.implicits._
+  import Adapters._
 
   trait ExamsProjection {
     def examsCount: Column[Option[Int]]
@@ -51,8 +84,8 @@ object Schema {
     lazy val name: TableColumn[String] = column("name")
     lazy val email: TableColumn[Option[String]] = column("email")
     lazy val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
-    lazy val interests: TableColumn[Seq[String]] = column("interests")
-    lazy val address: TableColumn[Option[Address]] = column("address")(FieldAdapter.json)
+    lazy val interests: TableColumn[Seq[Interest]] = column("interests")
+    lazy val address: TableColumn[Option[Address]] = column("address")
 
     lazy val `*`: Seq[TableColumn[_]] = Seq(id, name, email, dateOfBirth, interests, address)
 

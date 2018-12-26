@@ -30,6 +30,13 @@ trait JDBCQueryRunner {
         )
         statement.setArray(index, array)
 
+      case EnumSeqDbType(enum) =>
+        val array: java.sql.Array = connection.createArrayOf(
+          enum.name,
+          dbValue.toArray
+        )
+        statement.setArray(index, array)
+
       case IntSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
           "integer",
@@ -68,7 +75,7 @@ trait JDBCQueryRunner {
       case DoubleDbType =>
         resultSet.getDouble(index)
 
-      case StringSeqDbType =>
+      case StringSeqDbType | EnumSeqDbType(_) =>
         resultSet.getArray(index)
           .getArray
           .asInstanceOf[Array[String]]

@@ -44,6 +44,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
         case EnumDbType(name) => s"cast(? as $name)"
         case DateDbType => "cast(? as date)"
         case DateTimeDbType => "cast(? as timestamp without time zone)"
+        case EnumSeqDbType(enum) => s"cast(? as ${enum.name}[])"
         case _ => "?"
       }
 

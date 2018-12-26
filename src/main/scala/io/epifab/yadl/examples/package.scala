@@ -11,7 +11,7 @@ package object examples {
     email: Option[String],
     dateOfBirth: LocalDate,
     address: Option[Address],
-    interests: Seq[String]
+    interests: Seq[Interest]
   )
 
   case class StudentExams(

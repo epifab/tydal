@@ -12,6 +12,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.yadl.examples.Schema._
   import io.epifab.yadl.implicits._
   import io.epifab.yadl.postgres.PostgresQueryBuilder.build
+  import io.epifab.yadl.examples.Adapters._
 
   val students = new StudentsTable
   val exams = new ExamsTable
@@ -173,11 +174,11 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " (id, name, email, address, date_of_birth)" +
         " VALUES (?, ?, ?, cast(? as json), cast(? as date))",
       Seq(
-        students.id.value(123),
-        students.name.value("John"),
-        students.email.value(Option("john@doe.com")),
-        students.address.value(Option(Address("n1900", "123 Fake St.", None))),
-        students.dateOfBirth.value(LocalDate.of(1985, 11, 15))
+        Value(123),
+        Value("John"),
+        Value(Option("john@doe.com")),
+        Value(Option(Address("n1900", "123 Fake St.", None))),
+        Value(LocalDate.of(1985, 11, 15))
       )
     )
   }

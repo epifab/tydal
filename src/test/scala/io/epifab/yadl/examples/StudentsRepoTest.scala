@@ -24,9 +24,9 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     def eventually: T = Await.result[T](f, 5.seconds)
   }
 
-  val student1 = Student(1, "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq("art", "math"))
-  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq("art", "music"))
-  val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq("music"))
+  val student1 = Student(1, "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq(Interest.Art, Interest.Math))
+  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq(Interest.Art, Interest.Music))
+  val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq(Interest.Music))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
   val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 3, 8, 9, 5, 6, 0))
@@ -39,7 +39,14 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
 
   val connection: Connection = DriverManager
     .getConnection(
-      s"jdbc:postgresql://${sys.env("DB_HOST")}/${sys.env("DB_NAME")}?user=${sys.env("DB_USER")}&password=${sys.env("DB_PASS")}")
+      s"jdbc:postgresql://%s:%s/%s?user=%s&password=%s&sslmode=require".format(
+        sys.env("DB_HOST"),
+        sys.env("DB_PORT"),
+        sys.env("DB_NAME"),
+        sys.env("DB_USER"),
+        sys.env("DB_PASS")
+      )
+    )
 
   object repos extends StudentsRepo[Future] with ExamsRepo[Future] with CoursesRepo[Future] {
     override implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
@@ -96,16 +103,16 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
 
   it should "find students by list of interests (contains)" in {
     repos.findStudentsByInterests(Seq.empty).eventually shouldBe Right(Seq(student1, student2, student3))
-    repos.findStudentsByInterests(Seq("music")).eventually shouldBe Right(Seq(student2, student3))
-    repos.findStudentsByInterests(Seq("music", "art")).eventually shouldBe Right(Seq(student2))
-    repos.findStudentsByInterests(Seq("music", "art", "chemestry")).eventually shouldBe Right(Seq.empty)
+    repos.findStudentsByInterests(Seq(Interest.Music)).eventually shouldBe Right(Seq(student2, student3))
+    repos.findStudentsByInterests(Seq(Interest.Music, Interest.Art)).eventually shouldBe Right(Seq(student2))
+    repos.findStudentsByInterests(Seq(Interest.Music, Interest.Art, Interest.History)).eventually shouldBe Right(Seq.empty)
   }
 
   it should "find students by list of interests (intercepts)" in {
     repos.findStudentsByAnyInterest(Seq.empty).eventually shouldBe Right(Seq.empty)
-    repos.findStudentsByAnyInterest(Seq("music")).eventually shouldBe Right(Seq(student2, student3))
-    repos.findStudentsByAnyInterest(Seq("music", "art")).eventually shouldBe Right(Seq(student1, student2, student3))
-    repos.findStudentsByAnyInterest(Seq("music", "art", "chemestry")).eventually shouldBe Right(Seq(student1, student2, student3))
+    repos.findStudentsByAnyInterest(Seq(Interest.Music)).eventually shouldBe Right(Seq(student2, student3))
+    repos.findStudentsByAnyInterest(Seq(Interest.Music, Interest.Art)).eventually shouldBe Right(Seq(student1, student2, student3))
+    repos.findStudentsByAnyInterest(Seq(Interest.Music, Interest.Art, Interest.History)).eventually shouldBe Right(Seq(student1, student2, student3))
   }
 
   it should "find exams by date" in {
