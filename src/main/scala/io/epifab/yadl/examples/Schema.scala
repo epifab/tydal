@@ -32,7 +32,7 @@ object Adapters {
       .left.map(error => ExtractorError(error.getMessage))
   )
 
-  implicit val addressFieldAdapter: PrimitiveFieldAdapter[Address] = {
+  implicit val addressFieldAdapter: FieldAdapter[Address] = {
     import io.circe.generic.auto._
     FieldAdapter.json[Address]
   }

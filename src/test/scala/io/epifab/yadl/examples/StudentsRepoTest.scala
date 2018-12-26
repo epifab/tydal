@@ -159,5 +159,15 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
 
     edited.value.eventually.map(_.map(_.name)) shouldBe Right(Some("Edited"))
   }
+
+  it should "find students by date of birth (testing date sequences)" in {
+    val results = repos.findStudentsByDateOfBirth(student1.dateOfBirth, student2.dateOfBirth)
+    results.eventually.map(_.toSet) shouldBe Right(Set(student1, student2))
+  }
+
+  it should "find exams by date time (testing date time sequences)" in {
+    val results = repos.findExamsByDateTime(exam1.dateTime, exam3.dateTime)
+    results.eventually.map(_.toSet) shouldBe Right(Set(exam1, exam3))
+  }
 }
 

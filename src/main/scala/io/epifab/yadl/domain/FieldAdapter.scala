@@ -7,20 +7,16 @@ import io.circe.{Decoder, Encoder, Printer}
 
 import scala.util.Try
 
-trait FieldAdapter[T] {
+trait FieldAdapter[T] { outer =>
   type DBTYPE
   def dbType: DbType[DBTYPE]
   def toDb(value: T): DBTYPE
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
-}
 
-trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
-  override def dbType: PrimitiveDbType[DBTYPE]
-
-  def bimap[U](encode: U => T, decode: T => Either[ExtractorError, U]): PrimitiveFieldAdapter[U] =
-    new PrimitiveFieldAdapter[U] {
+  def bimap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter[U] =
+    new FieldAdapter[U] {
       override type DBTYPE = outer.DBTYPE
-      override def dbType: PrimitiveDbType[outer.DBTYPE] = outer.dbType
+      override def dbType: DbType[outer.DBTYPE] = outer.dbType
       override def toDb(value: U): outer.DBTYPE = outer.toDb(encode(value))
       override def fromDb(dbValue: outer.DBTYPE): Either[ExtractorError, U] = for {
         t <- outer.fromDb(dbValue)
@@ -28,7 +24,7 @@ trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
       } yield u
     }
 
-  def bimap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): PrimitiveFieldAdapter[U] = {
+  def bimap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter[U] = {
     bimap[U](
       encode,
       (dbValue: T) => Try(decode(dbValue))
@@ -37,7 +33,7 @@ trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
     )
   }
 
-  def bimap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): PrimitiveFieldAdapter[U] = {
+  def bimap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter[U] = {
     bimap[U](
       encode,
       (dbValue: T) => decode(dbValue) match {
@@ -48,7 +44,7 @@ trait PrimitiveFieldAdapter[T] extends FieldAdapter[T] { outer =>
   }
 }
 
-abstract class SimpleFieldAdapter[T](override val dbType: PrimitiveDbType[T]) extends PrimitiveFieldAdapter[T] {
+abstract class SimpleFieldAdapter[T](override val dbType: DbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def toDb(value: T): DBTYPE = value
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
@@ -72,8 +68,8 @@ case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], base
   }
 }
 
-case class SeqFieldAdapter[T, U](override val dbType: PrimitiveDbType[Seq[U]], baseAdapter: FieldAdapter.Aux[T, U])
-  extends PrimitiveFieldAdapter[Seq[T]] {
+case class SeqFieldAdapter[T, U](override val dbType: DbType[Seq[U]], baseAdapter: FieldAdapter.Aux[T, U])
+  extends FieldAdapter[Seq[T]] {
   import io.epifab.yadl.utils.EitherSupport._
 
   override type DBTYPE = Seq[U]
@@ -84,13 +80,13 @@ case class SeqFieldAdapter[T, U](override val dbType: PrimitiveDbType[Seq[U]], b
     firstLeftOrRights(dbValue.map(baseAdapter.fromDb))
 }
 
-class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) extends PrimitiveFieldAdapter[T] {
+class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) extends FieldAdapter[T] {
   import io.circe.parser.decode
   import io.circe.syntax._
 
   override type DBTYPE = String
 
-  override def dbType: PrimitiveDbType[String] = JsonDbType
+  override def dbType: DbType[String] = JsonDbType
 
   override def toDb(value: T): String =
     value.asJson.noSpaces
@@ -100,14 +96,14 @@ class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) ext
       .left.map(error => ExtractorError(error.getMessage))
 }
 
-class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => Either[ExtractorError, T]) extends PrimitiveFieldAdapter[T] {
+class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => Either[ExtractorError, T]) extends FieldAdapter[T] {
   override type DBTYPE = String
   override def dbType: EnumDbType = EnumDbType(name)
   override def toDb(value: T): String = encode(value)
   override def fromDb(dbValue: String): Either[ExtractorError, T] = decode(dbValue)
 }
 
-class DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
+object DateFieldAdapter extends FieldAdapter[LocalDate] {
   override type DBTYPE = String
   override def dbType: DateDbType.type = DateDbType
 
@@ -120,9 +116,9 @@ class DateFieldAdapter extends PrimitiveFieldAdapter[LocalDate] {
       .left.map(error => ExtractorError(error.getMessage))
 }
 
-class DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
+object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
   override type DBTYPE = String
-  override def dbType: PrimitiveDbType[String] = DateTimeDbType
+  override def dbType: DbType[String] = DateTimeDbType
 
   override def toDb(value: LocalDateTime): String =
     value.format(DateTimeFormatter.ISO_DATE_TIME)
@@ -136,29 +132,32 @@ class DateTimeFieldAdapter extends PrimitiveFieldAdapter[LocalDateTime] {
 object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
 object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
 object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
+object DateSeqFieldAdapter extends SeqFieldAdapter[LocalDate, String](DateSeqDbType, DateFieldAdapter)
+object DateTimeSeqFieldAdapter extends SeqFieldAdapter[LocalDateTime, String](DateTimeSeqDbType, DateTimeFieldAdapter)
 
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
 
-  implicit val string: PrimitiveFieldAdapter[String] = StringFieldAdapter
-  implicit val int: PrimitiveFieldAdapter[Int] = IntFieldAdapter
-  implicit val double: PrimitiveFieldAdapter[Double] = DoubleFieldAdapter
+  implicit val string: FieldAdapter[String] = StringFieldAdapter
+  implicit val int: FieldAdapter[Int] = IntFieldAdapter
+  implicit val double: FieldAdapter[Double] = DoubleFieldAdapter
+  implicit val date: FieldAdapter[LocalDate] = DateFieldAdapter
+  implicit val dateTime: FieldAdapter[LocalDateTime] = DateTimeFieldAdapter
   def enum[T](name: String, encode: T => String, decode: String => T): FieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
 
-  implicit val stringSeq: PrimitiveFieldAdapter[Seq[String]] = StringSeqFieldAdapter
-  implicit val intSeq: PrimitiveFieldAdapter[Seq[Int]] = IntSeqFieldAdapter
-  implicit val doubleSeq: PrimitiveFieldAdapter[Seq[Double]] = DoubleSeqFieldAdapter
-  implicit def enumSeq[T](implicit enum: EnumFieldAdapter[T]): PrimitiveFieldAdapter[Seq[T]] =
+  implicit val stringSeq: FieldAdapter[Seq[String]] = StringSeqFieldAdapter
+  implicit val intSeq: FieldAdapter[Seq[Int]] = IntSeqFieldAdapter
+  implicit val doubleSeq: FieldAdapter[Seq[Double]] = DoubleSeqFieldAdapter
+  implicit val dateSeq: FieldAdapter[Seq[LocalDate]] = DateSeqFieldAdapter
+  implicit val dateTimeSeq: FieldAdapter[Seq[LocalDateTime]] = DateTimeSeqFieldAdapter
+  implicit def enumSeq[T](implicit enum: EnumFieldAdapter[T]): FieldAdapter[Seq[T]] =
     new SeqFieldAdapter[T, String](EnumSeqDbType(enum.dbType), enum)
 
-  implicit def option[T](implicit baseAdapter: PrimitiveFieldAdapter[T]): FieldAdapter[Option[T]] =
+  implicit def option[T](implicit baseAdapter: FieldAdapter[T]): FieldAdapter[Option[T]] =
     OptionFieldAdapter[T, baseAdapter.DBTYPE](OptionDbType(baseAdapter.dbType), baseAdapter)
 
-  def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): PrimitiveFieldAdapter[T] =
+  def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): FieldAdapter[T] =
     new JsonFieldAdapter[T]
 
-  implicit val date: PrimitiveFieldAdapter[LocalDate] = new DateFieldAdapter
-
-  implicit val dateTime: PrimitiveFieldAdapter[LocalDateTime] = new DateTimeFieldAdapter
 }

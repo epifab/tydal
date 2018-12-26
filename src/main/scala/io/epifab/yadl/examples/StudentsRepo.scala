@@ -1,5 +1,7 @@
 package io.epifab.yadl.examples
 
+import java.time.LocalDate
+
 import io.epifab.yadl.domain._
 import io.epifab.yadl.examples.Schema.{ExamsProjection, ExamsSubquery, StudentsTable}
 import io.epifab.yadl.implicits._
@@ -147,5 +149,13 @@ trait StudentsRepo[F[_]] extends Repo[F] {
           avgScore <- row.get(examsSubquery.avgScore)
         } yield (studentId, avgScore)
       )
+  }
+
+  def findStudentsByDateOfBirth(dates: LocalDate*): F[Either[DALError, Seq[Student]]] = {
+    Select
+      .from(studentDataSource)
+      .take(studentDataSource.*)
+      .where(studentDataSource.dateOfBirth in Value(dates))
+      .fetchMany[Student](studentExtractor(studentDataSource))
   }
 }

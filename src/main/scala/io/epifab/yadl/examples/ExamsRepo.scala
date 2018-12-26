@@ -1,6 +1,6 @@
 package io.epifab.yadl.examples
 
-import java.time.LocalDate
+import java.time.{LocalDate, LocalDateTime}
 
 import cats.implicits._
 import io.epifab.yadl.domain._
@@ -61,6 +61,14 @@ trait ExamsRepo[F[_]] extends Repo[F] {
         )
       )
     )
+  }
+
+  def findExamsByDateTime(dates: LocalDateTime*): F[Either[DALError, Seq[Exam]]] = {
+    Select
+      .from(Exams)
+      .take(Exams.*)
+      .where(Exams.dateTime in Value(dates))
+      .fetchMany(examExtractor)
   }
 
   def createExam(exam: Exam): F[Either[DALError, Int]] =

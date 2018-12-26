@@ -37,6 +37,20 @@ trait JDBCQueryRunner {
         )
         statement.setArray(index, array)
 
+      case DateSeqDbType =>
+        val array: java.sql.Array = connection.createArrayOf(
+          "date",
+          dbValue.toArray
+        )
+        statement.setArray(index, array)
+
+      case DateTimeSeqDbType =>
+        val array: java.sql.Array = connection.createArrayOf(
+          "timestamp",
+          dbValue.toArray
+        )
+        statement.setArray(index, array)
+
       case IntSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
           "integer",
@@ -75,7 +89,7 @@ trait JDBCQueryRunner {
       case DoubleDbType =>
         resultSet.getDouble(index)
 
-      case StringSeqDbType | EnumSeqDbType(_) =>
+      case StringSeqDbType | EnumSeqDbType(_) | DateSeqDbType | DateTimeSeqDbType =>
         resultSet.getArray(index)
           .getArray
           .asInstanceOf[Array[String]]
