@@ -26,7 +26,7 @@ libraryDependencies += "com.github.epifab" % "yadl" % "master-SNAPSHOT"
 
 ### Examples
 
-Define your data:
+Define your schema:
 
 ```scala
 object Schema {
@@ -58,8 +58,69 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .take(exams.* ++ exams.course.*)
       .where(exams.dateTime >= Value(date.atStartOfDay) and exams.dateTime < Value(date.plusDays(1).atStartOfDay))
       .sortBy(exams.studentId.asc)
-      .fetchMany(examCourseExtractor)
+      .fetchMany
 }
 ```
 
 More examples [here](https://github.com/epifab/yadl/tree/master/src/main/scala/io/epifab/yadl/examples).
+
+
+### Typed DSL
+
+*Experimental feature*
+
+Manually declaring extractors can be tedious and error-prone.
+I'm currently working on a typed DSL which will solve this and other issues.
+
+Here's a (working!) example:
+
+The model:
+
+```scala
+case class Student(
+  id: Int,
+  name: String,
+  email: Option[String],
+  dateOfBirth: LocalDate,
+  address: Option[Address],
+  interests: Seq[Interest]
+)
+```
+
+The schema:
+
+```scala
+class StudentsTable extends Table("students") {
+  lazy val id: TableColumn[Int] = column("id")
+  lazy val name: TableColumn[String] = column("name")
+  lazy val email: TableColumn[Option[String]] = column("email")
+  lazy val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
+  lazy val interests: TableColumn[Seq[Interest]] = column("interests")
+  lazy val address: TableColumn[Option[Address]] = column("address")
+}
+```
+
+Link the two things:
+
+```scala
+val studentsRepr(students: StudentsTable) =
+  (students.id +:
+    students.name +:
+    students.email +:
+    students.dateOfBirth +:
+    students.address +:
+    students.interests +:
+    SNil).as[Student]
+```
+
+Try it out:
+
+```scala
+val students = new Schema.StudentsTable
+
+def findAllStudents: F[Either[DALError, Seq[Student]]] =
+  TypedSelect
+    .from(students)
+    .take(studentsRepr(students))
+    .fetchMany
+```
