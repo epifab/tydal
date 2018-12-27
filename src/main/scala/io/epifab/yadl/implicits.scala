@@ -10,6 +10,11 @@ import io.epifab.yadl.domain._
 import scala.language.higherKinds
 
 object implicits {
+  implicit class ExtendedTypedSelect[F[_]: Applicative, V, C](select: TypedSelect[V, C])(implicit queryRunner: QueryRunner[F]) {
+    def fetchOne: F[Either[DALError, Option[V]]] =
+      queryRunner.run(select)(select.selectable.extract).map(_.map(_.headOption))
+  }
+
   implicit class ExtendedSelect[F[_]](select: Select)(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
     def fetchOne[T](implicit extractor: Extractor[T]): F[Either[DALError, Option[T]]] =
       queryRunner.run(select).map(_.map(_.headOption))

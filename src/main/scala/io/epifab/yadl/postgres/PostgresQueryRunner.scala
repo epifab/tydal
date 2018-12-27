@@ -116,7 +116,7 @@ trait JDBCQueryRunner {
     adapter.fromDb(get(index, adapter.dbType))
   }
 
-  protected def extractResults[T](select: Select, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
+  protected def extractResults[T](select: SelectInterface, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
     val columnIndexes: Map[Column[_], Int] =
@@ -155,7 +155,7 @@ trait JDBCQueryRunner {
 
 
 class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner with LoggingSupport {
-  override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Statement with SelectInterface)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 
@@ -187,7 +187,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
 
 
 class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner with LoggingSupport {
-  override def run[T](select: Select)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Statement with SelectInterface)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 

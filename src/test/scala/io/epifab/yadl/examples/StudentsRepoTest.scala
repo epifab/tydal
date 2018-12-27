@@ -1,6 +1,5 @@
 package io.epifab.yadl.examples
 
-import java.sql.{Connection, DriverManager}
 import java.time.{LocalDate, LocalDateTime}
 
 import cats.Applicative
@@ -16,7 +15,6 @@ import scala.concurrent.{Await, Future}
 
 class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   import cats.implicits._
-  import io.epifab.yadl.postgres._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -37,19 +35,8 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
   val student2Exams: Seq[Exam :: Course :: HNil] = Seq(exam2 :: course1 :: HNil, exam3 :: course2 :: HNil)
   val student3Exams: Seq[Exam :: Course :: HNil] = Seq.empty
 
-  val connection: Connection = DriverManager
-    .getConnection(
-      s"jdbc:postgresql://%s:%s/%s?user=%s&password=%s&sslmode=require".format(
-        sys.env("DB_HOST"),
-        sys.env("DB_PORT"),
-        sys.env("DB_NAME"),
-        sys.env("DB_USER"),
-        sys.env("DB_PASS")
-      )
-    )
-
   object repos extends StudentsRepo[Future] with ExamsRepo[Future] with CoursesRepo[Future] {
-    override implicit val queryRunner: QueryRunner[Future] = asyncQueryRunner(connection)
+    override implicit val queryRunner: QueryRunner[Future] = QueryRunnerFactories.asyncQueryRunner
     override implicit val A: Applicative[Future] = implicitly
   }
 

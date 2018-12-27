@@ -1,6 +1,5 @@
 package io.epifab.yadl.postgres
 
-import java.time.{LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain._
 
@@ -152,6 +151,34 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
           Query("OFFSET") :++ limit.start.toString :++
             Query("LIMIT") :++ limit.stop.toString)
 
+  def typedSelect[V, C]: QueryBuilder[TypedSelect[V, C]] =
+    (t: TypedSelect[V, C]) => {
+      Query("SELECT") :++
+        (t.selectable.columns ++ t.selectable.aggregations)
+          .map(columnBuilder.apply)
+          .reduceOption(_ :+ "," :++ _)
+          .getOrElse(Query("1")) :++
+        Query("FROM") :++
+        t.joins
+          .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
+        Query("WHERE") :++
+        filterBuilder(t.filter) :++
+        t.selectable.aggregations
+          .headOption
+          .flatMap(_ =>
+            t.selectable.columns.map(columnSrcQueryBuilder.apply)
+              .reduceOption(_ :+ "," :++ _)
+              .map(columns => Query("GROUP BY") :++ columns)
+          ) :++
+        t.sort
+          .map(sortBuilder.apply)
+          .reduceOption(_ :+ "," :++ _)
+          .map(sort => Query("ORDER BY") :++ sort) :++
+        t.limit.map(limit =>
+          Query("OFFSET") :++ limit.start.toString :++
+            Query("LIMIT") :++ limit.stop.toString)
+    }
+
   def insert: QueryBuilder[Insert] =
     (t: Insert) =>
       Query("INSERT INTO") :++
@@ -192,6 +219,7 @@ object PostgresQueryBuilder {
 
     statement match {
       case s: Select => builder.select(s)
+      case st: TypedSelect[_, _] => builder.typedSelect(st)
       case s: Insert => builder.insert(s)
       case s: Update => builder.update(s)
       case s: Delete => builder.delete(s)

@@ -42,10 +42,10 @@ object Schema {
   import Adapters._
 
   trait ExamsProjection {
-    def examsCount: Column[Option[Int]]
-    def avgScore: Column[Option[Double]]
-    def minScore: Column[Option[Int]]
-    def maxScore: Column[Option[Int]]
+    def examsCount: AggregateColumn[Int, Option[Int]]
+    def avgScore: AggregateColumn[Int, Option[Double]]
+    def minScore: AggregateColumn[Int, Option[Int]]
+    def maxScore: AggregateColumn[Int, Option[Int]]
   }
 
   object ExamsProjection {
@@ -57,15 +57,15 @@ object Schema {
     }
   }
 
-  class ExamsSubquery extends SubQuery with ExamsProjection {
+  class ExamsSubquery extends SubQuery {
     private val exams = ExamsProjection()
 
     val studentId: Column[Int] = column(exams.studentId)
 
-    override val examsCount: Column[Option[Int]] = column(exams.examsCount)
-    override val avgScore: Column[Option[Double]] = column(exams.avgScore)
-    override val minScore: Column[Option[Int]] = column(exams.minScore)
-    override val maxScore: Column[Option[Int]] = column(exams.maxScore)
+    val examsCount: Column[Option[Int]] = column(exams.examsCount)
+    val avgScore: Column[Option[Double]] = column(exams.avgScore)
+    val minScore: Column[Option[Int]] = column(exams.minScore)
+    val maxScore: Column[Option[Int]] = column(exams.maxScore)
 
     def select: Select =
       Select

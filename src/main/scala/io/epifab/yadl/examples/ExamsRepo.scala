@@ -52,6 +52,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .innerJoin(Exams.course)
       .take(Exams.* ++ Exams.course.*)
       .where(Exams.studentId in Value(students.map(_.id)))
+      .sortBy(Exams.course.id.asc)
       .fetchMany(examCourseExtractor)
 
     examsFE.map(_.map(

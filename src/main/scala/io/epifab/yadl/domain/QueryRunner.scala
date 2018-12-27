@@ -9,6 +9,6 @@ trait Row {
 }
 
 trait QueryRunner[F[_]] {
-  def run[T](query: Select)(implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]]
+  def run[T](query: Statement with SelectInterface)(implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]]
   def run(query: Statement with SideEffect): F[Either[DALError, Int]]
 }
