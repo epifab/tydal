@@ -13,6 +13,9 @@ object implicits {
   implicit class ExtendedTypedSelect[F[_]: Applicative, V, C](select: TypedSelect[V, C])(implicit queryRunner: QueryRunner[F]) {
     def fetchOne: F[Either[DALError, Option[V]]] =
       queryRunner.run(select)(select.selectable.extract).map(_.map(_.headOption))
+
+    def fetchMany: F[Either[DALError, Seq[V]]] =
+      queryRunner.run(select)(select.selectable.extract)
   }
 
   implicit class ExtendedSelect[F[_]](select: Select)(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {

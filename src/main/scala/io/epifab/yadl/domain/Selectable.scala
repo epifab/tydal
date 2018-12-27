@@ -35,6 +35,10 @@ case object SNil extends Selectable[Unit, Unit] {
     val head: Selectable[H, Column[H]] = SelectableColumn(h)
     SelectableHList(head.source :: HNil)(head, SelectableHNil)
   }
+
+  def +:[V, C](head: Selectable[V, C]): SelectableHList[V, C, HNil, HNil] = {
+    SelectableHList(head.source :: HNil)(head, SelectableHNil)
+  }
 }
 
 case class SelectableHList[H, HC, T <: HList, TC <: HList]
@@ -59,6 +63,10 @@ case class SelectableHList[H, HC, T <: HList, TC <: HList]
 
   def +:[NH](h: Column[NH]): SelectableHList[NH, Column[NH], H :: T, HC :: TC] = {
     val head: Selectable[NH, Column[NH]] = SelectableColumn(h)
+    SelectableHList(head.source :: source)(head, this)
+  }
+
+  def +:[V2, C2](head: Selectable[V2, C2]): SelectableHList[V2, C2, H :: T, HC :: TC] = {
     SelectableHList(head.source :: source)(head, this)
   }
 }
