@@ -22,7 +22,10 @@ object Selectable {
 case class SelectableColumn[V](source: Column[V]) extends Selectable[V] {
   override type C = Column[V]
   override def extract(row: Row): Either[ExtractorError, V] = row.get(source)
-  override val columns: Seq[Column[_]] = Seq(source)
+
+  override val columns: Seq[Column[_]] =
+    Seq(source).filter(!_.isInstanceOf[AggregateColumn[_, _]])
+
   override val aggregations: Seq[AggregateColumn[_, _]] =
     Seq(source).collect { case a: AggregateColumn[_, _] => a }
 }

@@ -26,9 +26,10 @@ trait TableProjection[T, P] extends DataSource {
 
 case class Relation[+T <: DataSource](dataSource: T, clause: Filter)
 
-trait SubQuery extends DataSource {
-  def select: Select
+trait SubQuery[S, T] extends DataSource {
+  def select: Select[T]
+  def `*`: Selectable[S]
 
-  def column[T](column: Column[T]): SubQueryColumn[T] =
-    SubQueryColumn[T](column, this)
+  def column[U](column: Column[U]): SubQueryColumn[U, S, T] =
+    SubQueryColumn(column, this)
 }

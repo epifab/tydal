@@ -17,8 +17,8 @@ final case class TableColumn[T](name: String, table: Table[_])(implicit val adap
 final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
   extends Column[U]
 
-final case class SubQueryColumn[T](column: Column[T], subQuery: SubQuery) extends Column[T] {
-  override def adapter: FieldAdapter[T] = column.adapter
+final case class SubQueryColumn[U, S, T](column: Column[U], subQuery: SubQuery[S, T]) extends Column[U] {
+  override def adapter: FieldAdapter[U] = column.adapter
 }
 
 object Column {

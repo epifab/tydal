@@ -104,8 +104,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
     case dataSource: Table[_] =>
       Query(dataSource.tableName + " AS " + aliasLookup(dataSource))
     case dataSource: TableProjection[_, _] =>
-      Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource))
-    case dataSource: SubQuery =>
+      Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource.table))
+    case dataSource: SubQuery[_, _] =>
       select(dataSource.select).wrap("(", ")") :++ "AS" :++ aliasLookup(dataSource)
   }
 
@@ -126,8 +126,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
       })
     }
 
-  def select: QueryBuilder[Select] =
-    (t: Select) =>
+  def select[T]: QueryBuilder[Select[T]] =
+    (t: Select[T]) =>
       Query("SELECT") :++
         (t.columns ++ t.aggregations)
           .map(columnBuilder.apply)
@@ -152,34 +152,6 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
         t.limit.map(limit =>
           Query("OFFSET") :++ limit.start.toString :++
             Query("LIMIT") :++ limit.stop.toString)
-
-  def typedSelect[V]: QueryBuilder[TypedSelect[V]] =
-    (t: TypedSelect[V]) => {
-      Query("SELECT") :++
-        (t.selectable.columns ++ t.selectable.aggregations)
-          .map(columnBuilder.apply)
-          .reduceOption(_ :+ "," :++ _)
-          .getOrElse(Query("1")) :++
-        Query("FROM") :++
-        t.joins
-          .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
-        Query("WHERE") :++
-        filterBuilder(t.filter) :++
-        t.selectable.aggregations
-          .headOption
-          .flatMap(_ =>
-            t.selectable.columns.map(columnSrcQueryBuilder.apply)
-              .reduceOption(_ :+ "," :++ _)
-              .map(columns => Query("GROUP BY") :++ columns)
-          ) :++
-        t.sort
-          .map(sortBuilder.apply)
-          .reduceOption(_ :+ "," :++ _)
-          .map(sort => Query("ORDER BY") :++ sort) :++
-        t.limit.map(limit =>
-          Query("OFFSET") :++ limit.start.toString :++
-            Query("LIMIT") :++ limit.stop.toString)
-    }
 
   def insert[T]: QueryBuilder[Insert[T]] =
     (t: Insert[T]) =>
@@ -220,8 +192,7 @@ object PostgresQueryBuilder {
     val builder = new PostgresQueryBuilder(new AliasLookup[DataSource]("ds"))
 
     statement match {
-      case s: Select => builder.select(s)
-      case st: TypedSelect[_] => builder.typedSelect(st)
+      case s: Select[_] => builder.select(s)
       case s: Insert[_] => builder.insert(s)
       case s: Update[_] => builder.update(s)
       case s: Delete => builder.delete(s)

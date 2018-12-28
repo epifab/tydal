@@ -10,20 +10,12 @@ import cats.implicits._
 import scala.language.higherKinds
 
 object implicits {
-  implicit class ExtendedTypedSelect[F[_], V, C](select: TypedSelect[V])(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
+  implicit class ExtendedTypedSelect[F[_], V, C](select: Select[V])(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
     def fetchOne: F[Either[DALError, Option[V]]] =
       queryRunner.run(select)(select.selectable.extract).map(_.map(_.headOption))
 
     def fetchMany: F[Either[DALError, Seq[V]]] =
       queryRunner.run(select)(select.selectable.extract)
-  }
-
-  implicit class ExtendedSelect[F[_]](select: Select)(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
-    def fetchOne[T](implicit extractor: Extractor[T]): F[Either[DALError, Option[T]]] =
-      queryRunner.run(select).map(_.map(_.headOption))
-
-    def fetchMany[T](implicit extractor: Extractor[T]): F[Either[DALError, Seq[T]]] =
-      queryRunner.run(select)
   }
 
   implicit class ExtendedStatementWithSideEffects[F[_]](statement: Statement with SideEffect)(implicit queryRunner: QueryRunner[F]) {

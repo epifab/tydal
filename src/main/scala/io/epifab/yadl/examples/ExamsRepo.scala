@@ -13,7 +13,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   object Exams extends Schema.ExamsTable
 
   def findExamsByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] = {
-    TypedSelect
+    Select
       .from(Exams)
       .innerJoin(Exams.course)
       .where(Exams.studentId === Value(studentId))
@@ -22,7 +22,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   }
 
   def findExamsByDate(date: LocalDate): F[Either[DALError, Seq[Exam :: Course ::HNil]]] =
-    TypedSelect
+    Select
       .from(Exams)
       .innerJoin(Exams.course)
       .take(Exams.* ++: Exams.course.* ++: SNil)
@@ -31,7 +31,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
-    val examsFE = TypedSelect
+    val examsFE = Select
       .from(Exams)
       .innerJoin(Exams.course)
       .take(Exams.* ++: Exams.course.* ++: SNil)
@@ -49,7 +49,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   }
 
   def findExamsByDateTime(dates: LocalDateTime*): F[Either[DALError, Seq[Exam]]] = {
-    TypedSelect
+    Select
       .from(Exams)
       .take(Exams.*)
       .where(Exams.dateTime in Value(dates))

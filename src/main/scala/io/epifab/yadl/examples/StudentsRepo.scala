@@ -43,7 +43,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .execute()
 
   def findStudent(id: Int): F[Either[DALError, Option[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.id === Value(id))
@@ -52,7 +52,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchOne
 
   def findStudentsByInterests(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.interests contains Value(interests))
@@ -60,7 +60,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentsByAnyInterest(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.interests overlaps Value(interests))
@@ -68,7 +68,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentByName(name: String): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.name like Value(name))
@@ -76,7 +76,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentByEmail(email: String): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.email like Value(email))
@@ -84,7 +84,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentsWithoutEmail(): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.email.isNotDefined)
@@ -92,7 +92,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudents(ids: Int*): F[Either[DALError, Seq[Student]]] =
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.id in Value(ids))
@@ -102,7 +102,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
   def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] = {
     val examsProjections = new Schema.ExamsProjection(new Schema.ExamsTable)
 
-    TypedSelect
+    Select
       .from(examsProjections)
       .take(examsProjections.*)
       .where(examsProjections.studentId === Value(id))
@@ -110,7 +110,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
   }
 
   def findStudentsByDateOfBirth(dates: LocalDate*): F[Either[DALError, Seq[Student]]] = {
-    TypedSelect
+    Select
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.dateOfBirth in Value(dates))
