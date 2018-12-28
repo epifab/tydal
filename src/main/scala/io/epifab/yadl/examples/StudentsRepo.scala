@@ -3,7 +3,6 @@ package io.epifab.yadl.examples
 import java.time.LocalDate
 
 import io.epifab.yadl.domain._
-import io.epifab.yadl.examples.Schema.{ExamsProjection, ExamsSubquery, StudentsTable}
 import io.epifab.yadl.implicits._
 
 import scala.language.higherKinds
@@ -11,151 +10,110 @@ import scala.language.higherKinds
 trait StudentsRepo[F[_]] extends Repo[F] {
   import Adapters._
 
-  val studentDataSource = new Schema.StudentsTable
-
-  private def studentExtractor(studentDataSource: StudentsTable): Extractor[Student] = row => for {
-    id <- row.get(studentDataSource.id)
-    name <- row.get(studentDataSource.name)
-    email <- row.get(studentDataSource.email)
-    dateOfBirth <- row.get(studentDataSource.dateOfBirth)
-    address <- row.get(studentDataSource.address)
-    interests <- row.get(studentDataSource.interests)
-  } yield Student(id, name, email, dateOfBirth, address, interests)
-
-  private def examsProjectionsExtractor(exams: ExamsProjection): Extractor[StudentExams] = row => for {
-    count <- row.get(exams.examsCount)
-    avgScore <- row.get(exams.avgScore)
-    minScore <- row.get(exams.minScore)
-    maxScore <- row.get(exams.maxScore)
-  } yield StudentExams(count, avgScore, minScore, maxScore)
+  val studentsDS = new Schema.StudentsTable
 
   def deleteStudent(id: Int): F[Either[DALError, Int]] =
-    Delete(studentDataSource)
-      .where(studentDataSource.id === Value(id))
+    Delete(studentsDS)
+      .where(studentsDS.id === Value(id))
       .execute()
 
   def createStudent(student: Student): F[Either[DALError, Int]] =
     Insert
-      .into(studentDataSource)
+      .into(studentsDS)
       .set(
-        studentDataSource.id -> student.id,
-        studentDataSource.name -> student.name,
-        studentDataSource.email -> student.email,
-        studentDataSource.dateOfBirth -> student.dateOfBirth,
-        studentDataSource.address -> student.address,
-        studentDataSource.interests -> student.interests
+        studentsDS.id -> student.id,
+        studentsDS.name -> student.name,
+        studentsDS.email -> student.email,
+        studentsDS.dateOfBirth -> student.dateOfBirth,
+        studentsDS.address -> student.address,
+        studentsDS.interests -> student.interests
       )
       .execute()
 
   def updateStudent(student: Student): F[Either[DALError, Int]] =
-    Update(studentDataSource)
+    Update(studentsDS)
       .set(
-        studentDataSource.name -> student.name,
-        studentDataSource.email -> student.email,
-        studentDataSource.dateOfBirth -> student.dateOfBirth,
-        studentDataSource.address -> student.address,
-        studentDataSource.interests -> student.interests
+        studentsDS.name -> student.name,
+        studentsDS.email -> student.email,
+        studentsDS.dateOfBirth -> student.dateOfBirth,
+        studentsDS.address -> student.address,
+        studentsDS.interests -> student.interests
       )
-      .where(studentDataSource.id === Value(student.id))
+      .where(studentsDS.id === Value(student.id))
       .execute()
 
   def findStudent(id: Int): F[Either[DALError, Option[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.id === Value(id))
-      .sortBy(studentDataSource.id.asc)
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.id === Value(id))
+      .sortBy(studentsDS.id.asc)
       .inRange(0, 1)
-      .fetchOne(studentExtractor(studentDataSource))
+      .fetchOne
 
   def findStudentsByInterests(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.interests contains Value(interests))
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.interests contains Value(interests))
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudentsByAnyInterest(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.interests overlaps Value(interests))
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.interests overlaps Value(interests))
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudentByName(name: String): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.name like Value(name))
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.name like Value(name))
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudentByEmail(email: String): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.email like Value(email))
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.email like Value(email))
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudentsWithoutEmail(): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.email.isNotDefined)
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.email.isNotDefined)
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudents(ids: Int*): F[Either[DALError, Seq[Student]]] =
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.id in Value(ids))
-      .sortBy(studentDataSource.id.asc)
-      .fetchMany(studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.id in Value(ids))
+      .sortBy(studentsDS.id.asc)
+      .fetchMany
 
   def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] = {
-    val examsProjections = ExamsProjection()
+    val examsProjections = new Schema.ExamsProjection(new Schema.ExamsTable)
 
-    Select
+    TypedSelect
       .from(examsProjections)
-      .take(examsProjections.studentId)
-      .aggregateBy(
-        examsProjections.examsCount,
-        examsProjections.avgScore,
-        examsProjections.minScore,
-        examsProjections.maxScore
-      )
+      .take(examsProjections.*)
       .where(examsProjections.studentId === Value(id))
-      .fetchOne(examsProjectionsExtractor(examsProjections))
-  }
-
-  def findStudentExamStats2(id: Int): F[Either[DALError, Option[(Int, Option[Double])]]] = {
-    val examsSubquery = new ExamsSubquery
-
-    Select
-      .from(studentDataSource)
-      .innerJoin(examsSubquery on (_.studentId === studentDataSource.id))
-      .take(
-        studentDataSource.id,
-        examsSubquery.avgScore
-      )
-      .where(examsSubquery.studentId === Value(id))
-      .fetchOne(
-        row => for {
-          studentId <- row.get(studentDataSource.id)
-          avgScore <- row.get(examsSubquery.avgScore)
-        } yield (studentId, avgScore)
-      )
+      .fetchOne
   }
 
   def findStudentsByDateOfBirth(dates: LocalDate*): F[Either[DALError, Seq[Student]]] = {
-    Select
-      .from(studentDataSource)
-      .take(studentDataSource.*)
-      .where(studentDataSource.dateOfBirth in Value(dates))
-      .fetchMany[Student](studentExtractor(studentDataSource))
+    TypedSelect
+      .from(studentsDS)
+      .take(studentsDS.*)
+      .where(studentsDS.dateOfBirth in Value(dates))
+      .fetchMany
   }
 }

@@ -41,53 +41,39 @@ object Adapters {
 object Schema {
   import Adapters._
 
-  trait ExamsProjection {
-    def examsCount: AggregateColumn[Int, Option[Int]]
-    def avgScore: AggregateColumn[Int, Option[Double]]
-    def minScore: AggregateColumn[Int, Option[Int]]
-    def maxScore: AggregateColumn[Int, Option[Int]]
+  class ExamsProjection(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
+    val studentId: TableColumn[Int] = table.studentId
+    val examsCount: Column[Int] = Count(table.courseId)
+    val avgScore: Column[Option[Double]] = Avg(table.score)
+    val minScore: Column[Option[Int]] = Min(table.score)
+    val maxScore: Column[Option[Int]] = Max(table.score)
+
+    val `*`: Selectable[StudentExams] = (
+      studentId +:
+        examsCount +:
+        avgScore +:
+        minScore +:
+        maxScore +:
+        SNil
+    ).as[StudentExams]
   }
 
-  object ExamsProjection {
-    def apply(): ExamsTable with ExamsProjection = new ExamsTable with ExamsProjection {
-      override lazy val examsCount: AggregateColumn[Int, Option[Int]] = Count(courseId)
-      override lazy val avgScore: AggregateColumn[Int, Option[Double]] = Avg(score)
-      override lazy val minScore: AggregateColumn[Int, Option[Int]] = Min(score)
-      override lazy val maxScore: AggregateColumn[Int, Option[Int]] = Max(score)
-    }
-  }
+  class StudentsTable extends Table[Student](StudentsTable.name) {
+    val id: TableColumn[Int] = column("id")
+    val name: TableColumn[String] = column("name")
+    val email: TableColumn[Option[String]] = column("email")
+    val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
+    val address: TableColumn[Option[Address]] = column("address")
+    val interests: TableColumn[Seq[Interest]] = column("interests")
 
-  class ExamsSubquery extends SubQuery {
-    private val exams = ExamsProjection()
-
-    val studentId: Column[Int] = column(exams.studentId)
-
-    val examsCount: Column[Option[Int]] = column(exams.examsCount)
-    val avgScore: Column[Option[Double]] = column(exams.avgScore)
-    val minScore: Column[Option[Int]] = column(exams.minScore)
-    val maxScore: Column[Option[Int]] = column(exams.maxScore)
-
-    def select: Select =
-      Select
-        .from(exams)
-        .take(exams.studentId)
-        .aggregateBy(
-          exams.examsCount,
-          exams.avgScore,
-          exams.minScore,
-          exams.maxScore
-        )
-  }
-
-  class StudentsTable extends Table(StudentsTable.name) {
-    lazy val id: TableColumn[Int] = column("id")
-    lazy val name: TableColumn[String] = column("name")
-    lazy val email: TableColumn[Option[String]] = column("email")
-    lazy val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
-    lazy val interests: TableColumn[Seq[Interest]] = column("interests")
-    lazy val address: TableColumn[Option[Address]] = column("address")
-
-    lazy val `*`: Seq[TableColumn[_]] = Seq(id, name, email, dateOfBirth, interests, address)
+    lazy val `*`: Selectable[Student] = (
+      id +:
+      name +:
+      email +:
+      dateOfBirth +:
+      address +:
+      interests +:
+      SNil).as[Student]
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.studentId === id)
   }
@@ -96,11 +82,11 @@ object Schema {
     val name = "students"
   }
 
-  class CoursesTable extends Table(CoursesTable.name) {
-    lazy val id: TableColumn[Int] = column("id")
-    lazy val name: TableColumn[String] = column("name")
+  class CoursesTable extends Table[Course](CoursesTable.name) {
+    val id: TableColumn[Int] = column("id")
+    val name: TableColumn[String] = column("name")
 
-    lazy val `*`: Seq[TableColumn[_]] = Seq(id, name)
+    override val `*`: Selectable[Course] = (id +: name +: SNil).as[Course]
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.courseId === id)
   }
@@ -109,13 +95,19 @@ object Schema {
     val name = "courses"
   }
 
-  class ExamsTable extends Table(ExamsTable.name) {
-    lazy val studentId: TableColumn[Int] = column("student_id")
-    lazy val courseId: TableColumn[Int] = column("course_id")
-    lazy val score: TableColumn[Int] = column("score")
-    lazy val dateTime: TableColumn[LocalDateTime] = column("exam_timestamp")
+  class ExamsTable extends Table[Exam](ExamsTable.name) {
+    val studentId: TableColumn[Int] = column("student_id")
+    val courseId: TableColumn[Int] = column("course_id")
+    val score: TableColumn[Int] = column("score")
+    val dateTime: TableColumn[LocalDateTime] = column("exam_timestamp")
 
-    lazy val `*`: Seq[Column[_]] = Seq(studentId, courseId, score, dateTime)
+    override val `*`: Selectable[Exam] = (
+      studentId +:
+      courseId +:
+      score +:
+      dateTime +:
+      SNil
+    ).as[Exam]
 
     lazy val course: Relation[CoursesTable] = (new CoursesTable).on(_.id === courseId)
 

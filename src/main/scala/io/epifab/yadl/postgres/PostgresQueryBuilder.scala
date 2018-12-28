@@ -101,8 +101,10 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
     (column: Column[_]) => columnSrcQueryBuilder(column) :++ "AS" :++ columnAliasQueryBuilder(column)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
-    case dataSource: Table =>
+    case dataSource: Table[_] =>
       Query(dataSource.tableName + " AS " + aliasLookup(dataSource))
+    case dataSource: TableProjection[_, _] =>
+      Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource))
     case dataSource: SubQuery =>
       select(dataSource.select).wrap("(", ")") :++ "AS" :++ aliasLookup(dataSource)
   }
@@ -151,8 +153,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
           Query("OFFSET") :++ limit.start.toString :++
             Query("LIMIT") :++ limit.stop.toString)
 
-  def typedSelect[V, C]: QueryBuilder[TypedSelect[V, C]] =
-    (t: TypedSelect[V, C]) => {
+  def typedSelect[V]: QueryBuilder[TypedSelect[V]] =
+    (t: TypedSelect[V]) => {
       Query("SELECT") :++
         (t.selectable.columns ++ t.selectable.aggregations)
           .map(columnBuilder.apply)
@@ -179,8 +181,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
             Query("LIMIT") :++ limit.stop.toString)
     }
 
-  def insert: QueryBuilder[Insert] =
-    (t: Insert) =>
+  def insert[T]: QueryBuilder[Insert[T]] =
+    (t: Insert[T]) =>
       Query("INSERT INTO") :++
         t.table.tableName :++
         t.columnValues
@@ -193,8 +195,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
           .reduce(_ :+ ", " :+ _)
           .wrap("(", ")")
 
-  def update: QueryBuilder[Update] =
-    (t: Update) =>
+  def update[T]: QueryBuilder[Update[T]] =
+    (t: Update[T]) =>
       Query("UPDATE") :++
         dataSourceWithAliasBuilder(t.table) :++
         Query("SET") :++
@@ -219,9 +221,9 @@ object PostgresQueryBuilder {
 
     statement match {
       case s: Select => builder.select(s)
-      case st: TypedSelect[_, _] => builder.typedSelect(st)
-      case s: Insert => builder.insert(s)
-      case s: Update => builder.update(s)
+      case st: TypedSelect[_] => builder.typedSelect(st)
+      case s: Insert[_] => builder.insert(s)
+      case s: Update[_] => builder.update(s)
       case s: Delete => builder.delete(s)
     }
   }

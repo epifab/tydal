@@ -121,17 +121,14 @@ class StudentsRepoTest extends FlatSpec with BeforeAndAfterAll {
     repos.findStudentExamStats(2).eventually shouldBe Right(
       Some(
         StudentExams(
-          count=Some(2),
-          avgScore=Some(29.5),
-          minScore=Some(29),
-          maxScore=Some(30)
+          studentId = 2,
+          examsCount = 2,
+          avgScore = Some(29.5),
+          minScore = Some(29),
+          maxScore = Some(30)
         )
       )
     )
-  }
-
-  it should "find student exams stats (using a sub query)" in {
-    repos.findStudentExamStats2(2).eventually shouldBe Right(Some(2, Some(29.5)))
   }
 
   it should "not find exams for unexisting student" in {

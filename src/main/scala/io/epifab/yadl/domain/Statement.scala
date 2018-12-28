@@ -1,5 +1,7 @@
 package io.epifab.yadl.domain
 
+import shapeless.HNil
+
 sealed trait Statement
 
 sealed trait SideEffect
@@ -9,9 +11,9 @@ sealed trait SelectInterface {
   def aggregations: Seq[AggregateColumn[_, _]]
 }
 
-sealed trait TypedSelect[V, C] extends Statement with SelectInterface {
+sealed trait TypedSelect[V] extends Statement with SelectInterface {
   def dataSource: DataSource
-  def selectable: Selectable[V, C]
+  def selectable: Selectable[V]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
@@ -21,54 +23,54 @@ sealed trait TypedSelect[V, C] extends Statement with SelectInterface {
 
   override def aggregations: Seq[AggregateColumn[_, _]] = selectable.aggregations
 
-  def take[V2, C2](selectable: Selectable[V2, C2]): TypedSelect[V2, C2]
+  def take[V2](selectable: Selectable[V2]): TypedSelect[V2]
 
-  def leftJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V, C]
+  def leftJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V]
 
-  def innerJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V, C]
+  def innerJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V]
 
-  def crossJoin(dataSource: DataSource): TypedSelect[V, C]
+  def crossJoin(dataSource: DataSource): TypedSelect[V]
 
-  def where(filter: Filter): TypedSelect[V, C]
+  def where(filter: Filter): TypedSelect[V]
 
-  def sortBy(sort: Sort*): TypedSelect[V, C]
+  def sortBy(sort: Sort*): TypedSelect[V]
 
-  def inRange(start: Int, stop: Int): TypedSelect[V, C]
+  def inRange(start: Int, stop: Int): TypedSelect[V]
 }
 
 object TypedSelect {
-  case class TypedSelectImpl[V, C](
+  case class TypedSelectImpl[V](
     dataSource: DataSource,
-    selectable: Selectable[V, C],
+    selectable: Selectable[V],
     joins: Seq[Join] = Seq.empty,
     filter: Filter = Filter.Empty,
     sort: Seq[Sort] = Seq.empty,
     limit: Option[Limit] = None
-  ) extends TypedSelect[V, C] {
+  ) extends TypedSelect[V] {
 
-    override def take[V2, C2](selectable: Selectable[V2, C2]): TypedSelect[V2, C2] =
+    override def take[V2](selectable: Selectable[V2]): TypedSelect[V2] =
       copy(selectable = selectable)
 
-    def leftJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V, C] =
+    def leftJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V] =
       copy(joins = joins :+ LeftJoin(relation, relation.clause))
 
-    def innerJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V, C] =
+    def innerJoin[T <: DataSource](relation: Relation[T]): TypedSelect[V] =
       copy(joins = joins :+ InnerJoin(relation, relation.clause))
 
-    def crossJoin(dataSource: DataSource): TypedSelect[V, C] =
+    def crossJoin(dataSource: DataSource): TypedSelect[V] =
       copy(joins = joins :+ CrossJoin(dataSource))
 
-    def where(filter: Filter): TypedSelect[V, C] =
+    def where(filter: Filter): TypedSelect[V] =
       copy(filter = this.filter and filter)
 
-    def sortBy(sort: Sort*): TypedSelect[V, C] =
+    def sortBy(sort: Sort*): TypedSelect[V] =
       copy(sort = this.sort ++ sort)
 
-    def inRange(start: Int, stop: Int): TypedSelect[V, C] =
+    def inRange(start: Int, stop: Int): TypedSelect[V] =
       copy(limit = Some(Limit(start, stop)))
   }
 
-  def from(dataSource: DataSource): TypedSelect[Unit, Unit] = TypedSelectImpl(dataSource, SNil)
+  def from(dataSource: DataSource): TypedSelect[HNil] = TypedSelectImpl(dataSource, SNil)
 }
 
 sealed trait Select extends Statement with SelectInterface {
@@ -145,55 +147,55 @@ object Select {
   def from(dataSource: DataSource) = SelectImpl(dataSource)
 }
 
-sealed trait Insert extends Statement with SideEffect {
-  def table: Table
+sealed trait Insert[T] extends Statement with SideEffect {
+  def table: Table[T]
   def columnValues: Seq[ColumnValue[_]]
 
-  def set(columnValues: ColumnValue[_]*): Insert
+  def set(columnValues: ColumnValue[_]*): Insert[T]
 }
 
 object Insert {
-  protected final case class InsertImpl(table: Table, columnValues: Seq[ColumnValue[_]] = Seq.empty) extends Insert {
-    def set(columnValues: ColumnValue[_]*): Insert =
+  protected final case class InsertImpl[T](table: Table[T], columnValues: Seq[ColumnValue[_]] = Seq.empty) extends Insert[T] {
+    def set(columnValues: ColumnValue[_]*): Insert[T] =
       copy(columnValues = this.columnValues ++ columnValues)
   }
 
-  def into(table: Table) = InsertImpl(table)
+  def into[T](table: Table[T]) = InsertImpl(table)
 }
 
-sealed trait Update extends Statement with SideEffect {
-  def table: Table
+sealed trait Update[T] extends Statement with SideEffect {
+  def table: Table[T]
   def values: Seq[ColumnValue[_]]
   def filter: Filter
 
-  def set(columnValues: ColumnValue[_]*): Update
-  def where(filter: Filter): Update
+  def set(columnValues: ColumnValue[_]*): Update[T]
+  def where(filter: Filter): Update[T]
 }
 
 object Update {
-  protected final case class UpdateImpl(table: Table, values: Seq[ColumnValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update {
-    def set(columnValues: ColumnValue[_]*): Update =
+  protected final case class UpdateImpl[T](table: Table[T], values: Seq[ColumnValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update[T] {
+    def set(columnValues: ColumnValue[_]*): Update[T] =
       copy(values = this.values ++ columnValues)
 
-    def where(filter: Filter): Update =
+    def where(filter: Filter): Update[T] =
       copy(filter = this.filter and filter)
   }
 
-  def apply(table: Table) = UpdateImpl(table)
+  def apply[T](table: Table[T]) = UpdateImpl(table)
 }
 
 sealed trait Delete extends Statement with SideEffect {
-  def table: Table
+  def table: Table[_]
   def filter: Filter
 
   def where(filter: Filter): Delete
 }
 
 object Delete {
-  protected final case class DeleteImpl(table: Table, filter: Filter = Filter.Empty) extends Delete {
+  protected final case class DeleteImpl(table: Table[_], filter: Filter = Filter.Empty) extends Delete {
     def where(filter: Filter): Delete =
       copy(filter = this.filter and filter)
   }
 
-  def apply(table: Table) = DeleteImpl(table)
+  def apply(table: Table[_]) = DeleteImpl(table)
 }

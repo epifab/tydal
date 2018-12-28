@@ -44,7 +44,7 @@ class TypedRepository[F[_]: Applicative](implicit val queryRunner: QueryRunner[F
     TypedSelect
       .from(examsDS)
       .innerJoin(examsDS.course)
-      .take(examsRepr(examsDS) +: coursesRepr(examsDS.course) +: SNil)
+      .take(examsRepr(examsDS) ++: coursesRepr(examsDS.course) ++: SNil)
       .where(examsDS.studentId === Value(studentId))
       .sortBy(examsDS.courseId.asc)
       .fetchMany

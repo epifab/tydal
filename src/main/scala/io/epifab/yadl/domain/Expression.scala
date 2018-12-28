@@ -11,7 +11,7 @@ sealed trait Column[T] extends Expression[T] {
   def value(t: T): Value[T] = Value(t)(adapter)
 }
 
-final case class TableColumn[T](name: String, table: Table)(implicit val adapter: FieldAdapter[T])
+final case class TableColumn[T](name: String, table: Table[_])(implicit val adapter: FieldAdapter[T])
   extends Column[T]
 
 final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
@@ -38,7 +38,7 @@ object Column {
   implicit class OptionalSeqIntColumn(val value: Column[Option[Seq[String]]])
   implicit class OptionalSeqDoubleColumn(val value: Column[Option[Seq[String]]])
 
-  def apply[T](name: String, dataSource: Table)(implicit adapter: FieldAdapter[T]): TableColumn[T] =
+  def apply[T](name: String, dataSource: Table[_])(implicit adapter: FieldAdapter[T]): TableColumn[T] =
     TableColumn(name, dataSource)
 
   def apply[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U]): AggregateColumn[T, U] =

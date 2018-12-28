@@ -33,11 +33,11 @@ object Sum {
 }
 
 object Count {
-  final private class Count[T]() extends AggregateFunction[T, Option[Int]] {
+  final private class Count[T]() extends AggregateFunction[T, Int] {
     override val name: String = "count"
   }
 
-  def apply[T](column: Column[T])(implicit adapter: FieldAdapter[Option[Int]]): AggregateColumn[T, Option[Int]] =
+  def apply[T](column: Column[T])(implicit adapter: FieldAdapter[Int]): AggregateColumn[T, Int] =
     Column(column, new Count[T])
 }
 

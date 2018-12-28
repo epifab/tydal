@@ -5,55 +5,39 @@ import java.time.{LocalDate, LocalDateTime}
 import cats.implicits._
 import io.epifab.yadl.domain._
 import io.epifab.yadl.implicits._
-import shapeless._
+import shapeless.{::, HNil}
 
 import scala.language.higherKinds
 
 trait ExamsRepo[F[_]] extends Repo[F] {
   object Exams extends Schema.ExamsTable
 
-  private val examExtractor: Extractor[Exam] = row => for {
-    score <- row.get(Exams.score)
-    courseId <- row.get(Exams.courseId)
-    studentId <- row.get(Exams.studentId)
-    dateTime <- row.get(Exams.dateTime)
-  } yield Exam(studentId, courseId, score, dateTime)
-
-  private val courseExtractor: Extractor[Course] = row => for {
-    id <- row.get(Exams.courseId)
-    name <- row.get(Exams.course.name)
-  } yield Course(id, name)
-
-  private val examCourseExtractor: Extractor[Exam :: Course :: HNil] = row => for {
-    exam <- examExtractor(row)
-    course <- courseExtractor(row)
-  } yield exam :: course :: HNil
-
-  def findExamsByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] =
-    Select
+  def findExamsByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] = {
+    TypedSelect
       .from(Exams)
       .innerJoin(Exams.course)
-      .take(Exams.* ++ Exams.course.*)
       .where(Exams.studentId === Value(studentId))
-      .fetchMany(examCourseExtractor)
+      .take(Exams.* ++: Exams.course.* ++: SNil)
+      .fetchMany
+  }
 
   def findExamsByDate(date: LocalDate): F[Either[DALError, Seq[Exam :: Course ::HNil]]] =
-    Select
+    TypedSelect
       .from(Exams)
       .innerJoin(Exams.course)
-      .take(Exams.* ++ Exams.course.*)
+      .take(Exams.* ++: Exams.course.* ++: SNil)
       .where(Exams.dateTime >= Value(date.atStartOfDay) and Exams.dateTime < Value(date.plusDays(1).atStartOfDay))
       .sortBy(Exams.studentId.asc)
-      .fetchMany(examCourseExtractor)
+      .fetchMany
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
-    val examsFE = Select
+    val examsFE = TypedSelect
       .from(Exams)
       .innerJoin(Exams.course)
-      .take(Exams.* ++ Exams.course.*)
+      .take(Exams.* ++: Exams.course.* ++: SNil)
       .where(Exams.studentId in Value(students.map(_.id)))
       .sortBy(Exams.course.id.asc)
-      .fetchMany(examCourseExtractor)
+      .fetchMany
 
     examsFE.map(_.map(
       exams =>
@@ -65,11 +49,11 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   }
 
   def findExamsByDateTime(dates: LocalDateTime*): F[Either[DALError, Seq[Exam]]] = {
-    Select
+    TypedSelect
       .from(Exams)
       .take(Exams.*)
       .where(Exams.dateTime in Value(dates))
-      .fetchMany(examExtractor)
+      .fetchMany
   }
 
   def createExam(exam: Exam): F[Either[DALError, Int]] =

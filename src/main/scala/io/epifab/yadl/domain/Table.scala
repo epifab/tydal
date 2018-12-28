@@ -12,9 +12,16 @@ object DataSource {
   implicit def fromRelation[T <: DataSource](relation: Relation[T]): T = relation.dataSource
 }
 
-abstract class Table(val tableName: String) extends DataSource {
+abstract class Table[S](val tableName: String) extends DataSource {
+  def `*`: Selectable[S]
+
   def column[T](name: String)(implicit adapter: FieldAdapter[T]): TableColumn[T] =
     TableColumn[T](name, this)
+}
+
+trait TableProjection[T, P] extends DataSource {
+  def table: Table[T]
+  def `*`: Selectable[P]
 }
 
 case class Relation[+T <: DataSource](dataSource: T, clause: Filter)

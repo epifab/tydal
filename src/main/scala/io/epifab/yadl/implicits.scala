@@ -1,16 +1,16 @@
 package io.epifab.yadl
 
-import cats.Applicative
-import cats.implicits._
 import io.epifab.yadl.domain.Filter.Expression.Clause
 import io.epifab.yadl.domain.Filter.Expression.Clause.AnyLiteral
 import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.yadl.domain._
+import cats.Applicative
+import cats.implicits._
 
 import scala.language.higherKinds
 
 object implicits {
-  implicit class ExtendedTypedSelect[F[_]: Applicative, V, C](select: TypedSelect[V, C])(implicit queryRunner: QueryRunner[F]) {
+  implicit class ExtendedTypedSelect[F[_], V, C](select: TypedSelect[V])(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
     def fetchOne: F[Either[DALError, Option[V]]] =
       queryRunner.run(select)(select.selectable.extract).map(_.map(_.headOption))
 
