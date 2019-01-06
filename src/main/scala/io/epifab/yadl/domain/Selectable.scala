@@ -6,7 +6,7 @@ sealed trait Selectable[V] {
   type C
   def source: C
   def fields: Seq[Field[_]]
-  def extract(row: Row): Either[ExtractorError, V]
+  def extractor: Extractor[V]
   def as[V2](implicit gen: Generic.Aux[V2, V]): Selectable[V2] =
     new SelectableProduct[V2, V, C](this)
   def ++:[HV, HC](head: Selectable[HV]): Selectable[HV :: HNil] = {
@@ -20,7 +20,7 @@ object Selectable {
 
 case class SelectableColumn[V](source: Field[V]) extends Selectable[V] {
   override type C = Field[V]
-  override def extract(row: Row): Either[ExtractorError, V] = row.get(source)
+  override val extractor: Extractor[V] = (row: Row) => row.get(source)
 
   override val fields: Seq[Field[_]] = Seq(source)
 }
@@ -34,7 +34,7 @@ sealed trait SHList[T <: HList] extends Selectable[T] {
 case object SNil extends SHList[HNil] {
   override type C = HNil
   override val source: C = HNil
-  override def extract(row: Row): Either[ExtractorError, HNil] = Right(HNil)
+  override def extractor: Extractor[HNil] = (row: Row) => Right(HNil)
   override val fields: Seq[Field[_]] = Seq.empty
 
   def +:[H](h: Field[H]): SCons[H, Field[H], HNil, HNil] = {
@@ -51,12 +51,10 @@ case class SCons[H, HC, T <: HList, TC <: HList]
 
   override type C = HC :: TC
 
-  override def extract(row: Row): Either[ExtractorError, H :: T] = {
-    for {
-      h <- selectableHead.extract(row)
-      t <- selectableTail.extract(row)
-    } yield ::(h, t)
-  }
+  override val extractor: Extractor[H :: T] = (row: Row) => for {
+    h <- selectableHead.extractor.extract(row)
+    t <- selectableTail.extractor.extract(row)
+  } yield ::(h, t)
 
   override val fields: Seq[Field[_]] =
     selectableHead.fields ++ selectableTail.fields
@@ -70,8 +68,7 @@ class SelectableProduct[V, R, CX](base: Selectable[R]{type C = CX})(implicit gen
   override type C = CX
   override def source: C = base.source
 
-  override def extract(row: Row): Either[ExtractorError, V] =
-    base.extract(row).map(gen.from)
+  override val extractor: Extractor[V] = base.extractor.map(gen.from)
 
   override def fields: Seq[Field[_]] = base.fields
 }
