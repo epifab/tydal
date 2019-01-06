@@ -61,11 +61,6 @@ trait ExamsRepo[F[_]] extends Repo[F] {
   def createExam(exam: Exam): F[Either[DALError, Int]] =
     Insert
       .into(Exams)
-      .set(
-        Exams.studentId -> exam.studentId,
-        Exams.courseId -> exam.courseId,
-        Exams.score -> exam.score,
-        Exams.dateTime -> exam.dateTime
-      )
+      .set(exam)
       .execute()
 }

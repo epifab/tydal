@@ -20,25 +20,12 @@ trait StudentsRepo[F[_]] extends Repo[F] {
   def createStudent(student: Student): F[Either[DALError, Int]] =
     Insert
       .into(studentsDS)
-      .set(
-        studentsDS.id -> student.id,
-        studentsDS.name -> student.name,
-        studentsDS.email -> student.email,
-        studentsDS.dateOfBirth -> student.dateOfBirth,
-        studentsDS.address -> student.address,
-        studentsDS.interests -> student.interests
-      )
+      .set(student)
       .execute()
 
   def updateStudent(student: Student): F[Either[DALError, Int]] =
     Update(studentsDS)
-      .set(
-        studentsDS.name -> student.name,
-        studentsDS.email -> student.email,
-        studentsDS.dateOfBirth -> student.dateOfBirth,
-        studentsDS.address -> student.address,
-        studentsDS.interests -> student.interests
-      )
+      .set(student)
       .where(studentsDS.id === Value(student.id))
       .execute()
 

@@ -13,7 +13,7 @@ object DataSource {
 }
 
 abstract class Table[S](val tableName: String) extends DataSource {
-  def `*`: Reader[S]
+  def `*`: Writer[S]
 
   def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
     Column[T](name, this)

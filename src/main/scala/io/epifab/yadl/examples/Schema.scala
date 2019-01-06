@@ -67,7 +67,7 @@ object Schema {
     val address: Column[Option[Address]] = column("address")
     val interests: Column[Seq[Interest]] = column("interests")
 
-    lazy val `*`: Reader[Student] = Reader(
+    lazy val `*`: Writer[Student] = Writer(
       id ::
       name ::
       email ::
@@ -88,7 +88,7 @@ object Schema {
     val id: Column[Int] = column("id")
     val name: Column[String] = column("name")
 
-    override val `*`: Reader[Course] = Reader(id :: name :: HNil)
+    override val `*`: Writer[Course] = Writer(id :: name :: HNil)
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.courseId === id)
   }
@@ -103,7 +103,7 @@ object Schema {
     val score: Column[Int] = column("score")
     val dateTime: Column[LocalDateTime] = column("exam_timestamp")
 
-    override val `*`: Reader[Exam] = Reader(
+    override val `*`: Writer[Exam] = Writer(
       studentId ::
       courseId ::
       score ::

@@ -75,13 +75,17 @@ sealed trait Insert[T] extends Statement with SideEffect {
   def table: Table[T]
   def columnValues: Seq[ColumnValue[_]]
 
+  def set(t: T): Insert[T]
   def set(columnValues: ColumnValue[_]*): Insert[T]
 }
 
 object Insert {
   protected final case class InsertImpl[T](table: Table[T], columnValues: Seq[ColumnValue[_]] = Seq.empty) extends Insert[T] {
+    def set(t: T): Insert[T] =
+      copy(columnValues = table.*.values(t))
+
     def set(columnValues: ColumnValue[_]*): Insert[T] =
-      copy(columnValues = this.columnValues ++ columnValues)
+      copy(columnValues = columnValues)
   }
 
   def into[T](table: Table[T]) = InsertImpl(table)
@@ -93,13 +97,17 @@ sealed trait Update[T] extends Statement with SideEffect {
   def filter: Filter
 
   def set(columnValues: ColumnValue[_]*): Update[T]
+  def set(t: T): Update[T]
+
   def where(filter: Filter): Update[T]
 }
 
 object Update {
   protected final case class UpdateImpl[T](table: Table[T], values: Seq[ColumnValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update[T] {
     def set(columnValues: ColumnValue[_]*): Update[T] =
-      copy(values = this.values ++ columnValues)
+      copy(values = columnValues)
+    def set(t: T): Update[T] =
+      copy(values = table.*.values(t))
 
     def where(filter: Filter): Update[T] =
       copy(filter = this.filter and filter)

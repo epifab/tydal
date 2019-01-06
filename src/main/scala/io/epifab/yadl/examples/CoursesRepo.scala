@@ -10,9 +10,6 @@ trait CoursesRepo[F[_]] extends Repo[F] {
 
   def createCourse(course: Course): F[Either[DALError, Int]] =
     Insert.into(Courses)
-      .set(
-        Courses.id -> course.id,
-        Courses.name -> course.name
-      )
+      .set(course)
       .execute()
 }
