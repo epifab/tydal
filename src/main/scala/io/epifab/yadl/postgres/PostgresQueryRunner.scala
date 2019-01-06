@@ -116,17 +116,17 @@ trait JDBCQueryRunner {
     adapter.fromDb(get(index, adapter.dbType))
   }
 
-  protected def extractResults[T](select: SelectInterface, extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
+  protected def extractResults[T](select: Select[_], extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val columnIndexes: Map[Column[_], Int] =
+    val columnIndexes: Map[Field[_], Int] =
       (select.columns ++ select.aggregations).zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 
     while (resultSet.next()) {
       val row = new Row {
-        override def get[FT](column: Column[FT]): Either[ExtractorError, FT] =
+        override def get[FT](column: Field[FT]): Either[ExtractorError, FT] =
           columnIndexes.get(column) match {
             case Some(index) =>
               getColumn(resultSet, index + 1)(column.adapter)
@@ -155,12 +155,12 @@ trait JDBCQueryRunner {
 
 
 class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner with LoggingSupport {
-  override def run[T](select: Statement with SelectInterface)(implicit extractor: Row => Either[ExtractorError, T]): Id[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Select[T]): Id[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 
     try {
-      extractResults(select, extractor)(statement.executeQuery())
+      extractResults(select, select.selectable.extract)(statement.executeQuery())
     }
     catch {
       case error: SQLException =>
@@ -187,13 +187,13 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
 
 
 class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement])(implicit executionContext: ExecutionContext) extends QueryRunner[Future] with JDBCQueryRunner with LoggingSupport {
-  override def run[T](select: Statement with SelectInterface)(implicit extractor: Row => Either[ExtractorError, T]): Future[Either[DALError, Seq[T]]] = {
+  override def run[T](select: Select[T]): Future[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
 
     Future {
       try {
-        extractResults(select, extractor)(blocking(statement.executeQuery))
+        extractResults(select, select.selectable.extract)(blocking(statement.executeQuery))
       }
       catch {
         case error: SQLException =>

@@ -43,10 +43,10 @@ object Schema {
 
   class ExamsProjection(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
     val studentId: TableColumn[Int] = table.studentId
-    val examsCount: Column[Int] = Count(table.courseId)
-    val avgScore: Column[Option[Double]] = Avg(table.score)
-    val minScore: Column[Option[Int]] = Min(table.score)
-    val maxScore: Column[Option[Int]] = Max(table.score)
+    val examsCount: Field[Int] = Count(table.courseId)
+    val avgScore: Field[Option[Double]] = Avg(table.score)
+    val minScore: Field[Option[Int]] = Min(table.score)
+    val maxScore: Field[Option[Int]] = Max(table.score)
 
     val `*`: Selectable[StudentExams] = (
       studentId +:

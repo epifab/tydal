@@ -50,7 +50,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
       Query(toPlaceholder(value.adapter.dbType), Seq(value))
     }
 
-  def columnSrcQueryBuilder: QueryBuilder[Column[_]] = {
+  def columnSrcQueryBuilder: QueryBuilder[Field[_]] = {
     case TableColumn(name, table) =>
       Query(aliasLookup(table) + "." + name)
 
@@ -61,7 +61,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
       Query(aliasLookup(subQuery)) :+ "." :+ columnAliasQueryBuilder(column)
   }
 
-  def columnAliasQueryBuilder: QueryBuilder[Column[_]] = {
+  def columnAliasQueryBuilder: QueryBuilder[Field[_]] = {
     case TableColumn(name, table) =>
       Query(aliasLookup(table) + "__" + name)
 
@@ -73,7 +73,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
   }
 
   def filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case Filter.Expression.Clause.Column(column) =>
+    case Filter.Expression.Clause.Field(column) =>
       columnSrcQueryBuilder(column)
 
     case Filter.Expression.Clause.Literal(value) =>
@@ -97,8 +97,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
     case Filter.Empty => Query("1 = 1")
   }
 
-  def columnBuilder: QueryBuilder[Column[_]] =
-    (column: Column[_]) => columnSrcQueryBuilder(column) :++ "AS" :++ columnAliasQueryBuilder(column)
+  def columnBuilder: QueryBuilder[Field[_]] =
+    (column: Field[_]) => columnSrcQueryBuilder(column) :++ "AS" :++ columnAliasQueryBuilder(column)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
     case dataSource: Table[_] =>

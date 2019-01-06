@@ -6,12 +6,7 @@ sealed trait Statement
 
 sealed trait SideEffect
 
-sealed trait SelectInterface {
-  def columns: Seq[Column[_]]
-  def aggregations: Seq[AggregateColumn[_, _]]
-}
-
-sealed trait Select[V] extends Statement with SelectInterface {
+sealed trait Select[V] extends Statement {
   def dataSource: DataSource
   def selectable: Selectable[V]
   def joins: Seq[Join]
@@ -19,9 +14,9 @@ sealed trait Select[V] extends Statement with SelectInterface {
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  override def columns: Seq[Column[_]] = selectable.columns
+  def columns: Seq[Field[_]] = selectable.columns
 
-  override def aggregations: Seq[AggregateColumn[_, _]] = selectable.aggregations
+  def aggregations: Seq[AggregateColumn[_, _]] = selectable.aggregations
 
   def take[V2](selectable: Selectable[V2]): Select[V2]
 

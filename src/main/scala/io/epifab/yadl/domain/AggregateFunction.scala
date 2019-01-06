@@ -1,6 +1,6 @@
 package io.epifab.yadl.domain
 
-import io.epifab.yadl.domain.Column._
+import io.epifab.yadl.domain.Field._
 
 import scala.language.implicitConversions
 
@@ -26,10 +26,10 @@ object Sum {
   }
 
   def apply(column: IntColumn)(implicit adapter: FieldAdapter[Option[Int]]): AggregateColumn[Int, Option[Int]] =
-    Column(column.value, new Sum[Int])
+    Field(column.value, new Sum[Int])
 
   def apply(column: DoubleColumn)(implicit adapter: FieldAdapter[Option[Double]]): AggregateColumn[Double, Option[Double]] =
-    Column(column.value, new Sum[Double])
+    Field(column.value, new Sum[Double])
 }
 
 object Count {
@@ -37,8 +37,8 @@ object Count {
     override val name: String = "count"
   }
 
-  def apply[T](column: Column[T])(implicit adapter: FieldAdapter[Int]): AggregateColumn[T, Int] =
-    Column(column, new Count[T])
+  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Int]): AggregateColumn[T, Int] =
+    Field(column, new Count[T])
 }
 
 object Max {
@@ -46,8 +46,8 @@ object Max {
     override val name: String = "max"
   }
 
-  def apply[T](column: Column[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
-    Column(column, new Max[T])
+  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
+    Field(column, new Max[T])
 }
 
 object Min {
@@ -55,6 +55,6 @@ object Min {
     override val name: String = "min"
   }
 
-  def apply[T](column: Column[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
-    Column(column, new Min[T])
+  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
+    Field(column, new Min[T])
 }

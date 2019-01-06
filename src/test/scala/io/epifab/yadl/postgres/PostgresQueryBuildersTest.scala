@@ -18,7 +18,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   val exams = new ExamsTable
 
   class ExamsSubQuery extends SubQuery[Int :: HNil, Int :: HNil] {
-    val studentId: Column[Int] = column(exams.studentId)
+    val studentId: Field[Int] = column(exams.studentId)
 
     override def select: Select[Int :: HNil] =
       Select.from(exams)

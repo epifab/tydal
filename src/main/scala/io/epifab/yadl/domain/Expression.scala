@@ -7,41 +7,41 @@ trait Expression[T] {
   def adapter: FieldAdapter[T]
 }
 
-sealed trait Column[T] extends Expression[T] {
+sealed trait Field[T] extends Expression[T] {
   def value(t: T): Value[T] = Value(t)(adapter)
 }
 
 final case class TableColumn[T](name: String, table: Table[_])(implicit val adapter: FieldAdapter[T])
-  extends Column[T]
+  extends Field[T]
 
-final case class AggregateColumn[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
-  extends Column[U]
+final case class AggregateColumn[T, U](column: Field[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
+  extends Field[U]
 
-final case class SubQueryColumn[U, S, T](column: Column[U], subQuery: SubQuery[S, T]) extends Column[U] {
+final case class SubQueryColumn[U, S, T](column: Field[U], subQuery: SubQuery[S, T]) extends Field[U] {
   override def adapter: FieldAdapter[U] = column.adapter
 }
 
-object Column {
-  implicit class StringColumn(val value: Column[String])
-  implicit class IntColumn(val value: Column[Int])
-  implicit class DoubleColumn(val value: Column[Double])
+object Field {
+  implicit class StringColumn(val value: Field[String])
+  implicit class IntColumn(val value: Field[Int])
+  implicit class DoubleColumn(val value: Field[Double])
 
-  implicit class SeqStringColumn(val value: Column[Seq[String]])
-  implicit class SeqIntColumn(val value: Column[Seq[String]])
-  implicit class SeqDoubleColumn(val value: Column[Seq[String]])
+  implicit class SeqStringColumn(val value: Field[Seq[String]])
+  implicit class SeqIntColumn(val value: Field[Seq[String]])
+  implicit class SeqDoubleColumn(val value: Field[Seq[String]])
 
-  implicit class OptionalStringColumn(val value: Column[Option[String]])
-  implicit class OptionalIntColumn(val value: Column[Option[Int]])
-  implicit class OptionalDoubleColumn(val value: Column[Option[Double]])
+  implicit class OptionalStringColumn(val value: Field[Option[String]])
+  implicit class OptionalIntColumn(val value: Field[Option[Int]])
+  implicit class OptionalDoubleColumn(val value: Field[Option[Double]])
 
-  implicit class OptionalSeqStringColumn(val value: Column[Option[Seq[String]]])
-  implicit class OptionalSeqIntColumn(val value: Column[Option[Seq[String]]])
-  implicit class OptionalSeqDoubleColumn(val value: Column[Option[Seq[String]]])
+  implicit class OptionalSeqStringColumn(val value: Field[Option[Seq[String]]])
+  implicit class OptionalSeqIntColumn(val value: Field[Option[Seq[String]]])
+  implicit class OptionalSeqDoubleColumn(val value: Field[Option[Seq[String]]])
 
   def apply[T](name: String, dataSource: Table[_])(implicit adapter: FieldAdapter[T]): TableColumn[T] =
     TableColumn(name, dataSource)
 
-  def apply[T, U](column: Column[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U]): AggregateColumn[T, U] =
+  def apply[T, U](column: Field[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U]): AggregateColumn[T, U] =
     AggregateColumn(column, dbFunction)
 }
 

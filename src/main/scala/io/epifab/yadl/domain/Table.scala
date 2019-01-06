@@ -30,6 +30,6 @@ trait SubQuery[S, T] extends DataSource {
   def select: Select[T]
   def `*`: Selectable[S]
 
-  def column[U](column: Column[U]): SubQueryColumn[U, S, T] =
+  def column[U](column: Field[U]): SubQueryColumn[U, S, T] =
     SubQueryColumn(column, this)
 }
