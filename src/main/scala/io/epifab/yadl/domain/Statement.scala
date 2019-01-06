@@ -1,6 +1,6 @@
 package io.epifab.yadl.domain
 
-import shapeless.HNil
+import shapeless.{HNil, ::}
 
 sealed trait Statement
 
@@ -16,7 +16,7 @@ sealed trait Select[V] extends Statement {
 
   def fields: Seq[Field[_]] = reader.fields
 
-  def take[V2](reader: Reader[V2]): Select[V2]
+  def take[V2](r1: Reader[V2]): Select[V2]
 
   def take[S2, T2](subQuery: SubQuery[S2, T2]): Select[S2]
 
@@ -43,8 +43,8 @@ object Select {
     limit: Option[Limit] = None
   ) extends Select[V] {
 
-    def take[V2](selectable: Reader[V2]): Select[V2] =
-      copy(reader = selectable)
+    def take[V2](r1: Reader[V2]): Select[V2] =
+      copy(reader = r1)
 
     def take[S2, T2](subQuery: SubQuery[S2, T2]): Select[S2] =
       copy(reader = subQuery.*)
@@ -68,7 +68,7 @@ object Select {
       copy(limit = Some(Limit(start, stop)))
   }
 
-  def from(dataSource: DataSource): Select[HNil] = SelectImpl(dataSource, HNilReader)
+  def from(dataSource: DataSource): Select[HNil] = SelectImpl(dataSource, Reader(HNil))
 }
 
 sealed trait Insert[T] extends Statement with SideEffect {

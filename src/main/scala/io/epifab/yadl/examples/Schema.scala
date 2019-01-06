@@ -4,6 +4,7 @@ import java.time.{LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain._
 import io.epifab.yadl.implicits._
+import shapeless.HNil
 
 sealed abstract class Interest(val value: String)
 
@@ -48,14 +49,14 @@ object Schema {
     val minScore: Field[Option[Int]] = Min(table.score)
     val maxScore: Field[Option[Int]] = Max(table.score)
 
-    val `*`: Reader[StudentExams] = (
+    val `*`: Reader[StudentExams] = Reader(
       studentId ::
-        examsCount ::
-        avgScore ::
-        minScore ::
-        maxScore ::
-        HNilReader
-    ).as[StudentExams]
+      examsCount ::
+      avgScore ::
+      minScore ::
+      maxScore ::
+      HNil
+    )
   }
 
   class StudentsTable extends Table[Student](StudentsTable.name) {
@@ -66,14 +67,15 @@ object Schema {
     val address: Column[Option[Address]] = column("address")
     val interests: Column[Seq[Interest]] = column("interests")
 
-    lazy val `*`: Reader[Student] = (
+    lazy val `*`: Reader[Student] = Reader(
       id ::
       name ::
       email ::
       dateOfBirth ::
       address ::
       interests ::
-      HNilReader).as[Student]
+      HNil
+    )
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.studentId === id)
   }
@@ -86,7 +88,7 @@ object Schema {
     val id: Column[Int] = column("id")
     val name: Column[String] = column("name")
 
-    override val `*`: Reader[Course] = (id :: name :: HNilReader).as[Course]
+    override val `*`: Reader[Course] = Reader(id :: name :: HNil)
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.courseId === id)
   }
@@ -101,13 +103,13 @@ object Schema {
     val score: Column[Int] = column("score")
     val dateTime: Column[LocalDateTime] = column("exam_timestamp")
 
-    override val `*`: Reader[Exam] = (
+    override val `*`: Reader[Exam] = Reader(
       studentId ::
       courseId ::
       score ::
       dateTime ::
-      HNilReader
-    ).as[Exam]
+      HNil
+    )
 
     lazy val course: Relation[CoursesTable] = (new CoursesTable).on(_.id === courseId)
 

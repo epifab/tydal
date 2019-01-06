@@ -12,12 +12,14 @@ import scala.language.higherKinds
 trait ExamsRepo[F[_]] extends Repo[F] {
   object Exams extends Schema.ExamsTable
 
+  val examsCourseReader: Reader[Exam :: HNil] = Reader(Exams.* :: HNil)
+
   def findExamsByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] = {
     Select
       .from(Exams)
       .innerJoin(Exams.course)
       .where(Exams.studentId === Value(studentId))
-      .take(Exams.* :: Exams.course.* :: HNilReader)
+      .take(Reader(Exams.* :: Exams.course.* :: HNil))
       .fetchMany
   }
 
@@ -25,7 +27,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
     Select
       .from(Exams)
       .innerJoin(Exams.course)
-      .take(Exams.* :: Exams.course.* :: HNilReader)
+      .take(Reader(Exams.* :: Exams.course.* :: HNil))
       .where(Exams.dateTime >= Value(date.atStartOfDay) and Exams.dateTime < Value(date.plusDays(1).atStartOfDay))
       .sortBy(Exams.studentId.asc)
       .fetchMany
@@ -34,7 +36,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
     val examsFE = Select
       .from(Exams)
       .innerJoin(Exams.course)
-      .take(Exams.* :: Exams.course.* :: HNilReader)
+      .take(Reader(Exams.* :: Exams.course.* :: HNil))
       .where(Exams.studentId in Value(students.map(_.id)))
       .sortBy(Exams.course.id.asc)
       .fetchMany
