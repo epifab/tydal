@@ -14,9 +14,7 @@ sealed trait Select[V] extends Statement {
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def columns: Seq[Field[_]] = selectable.columns
-
-  def aggregations: Seq[AggregateColumn[_, _]] = selectable.aggregations
+  def fields: Seq[Field[_]] = selectable.fields
 
   def take[V2](selectable: Selectable[V2]): Select[V2]
 

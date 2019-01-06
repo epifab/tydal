@@ -31,10 +31,10 @@ Define your schema:
 ```scala
 object Schema {
   class ExamsTable extends Table("exams") {
-    lazy val studentId: TableColumn[Int] = column("student_id")
-    lazy val courseId: TableColumn[Int] = column("course_id")
-    lazy val score: TableColumn[Int] = column("score")
-    lazy val dateTime: TableColumn[LocalDateTime] = column("exam_timestamp")
+    lazy val studentId: Column[Int] = column("student_id")
+    lazy val courseId: Column[Int] = column("course_id")
+    lazy val score: Column[Int] = column("score")
+    lazy val dateTime: Column[LocalDateTime] = column("exam_timestamp")
   
     lazy val `*`: Seq[Column[_]] = Seq(studentId, courseId, score, dateTime)
   
@@ -91,12 +91,12 @@ The schema:
 
 ```scala
 class StudentsTable extends Table("students") {
-  lazy val id: TableColumn[Int] = column("id")
-  lazy val name: TableColumn[String] = column("name")
-  lazy val email: TableColumn[Option[String]] = column("email")
-  lazy val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
-  lazy val interests: TableColumn[Seq[Interest]] = column("interests")
-  lazy val address: TableColumn[Option[Address]] = column("address")
+  lazy val id: Column[Int] = column("id")
+  lazy val name: Column[String] = column("name")
+  lazy val email: Column[Option[String]] = column("email")
+  lazy val dateOfBirth: Column[LocalDate] = column("date_of_birth")
+  lazy val interests: Column[Seq[Interest]] = column("interests")
+  lazy val address: Column[Option[Address]] = column("address")
 }
 ```
 

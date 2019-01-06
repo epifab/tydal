@@ -42,7 +42,7 @@ object Schema {
   import Adapters._
 
   class ExamsProjection(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
-    val studentId: TableColumn[Int] = table.studentId
+    val studentId: Column[Int] = table.studentId
     val examsCount: Field[Int] = Count(table.courseId)
     val avgScore: Field[Option[Double]] = Avg(table.score)
     val minScore: Field[Option[Int]] = Min(table.score)
@@ -59,12 +59,12 @@ object Schema {
   }
 
   class StudentsTable extends Table[Student](StudentsTable.name) {
-    val id: TableColumn[Int] = column("id")
-    val name: TableColumn[String] = column("name")
-    val email: TableColumn[Option[String]] = column("email")
-    val dateOfBirth: TableColumn[LocalDate] = column("date_of_birth")
-    val address: TableColumn[Option[Address]] = column("address")
-    val interests: TableColumn[Seq[Interest]] = column("interests")
+    val id: Column[Int] = column("id")
+    val name: Column[String] = column("name")
+    val email: Column[Option[String]] = column("email")
+    val dateOfBirth: Column[LocalDate] = column("date_of_birth")
+    val address: Column[Option[Address]] = column("address")
+    val interests: Column[Seq[Interest]] = column("interests")
 
     lazy val `*`: Selectable[Student] = (
       id +:
@@ -83,8 +83,8 @@ object Schema {
   }
 
   class CoursesTable extends Table[Course](CoursesTable.name) {
-    val id: TableColumn[Int] = column("id")
-    val name: TableColumn[String] = column("name")
+    val id: Column[Int] = column("id")
+    val name: Column[String] = column("name")
 
     override val `*`: Selectable[Course] = (id +: name +: SNil).as[Course]
 
@@ -96,10 +96,10 @@ object Schema {
   }
 
   class ExamsTable extends Table[Exam](ExamsTable.name) {
-    val studentId: TableColumn[Int] = column("student_id")
-    val courseId: TableColumn[Int] = column("course_id")
-    val score: TableColumn[Int] = column("score")
-    val dateTime: TableColumn[LocalDateTime] = column("exam_timestamp")
+    val studentId: Column[Int] = column("student_id")
+    val courseId: Column[Int] = column("course_id")
+    val score: Column[Int] = column("score")
+    val dateTime: Column[LocalDateTime] = column("exam_timestamp")
 
     override val `*`: Selectable[Exam] = (
       studentId +:

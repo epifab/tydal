@@ -3,7 +3,7 @@ package io.epifab.yadl.domain
 import scala.language.higherKinds
 
 trait Row {
-  def get[T](column: Field[T]): Either[ExtractorError, T]
+  def get[T](field: Field[T]): Either[ExtractorError, T]
 }
 
 trait QueryRunner[F[_]] {

@@ -15,8 +15,8 @@ object DataSource {
 abstract class Table[S](val tableName: String) extends DataSource {
   def `*`: Selectable[S]
 
-  def column[T](name: String)(implicit adapter: FieldAdapter[T]): TableColumn[T] =
-    TableColumn[T](name, this)
+  def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
+    Column[T](name, this)
 }
 
 trait TableProjection[T, P] extends DataSource {
@@ -30,6 +30,6 @@ trait SubQuery[S, T] extends DataSource {
   def select: Select[T]
   def `*`: Selectable[S]
 
-  def column[U](column: Field[U]): SubQueryColumn[U, S, T] =
-    SubQueryColumn(column, this)
+  def field[U](field: Field[U]): SubQueryField[U, S, T] =
+    SubQueryField(field, this)
 }

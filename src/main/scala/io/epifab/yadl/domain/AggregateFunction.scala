@@ -13,11 +13,11 @@ object Avg {
     override val name: String = "avg"
   }
 
-  def apply(column: IntColumn)(implicit adapter: FieldAdapter[Option[Double]]): AggregateColumn[Int, Option[Double]] =
-    AggregateColumn(column.value, new Avg[Int])(adapter)
+  def apply(field: IntField)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Int, Option[Double]] =
+    Aggregation(field.value, new Avg[Int])(adapter)
 
-  def apply(column: DoubleColumn)(implicit adapter: FieldAdapter[Option[Double]]): AggregateColumn[Double, Option[Double]] =
-    AggregateColumn(column.value, new Avg[Double])(adapter)
+  def apply(field: DoubleField)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Double, Option[Double]] =
+    Aggregation(field.value, new Avg[Double])(adapter)
 }
 
 object Sum {
@@ -25,11 +25,11 @@ object Sum {
     override val name: String = "sum"
   }
 
-  def apply(column: IntColumn)(implicit adapter: FieldAdapter[Option[Int]]): AggregateColumn[Int, Option[Int]] =
-    Field(column.value, new Sum[Int])
+  def apply(field: IntField)(implicit adapter: FieldAdapter[Option[Int]]): Aggregation[Int, Option[Int]] =
+    Field(field.value, new Sum[Int])
 
-  def apply(column: DoubleColumn)(implicit adapter: FieldAdapter[Option[Double]]): AggregateColumn[Double, Option[Double]] =
-    Field(column.value, new Sum[Double])
+  def apply(field: DoubleField)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Double, Option[Double]] =
+    Field(field.value, new Sum[Double])
 }
 
 object Count {
@@ -37,8 +37,8 @@ object Count {
     override val name: String = "count"
   }
 
-  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Int]): AggregateColumn[T, Int] =
-    Field(column, new Count[T])
+  def apply[T](field: Field[T])(implicit adapter: FieldAdapter[Int]): Aggregation[T, Int] =
+    Field(field, new Count[T])
 }
 
 object Max {
@@ -46,8 +46,8 @@ object Max {
     override val name: String = "max"
   }
 
-  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
-    Field(column, new Max[T])
+  def apply[T](field: Field[T])(implicit adapter: FieldAdapter[Option[T]]): Aggregation[T, Option[T]] =
+    Field(field, new Max[T])
 }
 
 object Min {
@@ -55,6 +55,6 @@ object Min {
     override val name: String = "min"
   }
 
-  def apply[T](column: Field[T])(implicit adapter: FieldAdapter[Option[T]]): AggregateColumn[T, Option[T]] =
-    Field(column, new Min[T])
+  def apply[T](field: Field[T])(implicit adapter: FieldAdapter[Option[T]]): Aggregation[T, Option[T]] =
+    Field(field, new Min[T])
 }

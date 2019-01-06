@@ -5,8 +5,7 @@ import shapeless.{::, Generic, HList, HNil}
 sealed trait Selectable[V] {
   type C
   def source: C
-  def columns: Seq[Field[_]]
-  def aggregations: Seq[AggregateColumn[_, _]]
+  def fields: Seq[Field[_]]
   def extract(row: Row): Either[ExtractorError, V]
   def as[V2](implicit gen: Generic.Aux[V2, V]): Selectable[V2] =
     new SelectableProduct[V2, V, C](this)
@@ -23,11 +22,7 @@ case class SelectableColumn[V](source: Field[V]) extends Selectable[V] {
   override type C = Field[V]
   override def extract(row: Row): Either[ExtractorError, V] = row.get(source)
 
-  override val columns: Seq[Field[_]] =
-    Seq(source).filter(!_.isInstanceOf[AggregateColumn[_, _]])
-
-  override val aggregations: Seq[AggregateColumn[_, _]] =
-    Seq(source).collect { case a: AggregateColumn[_, _] => a }
+  override val fields: Seq[Field[_]] = Seq(source)
 }
 
 sealed trait SHList[T <: HList] extends Selectable[T] {
@@ -40,8 +35,7 @@ case object SNil extends SHList[HNil] {
   override type C = HNil
   override val source: C = HNil
   override def extract(row: Row): Either[ExtractorError, HNil] = Right(HNil)
-  override val columns: Seq[Field[_]] = Seq.empty
-  override val aggregations: Seq[AggregateColumn[_, _]] = Seq.empty
+  override val fields: Seq[Field[_]] = Seq.empty
 
   def +:[H](h: Field[H]): SCons[H, Field[H], HNil, HNil] = {
     SCons(h :: HNil)(SelectableColumn(h), SNil)
@@ -64,11 +58,8 @@ case class SCons[H, HC, T <: HList, TC <: HList]
     } yield ::(h, t)
   }
 
-  override val columns: Seq[Field[_]] =
-    selectableHead.columns ++ selectableTail.columns
-
-  override val aggregations: Seq[AggregateColumn[_, _]] =
-    selectableHead.aggregations ++ selectableTail.aggregations
+  override val fields: Seq[Field[_]] =
+    selectableHead.fields ++ selectableTail.fields
 
   def +:[NH](h: Field[NH]): SCons[NH, Field[NH], H :: T, HC :: TC] = {
     SCons(h :: source)(SelectableColumn(h), this)
@@ -82,6 +73,5 @@ class SelectableProduct[V, R, CX](base: Selectable[R]{type C = CX})(implicit gen
   override def extract(row: Row): Either[ExtractorError, V] =
     base.extract(row).map(gen.from)
 
-  override def columns: Seq[Field[_]] = base.columns
-  override def aggregations: Seq[AggregateColumn[_, _]] = base.aggregations
+  override def fields: Seq[Field[_]] = base.fields
 }

@@ -50,31 +50,31 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
       Query(toPlaceholder(value.adapter.dbType), Seq(value))
     }
 
-  def columnSrcQueryBuilder: QueryBuilder[Field[_]] = {
-    case TableColumn(name, table) =>
+  def fieldSrcQueryBuilder: QueryBuilder[Field[_]] = {
+    case Column(name, table) =>
       Query(aliasLookup(table) + "." + name)
 
-    case AggregateColumn(column, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "(" :+ columnSrcQueryBuilder(column) :+ ")"
+    case Aggregation(field, aggregateFunction) =>
+      Query(aggregateFunction.name) :+ "(" :+ fieldSrcQueryBuilder(field) :+ ")"
 
-    case SubQueryColumn(column, subQuery) =>
-      Query(aliasLookup(subQuery)) :+ "." :+ columnAliasQueryBuilder(column)
+    case SubQueryField(field, subQuery) =>
+      Query(aliasLookup(subQuery)) :+ "." :+ fieldAliasQueryBuilder(field)
   }
 
-  def columnAliasQueryBuilder: QueryBuilder[Field[_]] = {
-    case TableColumn(name, table) =>
+  def fieldAliasQueryBuilder: QueryBuilder[Field[_]] = {
+    case Column(name, table) =>
       Query(aliasLookup(table) + "__" + name)
 
-    case AggregateColumn(column, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "_" :+ columnAliasQueryBuilder(column)
+    case Aggregation(field, aggregateFunction) =>
+      Query(aggregateFunction.name) :+ "_" :+ fieldAliasQueryBuilder(field)
 
-    case SubQueryColumn(column, subQuery) =>
-      Query(aliasLookup(subQuery)) :+ "__" :+ columnAliasQueryBuilder(column)
+    case SubQueryField(field, subQuery) =>
+      Query(aliasLookup(subQuery)) :+ "__" :+ fieldAliasQueryBuilder(field)
   }
 
   def filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case Filter.Expression.Clause.Field(column) =>
-      columnSrcQueryBuilder(column)
+    case Filter.Expression.Clause.Field(field) =>
+      fieldSrcQueryBuilder(field)
 
     case Filter.Expression.Clause.Literal(value) =>
       valueBuilder.apply(value)
@@ -97,8 +97,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
     case Filter.Empty => Query("1 = 1")
   }
 
-  def columnBuilder: QueryBuilder[Field[_]] =
-    (column: Field[_]) => columnSrcQueryBuilder(column) :++ "AS" :++ columnAliasQueryBuilder(column)
+  def fieldBuilder: QueryBuilder[Field[_]] =
+    (field: Field[_]) => fieldSrcQueryBuilder(field) :++ "AS" :++ fieldAliasQueryBuilder(field)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
     case dataSource: Table[_] =>
@@ -120,17 +120,20 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
 
   def sortBuilder: QueryBuilder[Sort] =
     (s: Sort) => {
-      columnSrcQueryBuilder(s.column) :++ (s match {
+      fieldSrcQueryBuilder(s.field) :++ (s match {
         case _: AscSort => Query("ASC")
         case _: DescSort => Query("DESC")
       })
     }
 
-  def select[T]: QueryBuilder[Select[T]] =
-    (t: Select[T]) =>
+  def select[T]: QueryBuilder[Select[T]] = {
+    t: Select[T] =>
+      // not very elegant
+      val nonAggregated = t.fields.collect { case c if !c.isInstanceOf[Aggregation[_, _]] => c }
+      val aggregations = t.fields.collect { case c: Aggregation[_, _] => c }
       Query("SELECT") :++
-        (t.columns ++ t.aggregations)
-          .map(columnBuilder.apply)
+        t.fields
+          .map(fieldBuilder.apply)
           .reduceOption(_ :+ "," :++ _)
           .getOrElse(Query("1")) :++
         Query("FROM") :++
@@ -138,12 +141,12 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
           .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
         Query("WHERE") :++
         filterBuilder(t.filter) :++
-        t.aggregations
+        aggregations
           .headOption
           .flatMap(_ =>
-            t.columns.map(columnSrcQueryBuilder.apply)
+            nonAggregated.map(fieldSrcQueryBuilder.apply)
               .reduceOption(_ :+ "," :++ _)
-              .map(columns => Query("GROUP BY") :++ columns)
+              .map(fields => Query("GROUP BY") :++ fields)
           ) :++
         t.sort
           .map(sortBuilder.apply)
@@ -152,6 +155,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
         t.limit.map(limit =>
           Query("OFFSET") :++ limit.start.toString :++
             Query("LIMIT") :++ limit.stop.toString)
+  }
 
   def insert[T]: QueryBuilder[Insert[T]] =
     (t: Insert[T]) =>
