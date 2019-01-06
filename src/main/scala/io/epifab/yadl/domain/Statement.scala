@@ -8,15 +8,15 @@ sealed trait SideEffect
 
 sealed trait Select[V] extends Statement {
   def dataSource: DataSource
-  def selectable: Selectable[V]
+  def reader: Reader[V]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
-  def fields: Seq[Field[_]] = selectable.fields
+  def fields: Seq[Field[_]] = reader.fields
 
-  def take[V2](selectable: Selectable[V2]): Select[V2]
+  def take[V2](reader: Reader[V2]): Select[V2]
 
   def take[S2, T2](subQuery: SubQuery[S2, T2]): Select[S2]
 
@@ -36,18 +36,18 @@ sealed trait Select[V] extends Statement {
 object Select {
   case class SelectImpl[V](
     dataSource: DataSource,
-    selectable: Selectable[V],
+    reader: Reader[V],
     joins: Seq[Join] = Seq.empty,
     filter: Filter = Filter.Empty,
     sort: Seq[Sort] = Seq.empty,
     limit: Option[Limit] = None
   ) extends Select[V] {
 
-    def take[V2](selectable: Selectable[V2]): Select[V2] =
-      copy(selectable = selectable)
+    def take[V2](selectable: Reader[V2]): Select[V2] =
+      copy(reader = selectable)
 
     def take[S2, T2](subQuery: SubQuery[S2, T2]): Select[S2] =
-      copy(selectable = subQuery.*)
+      copy(reader = subQuery.*)
 
     def leftJoin[T <: DataSource](relation: Relation[T]): Select[V] =
       copy(joins = joins :+ LeftJoin(relation, relation.clause))
@@ -68,7 +68,7 @@ object Select {
       copy(limit = Some(Limit(start, stop)))
   }
 
-  def from(dataSource: DataSource): Select[HNil] = SelectImpl(dataSource, SNil)
+  def from(dataSource: DataSource): Select[HNil] = SelectImpl(dataSource, HNilReader)
 }
 
 sealed trait Insert[T] extends Statement with SideEffect {

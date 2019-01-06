@@ -48,13 +48,13 @@ object Schema {
     val minScore: Field[Option[Int]] = Min(table.score)
     val maxScore: Field[Option[Int]] = Max(table.score)
 
-    val `*`: Selectable[StudentExams] = (
-      studentId +:
-        examsCount +:
-        avgScore +:
-        minScore +:
-        maxScore +:
-        SNil
+    val `*`: Reader[StudentExams] = (
+      studentId ::
+        examsCount ::
+        avgScore ::
+        minScore ::
+        maxScore ::
+        HNilReader
     ).as[StudentExams]
   }
 
@@ -66,14 +66,14 @@ object Schema {
     val address: Column[Option[Address]] = column("address")
     val interests: Column[Seq[Interest]] = column("interests")
 
-    lazy val `*`: Selectable[Student] = (
-      id +:
-      name +:
-      email +:
-      dateOfBirth +:
-      address +:
-      interests +:
-      SNil).as[Student]
+    lazy val `*`: Reader[Student] = (
+      id ::
+      name ::
+      email ::
+      dateOfBirth ::
+      address ::
+      interests ::
+      HNilReader).as[Student]
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.studentId === id)
   }
@@ -86,7 +86,7 @@ object Schema {
     val id: Column[Int] = column("id")
     val name: Column[String] = column("name")
 
-    override val `*`: Selectable[Course] = (id +: name +: SNil).as[Course]
+    override val `*`: Reader[Course] = (id :: name :: HNilReader).as[Course]
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.courseId === id)
   }
@@ -101,12 +101,12 @@ object Schema {
     val score: Column[Int] = column("score")
     val dateTime: Column[LocalDateTime] = column("exam_timestamp")
 
-    override val `*`: Selectable[Exam] = (
-      studentId +:
-      courseId +:
-      score +:
-      dateTime +:
-      SNil
+    override val `*`: Reader[Exam] = (
+      studentId ::
+      courseId ::
+      score ::
+      dateTime ::
+      HNilReader
     ).as[Exam]
 
     lazy val course: Relation[CoursesTable] = (new CoursesTable).on(_.id === courseId)

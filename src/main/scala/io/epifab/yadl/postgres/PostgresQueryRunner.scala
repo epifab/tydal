@@ -159,7 +159,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
     val statement = preparedStatement(query)
 
     try {
-      extractResults(select, select.selectable.extractor.extract)(statement.executeQuery())
+      extractResults(select, select.reader.extractor.extract)(statement.executeQuery())
     }
     catch {
       case error: SQLException =>
@@ -192,7 +192,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
 
     Future {
       try {
-        extractResults(select, select.selectable.extractor)(blocking(statement.executeQuery))
+        extractResults(select, select.reader.extractor)(blocking(statement.executeQuery))
       }
       catch {
         case error: SQLException =>

@@ -13,7 +13,7 @@ object DataSource {
 }
 
 abstract class Table[S](val tableName: String) extends DataSource {
-  def `*`: Selectable[S]
+  def `*`: Reader[S]
 
   def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
     Column[T](name, this)
@@ -21,14 +21,14 @@ abstract class Table[S](val tableName: String) extends DataSource {
 
 trait TableProjection[T, P] extends DataSource {
   def table: Table[T]
-  def `*`: Selectable[P]
+  def `*`: Reader[P]
 }
 
 case class Relation[+T <: DataSource](dataSource: T, clause: Filter)
 
 trait SubQuery[S, T] extends DataSource {
   def select: Select[T]
-  def `*`: Selectable[S]
+  def `*`: Reader[S]
 
   def field[U](field: Field[U]): SubQueryField[U, S, T] =
     SubQueryField(field, this)
