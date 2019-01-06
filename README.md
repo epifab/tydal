@@ -24,59 +24,14 @@ libraryDependencies += "com.github.epifab" % "yadl" % "master-SNAPSHOT"
 ```
 
 
-### Examples
 
-Define your schema:
-
-```scala
-object Schema {
-  class ExamsTable extends Table("exams") {
-    lazy val studentId: Column[Int] = column("student_id")
-    lazy val courseId: Column[Int] = column("course_id")
-    lazy val score: Column[Int] = column("score")
-    lazy val dateTime: Column[LocalDateTime] = column("exam_timestamp")
-  
-    lazy val `*`: Seq[Column[_]] = Seq(studentId, courseId, score, dateTime)
-  
-    lazy val course: Relation[CoursesTable] = (new CoursesTable).on(_.id === courseId)
-  
-    lazy val student: Relation[StudentsTable] = (new StudentsTable).on(_.id === studentId)
-  }
-}
-```
-
-Define your queries:
+### Basic example
 
 ```scala
-trait ExamsRepo[F[_]] extends Repo[F] {
-  val exams = new Schema.ExamsTable
+import io.epifab.yadl.domain._
+import io.epifab.yadl.implicits._
+import shapeless.{HNil, ::}
 
-  def findExamsByDate(date: LocalDate): F[Either[DALError, Seq[Exam :: Course ::HNil]]] =
-    Select
-      .from(exams)
-      .innerJoin(exams.course)
-      .take(exams.* ++ exams.course.*)
-      .where(exams.dateTime >= Value(date.atStartOfDay) and exams.dateTime < Value(date.plusDays(1).atStartOfDay))
-      .sortBy(exams.studentId.asc)
-      .fetchMany
-}
-```
-
-More examples [here](https://github.com/epifab/yadl/tree/master/src/main/scala/io/epifab/yadl/examples).
-
-
-### Typed DSL
-
-*Experimental feature*
-
-Manually declaring extractors can be tedious and error-prone.
-I'm currently working on a typed DSL which will solve this and other issues.
-
-Here's a (working!) example:
-
-The model:
-
-```scala
 case class Student(
   id: Int,
   name: String,
@@ -85,11 +40,7 @@ case class Student(
   address: Option[Address],
   interests: Seq[Interest]
 )
-```
 
-The schema:
-
-```scala
 class StudentsTable extends Table("students") {
   lazy val id: Column[Int] = column("id")
   lazy val name: Column[String] = column("name")
@@ -97,30 +48,26 @@ class StudentsTable extends Table("students") {
   lazy val dateOfBirth: Column[LocalDate] = column("date_of_birth")
   lazy val interests: Column[Seq[Interest]] = column("interests")
   lazy val address: Column[Option[Address]] = column("address")
+
+  lazy val `*`: Reader[Student] = Reader(
+    students.id ::
+    students.name ::
+    students.email ::
+    students.dateOfBirth ::
+    students.address ::
+    students.interests ::
+    HNil
+  )
 }
-```
 
-Link the two things:
-
-```scala
-val studentsRepr(students: StudentsTable) =
-  (students.id +:
-    students.name +:
-    students.email +:
-    students.dateOfBirth +:
-    students.address +:
-    students.interests +:
-    SNil).as[Student]
-```
-
-Try it out:
-
-```scala
-val students = new Schema.StudentsTable
-
-def findAllStudents: F[Either[DALError, Seq[Student]]] =
-  TypedSelect
-    .from(students)
-    .take(studentsRepr(students))
-    .fetchMany
+class StudentsRepo[F[_]](implicit queryRunner: QueryRunner[F]) {
+  private val students = new Schema.StudentsTable
+  
+  def findStudentByName(name: String): F[Either[DALError, Option[Student]]] =
+    Select
+      .from(students)
+      .take(students.*)
+      .where(students.name === Value(name))
+      .fetchOne
+}
 ```
