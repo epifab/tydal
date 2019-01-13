@@ -4,10 +4,10 @@ package io.epifab.yadl.postgres
 import io.epifab.yadl.domain._
 
 
-class AliasLookup[T](prefix: String) {
+class AliasLookup(prefix: String) {
   private var count: Int = 0
 
-  private val aliases: scala.collection.mutable.Map[T, String] =
+  private val aliases: scala.collection.mutable.Map[Any, String] =
     new scala.collection.mutable.HashMap
 
   private def nextAlias: String = synchronized {
@@ -15,12 +15,12 @@ class AliasLookup[T](prefix: String) {
     prefix + count.toString
   }
 
-  def apply(t: T): String =
+  def apply(t: Any): String =
     aliases.getOrElseUpdate(t, nextAlias)
 }
 
 
-class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
+class PostgresQueryBuilder(aliasLookup: AliasLookup) {
   def filterOpBuilder: QueryBuilder[Filter.Expression.Op] = {
     case Filter.Expression.Op.Equal => Query("=")
     case Filter.Expression.Op.GT => Query(">")
@@ -50,36 +50,40 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
       Query(toPlaceholder(value.adapter.dbType), Seq(value))
     }
 
-  def fieldSrcQueryBuilder: QueryBuilder[Field[_]] = {
+  def termSrcQueryBuilder: QueryBuilder[Term[_]] = {
     case Column(name, table) =>
       Query(aliasLookup(table) + "." + name)
 
-    case Aggregation(field, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "(" :+ fieldSrcQueryBuilder(field) :+ ")"
+    case Aggregation(term, aggregateFunction) =>
+      Query(aggregateFunction.name) :+ "(" :+ termSrcQueryBuilder(term) :+ ")"
 
-    case SubQueryField(field, subQuery) =>
-      Query(aliasLookup(subQuery)) :+ "." :+ fieldAliasQueryBuilder(field)
+    case SubQueryTerm(term, subQuery) =>
+      Query(aliasLookup(subQuery)) :+ "." :+ termAliasQueryBuilder(term)
+
+    case value: Value[_] =>
+      valueBuilder(value)
   }
 
-  def fieldAliasQueryBuilder: QueryBuilder[Field[_]] = {
+  def termAliasQueryBuilder: QueryBuilder[Term[_]] = {
     case Column(name, table) =>
       Query(aliasLookup(table) + "__" + name)
 
-    case Aggregation(field, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "_" :+ fieldAliasQueryBuilder(field)
+    case Aggregation(term, aggregateFunction) =>
+      Query(aggregateFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
 
-    case SubQueryField(field, subQuery) =>
-      Query(aliasLookup(subQuery)) :+ "__" :+ fieldAliasQueryBuilder(field)
+    case SubQueryTerm(term, subQuery) =>
+      Query(aliasLookup(subQuery)) :+ "__" :+ termAliasQueryBuilder(term)
+
+    case value: Value[_] =>
+      Query(aliasLookup(value))
   }
 
   def filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case Filter.Expression.Clause.Field(field) =>
-      fieldSrcQueryBuilder(field)
+    case Filter.Expression.Clause.Term(term) =>
+      termSrcQueryBuilder(term)
 
-    case Filter.Expression.Clause.Literal(value) =>
-      valueBuilder.apply(value)
-
-    case Filter.Expression.Clause.AnyLiteral(values) =>
+    // TODO: Any should be moved to terms and made generic (unary expression)
+    case Filter.Expression.Clause.AnyTerm(values) =>
       Query("ANY(?)", Seq(values))
   }
 
@@ -97,8 +101,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
     case Filter.Empty => Query("1 = 1")
   }
 
-  def fieldBuilder: QueryBuilder[Field[_]] =
-    (field: Field[_]) => fieldSrcQueryBuilder(field) :++ "AS" :++ fieldAliasQueryBuilder(field)
+  def termBuilder: QueryBuilder[Term[_]] =
+    (term: Term[_]) => termSrcQueryBuilder(term) :++ "AS" :++ termAliasQueryBuilder(term)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
     case dataSource: Table[_] =>
@@ -120,7 +124,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
 
   def sortBuilder: QueryBuilder[Sort] =
     (s: Sort) => {
-      fieldSrcQueryBuilder(s.field) :++ (s match {
+      termSrcQueryBuilder(s.term) :++ (s match {
         case _: AscSort => Query("ASC")
         case _: DescSort => Query("DESC")
       })
@@ -129,11 +133,11 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
   def select[T]: QueryBuilder[Select[T]] = {
     t: Select[T] =>
       // not very elegant
-      val nonAggregated = t.fields.collect { case c if !c.isInstanceOf[Aggregation[_, _]] => c }
-      val aggregations = t.fields.collect { case c: Aggregation[_, _] => c }
+      val nonAggregated = t.terms.toSeq.collect { case c if !c.isInstanceOf[Aggregation[_, _]] => c }
+      val aggregations = t.terms.toSeq.collect { case c: Aggregation[_, _] => c }
       Query("SELECT") :++
-        t.fields
-          .map(fieldBuilder.apply)
+        t.terms.toSeq
+          .map(termBuilder.apply)
           .reduceOption(_ :+ "," :++ _)
           .getOrElse(Query("1")) :++
         Query("FROM") :++
@@ -144,9 +148,9 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
         aggregations
           .headOption
           .flatMap(_ =>
-            nonAggregated.map(fieldSrcQueryBuilder.apply)
+            nonAggregated.map(termSrcQueryBuilder.apply)
               .reduceOption(_ :+ "," :++ _)
-              .map(fields => Query("GROUP BY") :++ fields)
+              .map(terms => Query("GROUP BY") :++ terms)
           ) :++
         t.sort
           .map(sortBuilder.apply)
@@ -193,7 +197,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup[DataSource]) {
 
 object PostgresQueryBuilder {
   val build: QueryBuilder[Statement] = (statement: Statement) => {
-    val builder = new PostgresQueryBuilder(new AliasLookup[DataSource]("ds"))
+    val builder = new PostgresQueryBuilder(new AliasLookup("ds"))
 
     statement match {
       case s: Select[_] => builder.select(s)

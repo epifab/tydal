@@ -18,13 +18,13 @@ class PostgresQueryBuildersTest extends FlatSpec {
   val exams = new ExamsTable
 
   class ExamsSubQuery extends SubQuery[Int, Int] {
-    val studentId: Field[Int] = field(exams.studentId)
+    val studentId: Term[Int] = term(exams.studentId)
 
     override def select: Select[Int] =
       Select.from(exams)
-        .take(Reader(exams.studentId))
+        .take(Terms(exams.studentId))
 
-    override def `*`: Reader[Int] = Reader(studentId)
+    override def `*`: Terms[Int] = Terms(studentId)
   }
 
   "PostgresQuery" should "evaluate a the simplest query" in {
@@ -38,7 +38,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with 1 column" in {
     val query = Select
       .from(students)
-      .take(Reader(students.name))
+      .take(Terms(students.name))
 
     build(query) shouldBe Query(
       "SELECT ds1.name AS ds1__name" +
@@ -49,7 +49,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with 2 columns" in {
     val query = Select
       .from(students)
-      .take(Reader(students.name :: students.email :: HNil))
+      .take(Terms(students.name :: students.email :: HNil))
 
     build(query) shouldBe Query(
       "SELECT ds1.name AS ds1__name, ds1.email AS ds1__email" +
@@ -60,7 +60,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate a query with a filter" in {
     val query = Select
       .from(students)
-      .take(Reader(students.name))
+      .take(Terms(students.name))
       .where(students.name === Value("Fabio"))
 
     build(query) shouldBe Query(
@@ -116,7 +116,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
         .from(students)
         .leftJoin(students.exams.on(_.studentId === students.id))
         .innerJoin(students.exams.course)
-        .take(Reader(
+        .take(Terms(
           students.name ::
           students.exams.score ::
           students.exams.course.name ::
@@ -137,7 +137,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate sort" in {
     val query = Select
       .from(students)
-      .take(Reader(students.name))
+      .take(Terms(students.name))
       .sortBy(students.email.asc, students.id.desc)
 
     build(query) shouldBe Query(
@@ -150,7 +150,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
   it should "evaluate limit" in {
     val query = Select
       .from(students)
-      .take(Reader(students.name))
+      .take(Terms(students.name))
       .inRange(1, 4)
 
     build(query) shouldBe Query(
@@ -219,7 +219,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query =
       Select
         .from(exams)
-        .take(Reader(
+        .take(Terms(
           exams.studentId ::
           Avg(exams.score) ::
           Count(exams.courseId) ::
@@ -262,7 +262,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query = Select
       .from(students)
       .innerJoin(exams.on(_.studentId === students.id))
-      .take(Reader(students.id :: exams.studentId :: HNil))
+      .take(Terms(students.id :: exams.studentId :: HNil))
 
     build(query) shouldBe Query(
       "SELECT" +

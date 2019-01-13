@@ -119,18 +119,18 @@ trait JDBCQueryRunner {
   protected def extractResults[T](select: Select[_], extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
     import io.epifab.yadl.utils.EitherSupport._
 
-    val fieldsIndexes: Map[Field[_], Int] = select.fields.zipWithIndex.toMap
+    val termsIndexes: Map[Term[_], Int] = select.terms.toSeq.zipWithIndex.toMap
 
     val results = scala.collection.mutable.ArrayBuffer.empty[Either[ExtractorError, T]]
 
     while (resultSet.next()) {
       val row = new Row {
-        override def get[FT](field: Field[FT]): Either[ExtractorError, FT] =
-          fieldsIndexes.get(field) match {
+        override def get[FT](term: Term[FT]): Either[ExtractorError, FT] =
+          termsIndexes.get(term) match {
             case Some(index) =>
-              getColumn(resultSet, index + 1)(field.adapter)
+              getColumn(resultSet, index + 1)(term.adapter)
             case None =>
-              Left(ExtractorError(s"Column $field is missing"))
+              Left(ExtractorError(s"Column $term is missing"))
           }
       }
       results += extractor.extract(row)
@@ -159,7 +159,7 @@ class PostgresQueryRunner(protected val connection: Connection, queryBuilder: Qu
     val statement = preparedStatement(query)
 
     try {
-      extractResults(select, select.reader.extractor.extract)(statement.executeQuery())
+      extractResults(select, select.terms.extractor.extract)(statement.executeQuery())
     }
     catch {
       case error: SQLException =>
@@ -192,7 +192,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
 
     Future {
       try {
-        extractResults(select, select.reader.extractor)(blocking(statement.executeQuery))
+        extractResults(select, select.terms.extractor)(blocking(statement.executeQuery))
       }
       catch {
         case error: SQLException =>

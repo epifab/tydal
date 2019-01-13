@@ -50,11 +50,11 @@ abstract class SimpleFieldAdapter[T](override val dbType: DbType[T]) extends Fie
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
 }
 
-case object StringFieldAdapter extends SimpleFieldAdapter[String](StringDbType)
+case object StringTermAdapter extends SimpleFieldAdapter[String](StringDbType)
 
-case object IntFieldAdapter extends SimpleFieldAdapter[Int](IntDbType)
+case object IntTermAdapter extends SimpleFieldAdapter[Int](IntDbType)
 
-case object DoubleFieldAdapter extends SimpleFieldAdapter[Double](DoubleDbType)
+case object DoubleTermAdapter extends SimpleFieldAdapter[Double](DoubleDbType)
 
 case class OptionFieldAdapter[T, U](override val dbType: DbType[Option[U]], baseAdapter: FieldAdapter.Aux[T, U])
   extends FieldAdapter[Option[T]] {
@@ -129,18 +129,18 @@ object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
       .left.map(error => ExtractorError(error.getMessage))
 }
 
-object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
-object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFieldAdapter)
-object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
+object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringTermAdapter)
+object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntTermAdapter)
+object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleTermAdapter)
 object DateSeqFieldAdapter extends SeqFieldAdapter[LocalDate, String](DateSeqDbType, DateFieldAdapter)
 object DateTimeSeqFieldAdapter extends SeqFieldAdapter[LocalDateTime, String](DateTimeSeqDbType, DateTimeFieldAdapter)
 
 object FieldAdapter {
   type Aux[T, U] = FieldAdapter[T] { type DBTYPE = U }
 
-  implicit val string: FieldAdapter[String] = StringFieldAdapter
-  implicit val int: FieldAdapter[Int] = IntFieldAdapter
-  implicit val double: FieldAdapter[Double] = DoubleFieldAdapter
+  implicit val string: FieldAdapter[String] = StringTermAdapter
+  implicit val int: FieldAdapter[Int] = IntTermAdapter
+  implicit val double: FieldAdapter[Double] = DoubleTermAdapter
   implicit val date: FieldAdapter[LocalDate] = DateFieldAdapter
   implicit val dateTime: FieldAdapter[LocalDateTime] = DateTimeFieldAdapter
   def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =

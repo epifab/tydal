@@ -44,12 +44,12 @@ object Schema {
 
   class ExamsProjection(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
     val studentId: Column[Int] = table.studentId
-    val examsCount: Field[Int] = Count(table.courseId)
-    val avgScore: Field[Option[Double]] = Avg(table.score)
-    val minScore: Field[Option[Int]] = Min(table.score)
-    val maxScore: Field[Option[Int]] = Max(table.score)
+    val examsCount: Term[Int] = Count(table.courseId)
+    val avgScore: Term[Option[Double]] = Avg(table.score)
+    val minScore: Term[Option[Int]] = Min(table.score)
+    val maxScore: Term[Option[Int]] = Max(table.score)
 
-    val `*`: Reader[StudentExams] = Reader(
+    val `*`: Terms[StudentExams] = Terms(
       studentId ::
       examsCount ::
       avgScore ::
@@ -67,7 +67,7 @@ object Schema {
     val address: Column[Option[Address]] = column("address")
     val interests: Column[Seq[Interest]] = column("interests")
 
-    lazy val `*`: Writer[Student] = Writer(
+    lazy val `*`: Columns[Student] = Columns(
       id ::
       name ::
       email ::
@@ -88,7 +88,7 @@ object Schema {
     val id: Column[Int] = column("id")
     val name: Column[String] = column("name")
 
-    override val `*`: Writer[Course] = Writer(id :: name :: HNil)
+    override val `*`: Columns[Course] = Columns(id :: name :: HNil)
 
     lazy val exams: Relation[ExamsTable] = (new ExamsTable).on(_.courseId === id)
   }
@@ -103,7 +103,7 @@ object Schema {
     val score: Column[Int] = column("score")
     val dateTime: Column[LocalDateTime] = column("exam_timestamp")
 
-    override val `*`: Writer[Exam] = Writer(
+    override val `*`: Columns[Exam] = Columns(
       studentId ::
       courseId ::
       score ::

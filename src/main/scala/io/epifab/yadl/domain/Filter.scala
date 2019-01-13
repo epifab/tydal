@@ -21,9 +21,8 @@ object Filter {
     sealed trait Clause[T]
 
     object Clause {
-      final case class Field[T](field: io.epifab.yadl.domain.Field[T]) extends Clause[T]
-      final case class Literal[T](value: Value[T]) extends Clause[T]
-      final case class AnyLiteral[T](value: Value[Seq[T]]) extends Clause[Seq[T]]
+      final case class Term[T](term: io.epifab.yadl.domain.Term[T]) extends Clause[T]
+      final case class AnyTerm[T](value: Value[Seq[T]]) extends Clause[Seq[T]]
     }
 
     sealed trait Op
