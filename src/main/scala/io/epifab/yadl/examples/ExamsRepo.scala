@@ -10,35 +10,33 @@ import shapeless.{::, HNil}
 import scala.language.higherKinds
 
 trait ExamsRepo[F[_]] extends Repo[F] {
-  object Exams extends Schema.ExamsTable
-
-  val examsCourseReader: Terms[Exam :: HNil] = Terms(Exams.* :: HNil)
+  private val examsDS = new Schema.ExamsTable
 
   def findExamsByStudentId(studentId: Int): F[Either[DALError, Seq[Exam :: Course :: HNil]]] = {
     Select
-      .from(Exams)
-      .innerJoin(Exams.course)
-      .where(Exams.studentId === Value(studentId))
-      .take(Terms(Exams.* :: Exams.course.* :: HNil))
+      .from(examsDS)
+      .innerJoin(examsDS.course)
+      .where(examsDS.studentId === Value(studentId))
+      .take(Terms(examsDS.* :: examsDS.course.* :: HNil))
       .fetchMany
   }
 
   def findExamsByDate(date: LocalDate): F[Either[DALError, Seq[Exam :: Course ::HNil]]] =
     Select
-      .from(Exams)
-      .innerJoin(Exams.course)
-      .take(Terms(Exams.* :: Exams.course.* :: HNil))
-      .where(Exams.dateTime >= Value(date.atStartOfDay) and Exams.dateTime < Value(date.plusDays(1).atStartOfDay))
-      .sortBy(Exams.studentId.asc)
+      .from(examsDS)
+      .innerJoin(examsDS.course)
+      .take(Terms(examsDS.* :: examsDS.course.* :: HNil))
+      .where(examsDS.dateTime >= Value(date.atStartOfDay) and examsDS.dateTime < Value(date.plusDays(1).atStartOfDay))
+      .sortBy(examsDS.studentId.asc)
       .fetchMany
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[Student :: Seq[Exam :: Course :: HNil] :: HNil]]] = {
     val examsFE = Select
-      .from(Exams)
-      .innerJoin(Exams.course)
-      .take(Terms(Exams.* :: Exams.course.* :: HNil))
-      .where(Exams.studentId in Value(students.map(_.id)))
-      .sortBy(Exams.course.id.asc)
+      .from(examsDS)
+      .innerJoin(examsDS.course)
+      .take(Terms(examsDS.* :: examsDS.course.* :: HNil))
+      .where(examsDS.studentId in Value(students.map(_.id)))
+      .sortBy(examsDS.course.id.asc)
       .fetchMany
 
     examsFE.map(_.map(
@@ -52,15 +50,15 @@ trait ExamsRepo[F[_]] extends Repo[F] {
 
   def findExamsByDateTime(dates: LocalDateTime*): F[Either[DALError, Seq[Exam]]] = {
     Select
-      .from(Exams)
-      .take(Exams.*)
-      .where(Exams.dateTime in Value(dates))
+      .from(examsDS)
+      .take(examsDS.*)
+      .where(examsDS.dateTime in Value(dates))
       .fetchMany
   }
 
   def createExam(exam: Exam): F[Either[DALError, Int]] =
     Insert
-      .into(Exams)
+      .into(examsDS)
       .set(exam)
       .execute()
 }

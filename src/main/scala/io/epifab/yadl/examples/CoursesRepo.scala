@@ -6,10 +6,10 @@ import io.epifab.yadl.implicits._
 import scala.language.higherKinds
 
 trait CoursesRepo[F[_]] extends Repo[F] {
-  object Courses extends Schema.CoursesTable
+  private val coursesDS = new Schema.CoursesTable
 
   def createCourse(course: Course): F[Either[DALError, Int]] =
-    Insert.into(Courses)
+    Insert.into(coursesDS)
       .set(course)
       .execute()
 }

@@ -20,7 +20,7 @@ object QueryRunnerFactories {
     )
 
   implicit def asyncQueryRunner(implicit executionContext: ExecutionContext): QueryRunner[Future] =
-    io.epifab.yadl.postgres.asyncQueryRunner(connection)
+    io.epifab.yadl.postgres.asyncQueryRunner(connection, executionContext)
 
   implicit def syncQueryRunner: QueryRunner[Id] =
     io.epifab.yadl.postgres.syncQueryRunner(connection)

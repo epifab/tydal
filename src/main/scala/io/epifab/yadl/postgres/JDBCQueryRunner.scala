@@ -153,7 +153,7 @@ trait JDBCQueryRunner {
 }
 
 
-class PostgresQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner with LoggingSupport {
+class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryBuilder[Statement]) extends QueryRunner[Id] with JDBCQueryRunner with LoggingSupport {
   override def run[T](select: Select[T]): Id[Either[DALError, Seq[T]]] = {
     val query = queryBuilder(select)
     val statement = preparedStatement(query)
