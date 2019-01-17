@@ -1,12 +1,20 @@
 package io.epifab.yadl.domain
 
 import shapeless.{::, Generic, HList, HNil, Lazy}
+import shapeless.syntax.std.tuple._
 
-trait Terms[Output] {
+trait Terms[Output] { self =>
   type Container
   def container: Container
   def toSeq: Seq[Term[_]]
   def extractor: Extractor[Output]
+
+  def map[Output2](f: Output => Output2): Terms[Output2] = new Terms[Output2] {
+    override type Container = self.Container
+    override def container: Container = self.container
+    override def toSeq: Seq[Term[_]] = self.toSeq
+    override def extractor: Extractor[Output2] = self.extractor.map(f)
+  }
 }
 
 object Terms {
@@ -14,6 +22,12 @@ object Terms {
 
   def apply[Container, Output](c: Container)(implicit builder: TermsBuilder.Aux[Container, Output]): Terms[Output] =
     builder.build(c)
+
+  def apply[V1, V2](t1: Terms[V1], t2: Terms[V2]): Terms[(V1, V2)] =
+    Terms(t1 :: t2 :: HNil).map((v: V1 :: V2 :: HNil) => v.tupled)
+
+  def apply[V1, V2, V3](t1: Terms[V1], t2: Terms[V2], t3: Terms[V3]): Terms[(V1, V2, V3)] =
+    Terms(t1 :: t2 :: t3 :: HNil).map((v: V1 :: V2 :: V3 :: HNil) => v.tupled)
 }
 
 trait TermsBuilder[-Container] {
@@ -72,10 +86,13 @@ class CaseClassTermsBuilder[CaseClass, GenericRepr, ContainerX]
      gen: Generic.Aux[CaseClass, GenericRepr]) extends TermsBuilder[ContainerX] {
   override type Output = CaseClass
   override def build(c: ContainerX): Terms[CaseClass] = new Terms[Output] {
+    private val genericTerms: Terms[GenericRepr] = genericBuilder.build(c)
+
     override type Container = ContainerX
     override def container: Container = c
     override def toSeq: Seq[Term[_]] = genericBuilder.build(c).toSeq
-    override def extractor: Extractor[CaseClass] = genericBuilder.build(c).extractor.map(gen.from)
+
+    override def extractor: Extractor[CaseClass] = genericTerms.extractor.map(gen.from)
   }
 }
 

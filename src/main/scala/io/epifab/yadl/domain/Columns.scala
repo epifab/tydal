@@ -70,11 +70,14 @@ class CaseClassColumnsBuilder[CaseClass, GenericRepr, ContainerX]
      gen: Generic.Aux[CaseClass, GenericRepr]) extends ColumnsBuilder[ContainerX] {
   override type Output = CaseClass
   override def build(c: ContainerX): Columns[CaseClass] = new Columns[Output] {
+    private val genericColumns: Columns[GenericRepr] = genericBuilder.build(c)
+
     override type Container = ContainerX
     override def container: Container = c
-    override def toSeq: Seq[Column[_]] = genericBuilder.build(c).toSeq
-    override def extractor: Extractor[CaseClass] = genericBuilder.build(c).extractor.map(gen.from)
-    override def values(v: CaseClass): Seq[ColumnValue[_]] = genericBuilder.build(c).values(gen.to(v))
+
+    override def toSeq: Seq[Column[_]] = genericColumns.toSeq
+    override def extractor: Extractor[CaseClass] = genericColumns.extractor.map(gen.from)
+    override def values(v: CaseClass): Seq[ColumnValue[_]] = genericColumns.values(gen.to(v))
   }
 }
 

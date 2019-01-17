@@ -1,6 +1,6 @@
 package io.epifab.yadl.domain
 
-import shapeless.{HNil, ::}
+import shapeless.HNil
 
 sealed trait Statement
 
@@ -32,13 +32,13 @@ sealed trait Select[V] extends Statement {
 }
 
 object Select {
-  case class SelectImpl[V](
-                            dataSource: DataSource,
-                            terms: Terms[V],
-                            joins: Seq[Join] = Seq.empty,
-                            filter: Filter = Filter.Empty,
-                            sort: Seq[Sort] = Seq.empty,
-                            limit: Option[Limit] = None
+  protected final case class SelectImpl[V](
+    dataSource: DataSource,
+    terms: Terms[V],
+    joins: Seq[Join] = Seq.empty,
+    filter: Filter = Filter.Empty,
+    sort: Seq[Sort] = Seq.empty,
+    limit: Option[Limit] = None
   ) extends Select[V] {
 
     def take[V2](r1: Terms[V2]): Select[V2] =
@@ -65,6 +65,18 @@ object Select {
     def inRange(start: Int, stop: Int): Select[V] =
       copy(limit = Some(Limit(start, stop)))
   }
+
+  protected final case class SelectBuilder[V](terms: Terms[V]) {
+    def from(dataSource: DataSource): Select[V] = SelectImpl(dataSource, terms)
+  }
+
+  def apply[V1](terms: Terms[V1]): SelectBuilder[V1] = SelectBuilder(terms)
+
+  def apply[V1, V2](t1: Terms[V1], t2: Terms[V2]): SelectBuilder[(V1, V2)] =
+    SelectBuilder(Terms(t1, t2))
+
+  def apply[V1, V2, V3](t1: Terms[V1], t2: Terms[V2], t3: Terms[V3]): SelectBuilder[(V1, V2, V3)] =
+    SelectBuilder(Terms(t1, t2, t3))
 
   def from(dataSource: DataSource): Select[HNil] = SelectImpl(dataSource, Terms(HNil))
 }

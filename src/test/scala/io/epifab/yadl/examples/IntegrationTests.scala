@@ -24,9 +24,9 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val exam2 = Exam(studentId = 2, courseId = 1, 29, LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0))
   val exam3 = Exam(studentId = 2, courseId = 2, 30, LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0))
 
-  val student1Exams: Seq[Exam :: Course :: HNil] = Seq(exam1 :: course1 :: HNil)
-  val student2Exams: Seq[Exam :: Course :: HNil] = Seq(exam2 :: course1 :: HNil, exam3 :: course2 :: HNil)
-  val student3Exams: Seq[Exam :: Course :: HNil] = Seq.empty
+  val student1Exams: Seq[(Exam, Course)] = Seq(exam1 -> course1)
+  val student2Exams: Seq[(Exam, Course)] = Seq(exam2 -> course1, exam3 -> course2)
+  val student3Exams: Seq[(Exam, Course)] = Seq.empty
 
   val repo = new Repos(QueryRunnerFactories.syncQueryRunner)
 
@@ -92,16 +92,16 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
   it should "find exams by date" in {
     repo.findExamsByDate(LocalDate.of(2018, 11, 22)) shouldBe Right(Seq(
-      exam2 :: course1 :: HNil,
-      exam3 :: course2 :: HNil
+      exam2 -> course1,
+      exam3 -> course2
     ))
   }
 
   it should "find student exams" in {
     repo.findStudentsExams(student1, student2, student3) shouldBe Right(Seq(
-      student1 :: student1Exams :: HNil,
-      student2 :: student2Exams :: HNil,
-      student3 :: student3Exams :: HNil
+      student1 -> student1Exams,
+      student2 -> student2Exams,
+      student3 -> student3Exams
     ))
   }
 
