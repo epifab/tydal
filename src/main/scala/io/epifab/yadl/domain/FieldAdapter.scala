@@ -13,7 +13,7 @@ trait FieldAdapter[T] { outer =>
   def toDb(value: T): DBTYPE
   def fromDb(dbValue: DBTYPE): Either[ExtractorError, T]
 
-  def bimap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter[U] =
+  def imap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter[U] =
     new FieldAdapter[U] {
       override type DBTYPE = outer.DBTYPE
       override def dbType: DbType[outer.DBTYPE] = outer.dbType
@@ -24,8 +24,8 @@ trait FieldAdapter[T] { outer =>
       } yield u
     }
 
-  def bimap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter[U] = {
-    bimap[U](
+  def imap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter[U] = {
+    imap[U](
       encode,
       (dbValue: T) => Try(decode(dbValue))
         .toEither
@@ -33,8 +33,8 @@ trait FieldAdapter[T] { outer =>
     )
   }
 
-  def bimap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter[U] = {
-    bimap[U](
+  def imap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter[U] = {
+    imap[U](
       encode,
       (dbValue: T) => decode(dbValue) match {
         case Some(value) => Right(value)
@@ -159,5 +159,4 @@ object FieldAdapter {
 
   def json[T](implicit encoder: Encoder[T], decoder: Decoder[T]): FieldAdapter[T] =
     new JsonFieldAdapter[T]
-
 }

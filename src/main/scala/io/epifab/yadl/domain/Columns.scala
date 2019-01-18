@@ -2,9 +2,17 @@ package io.epifab.yadl.domain
 
 import shapeless.{::, Generic, HList, HNil, Lazy}
 
-trait Columns[Output] extends Terms[Output] {
+trait Columns[Output] extends Terms[Output] { self =>
   def toSeq: Seq[Column[_]]
   def values(v: Output): Seq[ColumnValue[_]]
+
+  def imap[Output2](f: Output => Output2, g: Output2 => Output): Columns[Output2] = new Columns[Output2] {
+    override def toSeq: Seq[Column[_]] = self.toSeq
+    override def values(v: Output2): Seq[ColumnValue[_]] = self.values(g(v))
+    override type Container = self.Container
+    override def container: Container = self.container
+    override def extractor: Extractor[Output2] = self.extractor.map(f)
+  }
 }
 
 object Columns {
@@ -14,9 +22,14 @@ object Columns {
     builder.build(c)
 }
 
-trait ColumnsBuilder[-Container] {
+trait ColumnsBuilder[-Container] { self =>
   type Output
   def build(c: Container): Columns[Output]
+
+  def imap[Output2](f: Output => Output2, g: Output2 => Output): ColumnsBuilder[Container] = new ColumnsBuilder[Container] {
+    override type Output = Output2
+    override def build(c: Container): Columns[Output2] = self.build(c).imap(f, g)
+  }
 }
 
 class ColumnBuilder[T] extends ColumnsBuilder[Column[T]] {

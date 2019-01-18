@@ -128,7 +128,7 @@ Here's a couple of examples:
 
 ```scala
 implicit def booleanFieldAdapter(implicit intFieldAdapter: FieldAdapter[Int]): FieldAdapter[Boolean] =
-  intFieldAdapter.bimap(
+  intFieldAdapter.imap(
     (b: Boolean) => if (b) 1 else 0, 
     (i: Int) => i != 0
   )

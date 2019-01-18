@@ -30,9 +30,13 @@ object Terms {
     Terms(t1 :: t2 :: t3 :: HNil).map((v: V1 :: V2 :: V3 :: HNil) => v.tupled)
 }
 
-trait TermsBuilder[-Container] {
+trait TermsBuilder[-Container] { self =>
   type Output
   def build(c: Container): Terms[Output]
+  def map[Output2](f: Output => Output2): TermsBuilder[Container] = new TermsBuilder[Container] {
+    override type Output = Output2
+    override def build(c: Container): Terms[Output2] = self.build(c).map(f)
+  }
 }
 
 class TermBuilder[T] extends TermsBuilder[Term[T]] {
