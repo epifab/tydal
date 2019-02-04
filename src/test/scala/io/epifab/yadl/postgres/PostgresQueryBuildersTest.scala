@@ -227,6 +227,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
           Min(exams.score) ::
           HNil
         ))
+        .groupBy(exams.studentId)
 
     build(query) shouldBe Query(
       "SELECT" +

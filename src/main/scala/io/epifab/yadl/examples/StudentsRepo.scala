@@ -87,12 +87,13 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .fetchMany
 
   def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] = {
-    val examsProjections = new Schema.ExamsProjection(new Schema.ExamsTable)
+    val stats = new Schema.ExamsStats(new Schema.ExamsTable)
 
     Select
-      .from(examsProjections)
-      .take(examsProjections.*)
-      .where(examsProjections.studentId === Value(id))
+      .from(stats)
+      .take(stats.*)
+      .groupBy(stats.studentId)
+      .where(stats.studentId === Value(id))
       .fetchOne
   }
 

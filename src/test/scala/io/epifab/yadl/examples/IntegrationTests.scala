@@ -141,5 +141,10 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     val results = repo.findExamsByDateTime(exam1.dateTime, exam3.dateTime)
     results.map(_.toSet) shouldBe Right(Set(exam1, exam3))
   }
+
+  it should "find distinct courses" in {
+    val results = repo.findCourseIdsByStudentExams(student1, student2, student3)
+    results.map(_.map(_.id)) shouldBe Right(Seq(1, 2))
+  }
 }
 

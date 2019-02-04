@@ -44,6 +44,17 @@ trait ExamsRepo[F[_]] extends Repo[F] {
     )
   }
 
+  def findCourseIdsByStudentExams(students: Student*): F[Either[DALError, Seq[Course]]] = {
+    Select
+      .from(examsDS)
+      .innerJoin(examsDS.course)
+      .take(examsDS.course.*)
+      .groupBy(examsDS.course.id, examsDS.course.name)
+      .where(examsDS.studentId in Value(students.map(_.id)))
+      .sortBy(examsDS.course.id.asc)
+      .fetchMany
+  }
+
   def findExamsByDateTime(dates: LocalDateTime*): F[Either[DALError, Seq[Exam]]] = {
     Select
       .from(examsDS)

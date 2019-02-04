@@ -42,7 +42,7 @@ object Adapters {
 object Schema {
   import Adapters._
 
-  class ExamsProjection(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
+  class ExamsStats(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
     val studentId: Column[Int] = table.studentId
     val examsCount: Term[Int] = Count(table.courseId)
     val avgScore: Term[Option[Double]] = Avg(table.score)

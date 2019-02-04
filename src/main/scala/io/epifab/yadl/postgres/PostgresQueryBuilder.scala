@@ -132,9 +132,6 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
 
   def select[T]: QueryBuilder[Select[T]] = {
     t: Select[T] =>
-      // not very elegant
-      val nonAggregated = t.terms.toSeq.collect { case c if !c.isInstanceOf[Aggregation[_, _]] => c }
-      val aggregations = t.terms.toSeq.collect { case c: Aggregation[_, _] => c }
       Query("SELECT") :++
         t.terms.toSeq
           .map(termBuilder.apply)
@@ -145,13 +142,10 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
           .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
         Query("WHERE") :++
         filterBuilder(t.filter) :++
-        aggregations
-          .headOption
-          .flatMap(_ =>
-            nonAggregated.map(termSrcQueryBuilder.apply)
-              .reduceOption(_ :+ "," :++ _)
-              .map(terms => Query("GROUP BY") :++ terms)
-          ) :++
+        t.groupedBy
+          .map(termSrcQueryBuilder.apply)
+          .reduceOption(_ :+ "," :++ _)
+          .map(clauses => Query("GROUP BY") :++ clauses) :++
         t.sort
           .map(sortBuilder.apply)
           .reduceOption(_ :+ "," :++ _)

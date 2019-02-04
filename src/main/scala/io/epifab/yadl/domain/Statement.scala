@@ -9,6 +9,7 @@ sealed trait SideEffect
 sealed trait Select[V] extends Statement {
   def dataSource: DataSource
   def terms: Terms[V]
+  def groupedBy: Seq[Term[_]]
   def joins: Seq[Join]
   def filter: Filter
   def sort: Seq[Sort]
@@ -24,6 +25,8 @@ sealed trait Select[V] extends Statement {
 
   def crossJoin(dataSource: DataSource): Select[V]
 
+  def groupBy(terms: Term[_]*): Select[V]
+
   def where(filter: Filter): Select[V]
 
   def sortBy(sort: Sort*): Select[V]
@@ -35,6 +38,7 @@ object Select {
   protected final case class SelectImpl[V](
     dataSource: DataSource,
     terms: Terms[V],
+    groupedBy: Seq[Term[_]] = Seq.empty,
     joins: Seq[Join] = Seq.empty,
     filter: Filter = Filter.Empty,
     sort: Seq[Sort] = Seq.empty,
@@ -46,6 +50,9 @@ object Select {
 
     def take[S2, T2](subQuery: SubQuery[S2, T2]): Select[S2] =
       copy(terms = subQuery.*)
+
+    def groupBy(terms: Term[_]*): Select[V] =
+      copy(groupedBy = terms)
 
     def leftJoin[T <: DataSource](relation: Relation[T]): Select[V] =
       copy(joins = joins :+ LeftJoin(relation, relation.clause))
