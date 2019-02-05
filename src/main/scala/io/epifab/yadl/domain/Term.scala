@@ -26,21 +26,9 @@ final case class Value[T](value: T)(implicit val adapter: FieldAdapter[T]) exten
 }
 
 object Term {
-  implicit class StringTerm(val value: Term[String])
+  // Workaroud for type erasure
   implicit class IntTerm(val value: Term[Int])
   implicit class DoubleTerm(val value: Term[Double])
-
-  implicit class SeqStringTerm(val value: Term[Seq[String]])
-  implicit class SeqIntTerm(val value: Term[Seq[String]])
-  implicit class SeqDoubleTerm(val value: Term[Seq[String]])
-
-  implicit class OptionalStringTerm(val value: Term[Option[String]])
-  implicit class OptionalIntTerm(val value: Term[Option[Int]])
-  implicit class OptionalDoubleTerm(val value: Term[Option[Double]])
-
-  implicit class OptionalSeqStringTerm(val value: Term[Option[Seq[String]]])
-  implicit class OptionalSeqIntTerm(val value: Term[Option[Seq[String]]])
-  implicit class OptionalSeqDoubleTerm(val value: Term[Option[Seq[String]]])
 
   def apply[T](name: String, dataSource: Table[_])(implicit adapter: FieldAdapter[T]): Column[T] =
     Column(name, dataSource)

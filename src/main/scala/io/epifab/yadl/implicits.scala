@@ -1,13 +1,11 @@
 package io.epifab.yadl
 
-import io.epifab.yadl.domain.Filter.Expression.Clause
-import io.epifab.yadl.domain.Filter.Expression.Clause.AnyTerm
-import io.epifab.yadl.domain.Filter.{BinaryExpression, Expression, UniaryExpression}
 import io.epifab.yadl.domain._
 import cats.Applicative
 import cats.implicits._
 
 import scala.language.higherKinds
+import scala.language.implicitConversions
 
 object implicits {
   implicit class ExtendedSelect[F[_], V, C](select: Select[V])(implicit queryRunner: QueryRunner[F], a: Applicative[F]) {
@@ -23,67 +21,45 @@ object implicits {
       queryRunner.run(statement)
   }
 
-  trait ExtendedClause[T] {
-    def clause: Expression.Clause[T]
+  implicit class ExtendedGenericTerm[T](term: Term[T]) {
+    def ===[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      Equals(term, term2)
 
-    def ===(ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.Equal)
+    def !==[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      NotEquals(term, term2)
 
-    def !==(ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.NotEqual)
+    def <[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      LessThan(term, term2)
 
-    def > (ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.GT)
+    def >[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      GreaterThan(term, term2)
 
-    def < (ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.LT)
+    def <=[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      LessThanOrEqual(term, term2)
 
-    def >= (ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.GTE)
+    def >=[U](term2: Term[U])(implicit comparable: Comparable[T, U]): BinaryExpr =
+      GreaterThanOrEqual(term, term2)
 
-    def <= (ec: ExtendedClause[T]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.LTE)
+    def subsetOf[U](term2: Term[U])(implicit canBeSubset: CanBeSubset[T, U]): BinaryExpr =
+      IsSubset(term, term2)
 
-    def in(v: Value[Seq[T]]): Expression =
-      BinaryExpression(clause, AnyTerm(v), Expression.Op.Equal)
+    def supersetOf[U](term2: Term[U])(implicit canBeSuperset: CanBeSuperset[T, U]): BinaryExpr =
+      IsSuperset(term, term2)
+
+    def overlaps[U](term2: Term[U])(implicit canOverlap: CanOverlap[T, U]): BinaryExpr =
+      Overlaps(term, term2)
+
+    def in[U](term2: Term[U])(implicit canBeIncluded: CanBeIncluded[T, U]): BinaryExpr =
+      IsIncluded(term, term2)
   }
 
-  implicit class ExtendedClauseTerm[T](term: io.epifab.yadl.domain.Term[T]) extends ExtendedClause[T] {
-    override val clause = Expression.Clause.Term(term)
-
-    def asc: Sort = AscSort(term)
-    def desc: Sort = DescSort(term)
+  implicit class ExtendedOptionalTerm[T](term: Term[Option[T]]) {
+    def isDefined: BinaryExpr = IsDefined(term)
+    def isNotDefined: BinaryExpr = IsNotDefined(term)
   }
 
-  implicit class ExtendedStringTerm(term: io.epifab.yadl.domain.Term[String]) {
-    def like(ec: ExtendedClause[String]): Expression =
-      BinaryExpression(Expression.Clause.Term(term), ec.clause, Expression.Op.Like)
-  }
-
-  implicit class ExtendedOptionStringTerm(term: io.epifab.yadl.domain.Term[Option[String]]) {
-    def like(ec: ExtendedClause[String]): Expression =
-      BinaryExpression(Expression.Clause.Term(term), ec.clause, Expression.Op.Like)
-  }
-
-  implicit class ExtendedOptionTerm[T](term: io.epifab.yadl.domain.Term[Option[T]]) {
-    def isDefined: Expression =
-      UniaryExpression(Expression.Clause.Term(term), Expression.Op.IsDefined)
-
-    def isNotDefined: Expression =
-      UniaryExpression(Expression.Clause.Term(term), Expression.Op.IsNotDefined)
-  }
-
-  trait ExtendedSeqClause[T] {
-    def clause: Clause[Seq[T]]
-
-    def contains(ec: ExtendedClause[Seq[T]]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.Contains)
-
-    def overlaps(ec: ExtendedClause[Seq[T]]): Expression =
-      BinaryExpression(clause, ec.clause, Expression.Op.Overlaps)
-  }
-
-  implicit class ExtendedClauseTermSeq[T](term: io.epifab.yadl.domain.Term[Seq[T]]) extends ExtendedSeqClause[T] {
-    override def clause: Clause[Seq[T]] = Clause.Term(term)
+  implicit class ExtendedTextLikeTerm[T](term: Term[T])(implicit textLike: TextLike[T]) {
+    def `like`[U](term2: Term[U])(implicit textLike2: TextLike[U]): BinaryExpr =
+      Like(term, term2)
   }
 }

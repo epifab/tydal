@@ -34,7 +34,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.id === Value(id))
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .inRange(0, 1)
       .fetchOne
 
@@ -42,8 +42,8 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     Select
       .from(studentsDS)
       .take(studentsDS.*)
-      .where(studentsDS.interests contains Value(interests))
-      .sortBy(studentsDS.id.asc)
+      .where(studentsDS.interests supersetOf Value(interests))
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudentsByAnyInterest(interests: Seq[Interest]): F[Either[DALError, Seq[Student]]] =
@@ -51,7 +51,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.interests overlaps Value(interests))
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudentByName(name: String): F[Either[DALError, Seq[Student]]] =
@@ -59,7 +59,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.name like Value(name))
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudentByEmail(email: String): F[Either[DALError, Seq[Student]]] =
@@ -67,7 +67,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.email like Value(email))
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudentsWithoutEmail(): F[Either[DALError, Seq[Student]]] =
@@ -75,7 +75,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.email.isNotDefined)
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudents(ids: Int*): F[Either[DALError, Seq[Student]]] =
@@ -83,7 +83,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
       .from(studentsDS)
       .take(studentsDS.*)
       .where(studentsDS.id in Value(ids))
-      .sortBy(studentsDS.id.asc)
+      .sortBy(Asc(studentsDS.id))
       .fetchMany
 
   def findStudentExamStats(id: Int): F[Either[DALError, Option[StudentExams]]] = {

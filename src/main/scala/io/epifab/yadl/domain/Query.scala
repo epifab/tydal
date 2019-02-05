@@ -12,6 +12,7 @@ case class Query(sql: String, params: Seq[Value[_]]) {
   def :++(oq: Option[Query]): Query = oq.map(e => this :++ e).getOrElse(this)
 
   def wrap(before: String, after: String): Query = copy(before + sql + after)
+  def wrap: Query = wrap("(", ")")
 }
 
 object Query {

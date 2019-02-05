@@ -24,7 +24,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .from(examsDS)
       .innerJoin(examsDS.course)
       .where(examsDS.dateTime >= Value(date.atStartOfDay) and examsDS.dateTime < Value(date.plusDays(1).atStartOfDay))
-      .sortBy(examsDS.studentId.asc)
+      .sortBy(Asc(examsDS.studentId))
       .fetchMany
 
   def findStudentsExams(students: Student*): F[Either[DALError, Iterable[(Student, Seq[(Exam, Course)])]]] = {
@@ -32,7 +32,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .from(examsDS)
       .innerJoin(examsDS.course)
       .where(examsDS.studentId in Value(students.map(_.id)))
-      .sortBy(examsDS.course.id.asc)
+      .sortBy(Asc(examsDS.course.id))
       .fetchMany
 
     examsFE.map(_.map(
@@ -51,7 +51,7 @@ trait ExamsRepo[F[_]] extends Repo[F] {
       .take(examsDS.course.*)
       .groupBy(examsDS.course.id, examsDS.course.name)
       .where(examsDS.studentId in Value(students.map(_.id)))
-      .sortBy(examsDS.course.id.asc)
+      .sortBy(Asc(examsDS.course.id))
       .fetchMany
   }
 

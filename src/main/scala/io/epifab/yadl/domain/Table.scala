@@ -3,9 +3,9 @@ package io.epifab.yadl.domain
 import scala.language.implicitConversions
 
 sealed trait DataSource {
-  def on(filter: Filter): Relation[this.type] = Relation(this, filter)
+  def on(filter: BinaryExpr): Relation[this.type] = Relation(this, filter)
 
-  def on(f: this.type => Filter): Relation[this.type] = Relation(this, f(this))
+  def on(f: this.type => BinaryExpr): Relation[this.type] = Relation(this, f(this))
 }
 
 object DataSource {
@@ -24,7 +24,7 @@ trait TableProjection[T, P] extends DataSource {
   def `*`: Terms[P]
 }
 
-case class Relation[+T <: DataSource](dataSource: T, clause: Filter)
+case class Relation[+T <: DataSource](dataSource: T, clause: BinaryExpr)
 
 trait SubQuery[S, T] extends DataSource {
   def select: Select[T]

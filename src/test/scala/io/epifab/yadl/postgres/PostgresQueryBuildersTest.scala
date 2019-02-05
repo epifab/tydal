@@ -138,7 +138,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val query = Select
       .from(students)
       .take(Terms(students.name))
-      .sortBy(students.email.asc, students.id.desc)
+      .sortBy(Asc(students.email), Desc(students.id))
 
     build(query) shouldBe Query(
       "SELECT ds1.name AS ds1__name" +

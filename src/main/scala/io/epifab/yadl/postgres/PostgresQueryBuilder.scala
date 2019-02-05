@@ -21,20 +21,6 @@ class AliasLookup(prefix: String) {
 
 
 class PostgresQueryBuilder(aliasLookup: AliasLookup) {
-  def filterOpBuilder: QueryBuilder[Filter.Expression.Op] = {
-    case Filter.Expression.Op.Equal => Query("=")
-    case Filter.Expression.Op.GT => Query(">")
-    case Filter.Expression.Op.LT => Query("<")
-    case Filter.Expression.Op.GTE => Query(">=")
-    case Filter.Expression.Op.LTE => Query("<=")
-    case Filter.Expression.Op.NotEqual => Query("<>")
-    case Filter.Expression.Op.Like => Query("LIKE")
-    case Filter.Expression.Op.IsDefined => Query("IS NOT NULL")
-    case Filter.Expression.Op.IsNotDefined => Query("IS NULL")
-    case Filter.Expression.Op.Contains => Query("@>")
-    case Filter.Expression.Op.Overlaps => Query("&&")
-  }
-
   def valueBuilder: QueryBuilder[Value[_]] =
     (value: Value[_]) => {
       def toPlaceholder[T](dbType: DbType[T]): String = dbType match {
@@ -78,27 +64,54 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
       Query(aliasLookup(value))
   }
 
-  def filterClauseBuilder: QueryBuilder[Filter.Expression.Clause[_]] = {
-    case Filter.Expression.Clause.Term(term) =>
-      termSrcQueryBuilder(term)
+  def filterExpressionBuilder: QueryBuilder[BinaryExpr] = {
+    case AlwaysTrue =>
+      Query("1 = 1")
 
-    // TODO: Any should be moved to terms and made generic (unary expression)
-    case Filter.Expression.Clause.AnyTerm(values) =>
-      Query("ANY(?)", Seq(values))
-  }
+    case And(left, right) =>
+      filterExpressionBuilder(left) :++ "AND" :++ filterExpressionBuilder(right)
 
-  def filterExpressionBuilder: QueryBuilder[Filter.Expression] = {
-    case Filter.BinaryExpression(left, right, op) =>
-      filterClauseBuilder(left) :++ filterOpBuilder(op) :++ filterClauseBuilder(right)
-    case Filter.UniaryExpression(left, op) =>
-      filterClauseBuilder(left) :++ filterOpBuilder(op)
-  }
+    case Or(left, op) =>
+      (filterExpressionBuilder(left) :++ "OR" :++ filterExpressionBuilder(op)).wrap
 
-  def filterBuilder: QueryBuilder[Filter] = {
-    case e: Filter.Expression => filterExpressionBuilder(e)
-    case Filter.And(f1, f2) => filterBuilder(f1) :++ "AND" :++ filterBuilder(f2)
-    case Filter.Or(f1, f2) => (filterBuilder(f1) :++ "OR" :++ filterBuilder(f2)).wrap("(", ")")
-    case Filter.Empty => Query("1 = 1")
+    case Equals(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ "=" :++ termSrcQueryBuilder(term2)
+
+    case NotEquals(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ "!=" :++ termSrcQueryBuilder(term2)
+
+    case GreaterThan(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ ">" :++ termSrcQueryBuilder(term2)
+
+    case LessThan(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ "<" :++ termSrcQueryBuilder(term2)
+
+    case GreaterThanOrEqual(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ ">=" :++ termSrcQueryBuilder(term2)
+
+    case LessThanOrEqual(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ "<=" :++ termSrcQueryBuilder(term2)
+
+    case Like(term1, term2) =>
+      termSrcQueryBuilder(term1) :++ "LIKE" :++ termSrcQueryBuilder(term2)
+
+    case IsDefined(term) =>
+      termSrcQueryBuilder(term) :++ "IS NOT NULL"
+
+    case IsNotDefined(term) =>
+      termSrcQueryBuilder(term) :++ "IS NULL"
+
+    case IsSuperset(terms1, terms2) =>
+      termSrcQueryBuilder(terms1) :++ "@>" :++ termSrcQueryBuilder(terms2)
+
+    case IsSubset(terms1, terms2) =>
+      termSrcQueryBuilder(terms1) :++ "<@" :+ termSrcQueryBuilder(terms2)
+
+    case Overlaps(terms1, terms2) =>
+      termSrcQueryBuilder(terms1) :++ "&&" :++ termSrcQueryBuilder(terms2)
+
+    case IsIncluded(term, terms) =>
+      termSrcQueryBuilder(term) :++ "= ANY" :+ termSrcQueryBuilder(terms).wrap
   }
 
   def termBuilder: QueryBuilder[Term[_]] =
@@ -110,14 +123,14 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case dataSource: TableProjection[_, _] =>
       Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource.table))
     case dataSource: SubQuery[_, _] =>
-      select(dataSource.select).wrap("(", ")") :++ "AS" :++ aliasLookup(dataSource)
+      select(dataSource.select).wrap :++ "AS" :++ aliasLookup(dataSource)
   }
 
   def joinBuilder: QueryBuilder[Join] = {
     case InnerJoin(source, clauses) =>
-      Query("INNER JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterBuilder(clauses)
+      Query("INNER JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterExpressionBuilder(clauses)
     case LeftJoin(source, clauses) =>
-      Query("LEFT JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterBuilder(clauses)
+      Query("LEFT JOIN") :++ dataSourceWithAliasBuilder(source) :++ "ON" :++ filterExpressionBuilder(clauses)
     case CrossJoin(source) =>
       Query("CROSS JOIN") :++ dataSourceWithAliasBuilder(source)
   }
@@ -125,8 +138,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
   def sortBuilder: QueryBuilder[Sort] =
     (s: Sort) => {
       termSrcQueryBuilder(s.term) :++ (s match {
-        case _: AscSort => Query("ASC")
-        case _: DescSort => Query("DESC")
+        case _: Asc => Query("ASC")
+        case _: Desc => Query("DESC")
       })
     }
 
@@ -141,7 +154,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
         t.joins
           .foldLeft(dataSourceWithAliasBuilder(t.dataSource))((from, join) => from :++ joinBuilder(join)) :++
         Query("WHERE") :++
-        filterBuilder(t.filter) :++
+        filterExpressionBuilder(t.filter) :++
         t.groupedBy
           .map(termSrcQueryBuilder.apply)
           .reduceOption(_ :+ "," :++ _)
@@ -162,12 +175,12 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
         t.columnValues
           .map(colValue => Query(colValue.column.name))
           .reduce(_ :+ "," :++ _)
-          .wrap("(", ")") :++
+          .wrap :++
         Query("VALUES") :++
         t.columnValues
           .map(columnValue => valueBuilder(columnValue.value))
           .reduce(_ :+ ", " :+ _)
-          .wrap("(", ")")
+          .wrap
 
   def update[T]: QueryBuilder[Update[T]] =
     (t: Update[T]) =>
@@ -178,14 +191,14 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
           .map(colValue => Query(colValue.column.name) :++ Query("=") :++ valueBuilder(colValue.value))
           .reduce(_ :+ "," :++ _) :++
         Query("WHERE") :++
-        filterBuilder(t.filter)
+        filterExpressionBuilder(t.filter)
 
   def delete: QueryBuilder[Delete] =
     (t: Delete) =>
       Query("DELETE FROM") :++
         dataSourceWithAliasBuilder(t.table) :++
         Query("WHERE") :++
-        filterBuilder(t.filter)
+        filterExpressionBuilder(t.filter)
 }
 
 

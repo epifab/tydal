@@ -11,7 +11,7 @@ sealed trait Select[V] extends Statement {
   def terms: Terms[V]
   def groupedBy: Seq[Term[_]]
   def joins: Seq[Join]
-  def filter: Filter
+  def filter: BinaryExpr
   def sort: Seq[Sort]
   def limit: Option[Limit]
 
@@ -27,7 +27,7 @@ sealed trait Select[V] extends Statement {
 
   def groupBy(terms: Term[_]*): Select[V]
 
-  def where(filter: Filter): Select[V]
+  def where(filter: BinaryExpr): Select[V]
 
   def sortBy(sort: Sort*): Select[V]
 
@@ -40,7 +40,7 @@ object Select {
     terms: Terms[V],
     groupedBy: Seq[Term[_]] = Seq.empty,
     joins: Seq[Join] = Seq.empty,
-    filter: Filter = Filter.Empty,
+    filter: BinaryExpr = BinaryExpr.empty,
     sort: Seq[Sort] = Seq.empty,
     limit: Option[Limit] = None
   ) extends Select[V] {
@@ -63,7 +63,7 @@ object Select {
     def crossJoin(dataSource: DataSource): Select[V] =
       copy(joins = joins :+ CrossJoin(dataSource))
 
-    def where(filter: Filter): Select[V] =
+    def where(filter: BinaryExpr): Select[V] =
       copy(filter = this.filter and filter)
 
     def sortBy(sort: Sort*): Select[V] =
@@ -111,22 +111,22 @@ object Insert {
 sealed trait Update[T] extends Statement with SideEffect {
   def table: Table[T]
   def values: Seq[ColumnValue[_]]
-  def filter: Filter
+  def filter: BinaryExpr
 
   def set(columnValues: ColumnValue[_]*): Update[T]
   def set(t: T): Update[T]
 
-  def where(filter: Filter): Update[T]
+  def where(filter: BinaryExpr): Update[T]
 }
 
 object Update {
-  protected final case class UpdateImpl[T](table: Table[T], values: Seq[ColumnValue[_]] = Seq.empty, filter: Filter = Filter.Empty) extends Update[T] {
+  protected final case class UpdateImpl[T](table: Table[T], values: Seq[ColumnValue[_]] = Seq.empty, filter: BinaryExpr = BinaryExpr.empty) extends Update[T] {
     def set(columnValues: ColumnValue[_]*): Update[T] =
       copy(values = columnValues)
     def set(t: T): Update[T] =
       copy(values = table.*.values(t))
 
-    def where(filter: Filter): Update[T] =
+    def where(filter: BinaryExpr): Update[T] =
       copy(filter = this.filter and filter)
   }
 
@@ -135,14 +135,14 @@ object Update {
 
 sealed trait Delete extends Statement with SideEffect {
   def table: Table[_]
-  def filter: Filter
+  def filter: BinaryExpr
 
-  def where(filter: Filter): Delete
+  def where(filter: BinaryExpr): Delete
 }
 
 object Delete {
-  protected final case class DeleteImpl(table: Table[_], filter: Filter = Filter.Empty) extends Delete {
-    def where(filter: Filter): Delete =
+  protected final case class DeleteImpl(table: Table[_], filter: BinaryExpr = BinaryExpr.empty) extends Delete {
+    def where(filter: BinaryExpr): Delete =
       copy(filter = this.filter and filter)
   }
 
