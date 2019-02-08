@@ -6,6 +6,89 @@ sealed trait Statement
 
 sealed trait SideEffect
 
+
+object SelectV2 {
+  import shapeless._
+
+  trait DataSource[REPR <: HList] {
+    def `*`: REPR
+  }
+
+  abstract class Table[TERMS <: HList](val tableName: String) extends DataSource[TERMS]
+
+  class Sources[S <: HList](s: S) {
+    def apply[T](implicit finder: Finder[T, S]): T = finder.find(s)
+  }
+
+  sealed trait Select[SOURCES <: HList, TERMS <: HList] extends DataSource[TERMS] {
+    def sources: SOURCES
+  }
+
+  trait EmptySelect extends Select[HNil, HNil] {
+    override def sources: HNil = HNil
+    override def `*`: HNil = HNil
+
+    def from[T <: DataSource[_]](source: T): NonEmptySelect[T :: HNil, HNil] =
+      new NonEmptySelect(source :: HNil, *)
+  }
+
+  object Select extends EmptySelect
+
+  class NonEmptySelect[SOURCES <: HList, TERMS <: HList](val sources: SOURCES, val `*`: TERMS)
+      extends Select[SOURCES, TERMS] {
+    def take[NEW_TERMS <: HList](f: Sources[SOURCES] => NEW_TERMS): NonEmptySelect[SOURCES, NEW_TERMS :: TERMS] =
+      new NonEmptySelect(sources, f(new Sources(sources)) :: *)
+  }
+
+  trait Finder[X, U] {
+    def find(u: U): X
+  }
+
+  object Finder {
+    implicit def headFinder[X, T <: HList]: Finder[X, X :: T] =
+      (u: X :: T) => u.head
+
+    implicit def tailFinder[X, H, T <: HList](implicit finder: Finder[X, T]): Finder[X, H :: T] =
+      (u: H :: T) => finder.find(u.tail)
+  }
+
+
+  //////////////////////////////////////////////////////
+  // examples
+  //////////////////////////////////////////////////////
+
+  trait Alias
+  trait E extends Alias
+  trait S extends Alias
+
+  class Students extends Table[Term[Int] :: Term[String] :: HNil]("students") {
+    def id: Term[Int] = Value(1)
+    def name: Term[String] = Value("John")
+
+    def `*`: Term[Int] :: Term[String] :: HNil = id :: name :: HNil
+  }
+
+  class Exams extends Table[Term[Int] :: Term[String] :: Term[Int] :: HNil]("exams") {
+    def studentId: Term[Int] = Value(1)
+    def courseName: Term[String] = Value("Math")
+    def score: Term[Int] = Value(30)
+
+    def `*`: Term[Int] :: Term[String] :: Term[Int] :: HNil =
+      studentId :: courseName :: score :: HNil
+  }
+
+  val examsSelect: Select[Exams with E :: HNil, (Aggregation[Int, Option[Int]] :: Term[Int] :: HNil) :: HNil] =
+    Select
+      .from(new Exams with E)
+      .take(self => Max(self[Exams with E].score) :: self[Exams with E].studentId :: HNil)
+
+  val studentsSelect: Select[Students with S :: HNil, (Term[Int] :: Term[String] :: HNil) :: HNil] =
+    Select
+      .from(new Students with S)
+      .take(self => self[Students with S].*)
+}
+
+
 sealed trait Select[V] extends Statement {
   def dataSource: DataSource
   def terms: Terms[V]
