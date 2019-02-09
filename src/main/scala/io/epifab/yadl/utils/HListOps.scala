@@ -2,11 +2,11 @@ package io.epifab.yadl.utils
 
 import shapeless.{::, HList, HNil}
 
-private trait Finder[X, U] {
+trait Finder[X, U] {
   def find(u: U): X
 }
 
-private object Finder {
+object Finder {
   implicit def headFinder[X, T <: HList]: Finder[X, X :: T] =
     (u: X :: T) => u.head
 
@@ -14,7 +14,7 @@ private object Finder {
     (u: H :: T) => finder.find(u.tail)
 }
 
-private trait Concat[T, U] {
+trait Concat[T, U] {
   type Out
   def concat(t: T, u: U): Out
 }
