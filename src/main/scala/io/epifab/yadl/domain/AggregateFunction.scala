@@ -1,35 +1,29 @@
 package io.epifab.yadl.domain
 
-import io.epifab.yadl.domain.Term._
-
-import scala.language.implicitConversions
-
 sealed trait AggregateFunction[T, U] {
   def name: String
 }
+
 
 object Avg {
   final private class Avg[T] extends AggregateFunction[T, Option[Double]] {
     override val name: String = "avg"
   }
 
-  def apply(term: IntTerm)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Int, Option[Double]] =
-    Aggregation(term.value, new Avg[Int])(adapter)
-
-  def apply(term: DoubleTerm)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Double, Option[Double]] =
-    Aggregation(term.value, new Avg[Double])(adapter)
+  def apply[T](term: Term[T])(implicit isNumeric: IsNumeric[T], adapter: FieldAdapter[Option[Double]]): Aggregation[T, Option[Double]] =
+    Aggregation(term, new Avg[T])(adapter)
 }
 
 object Sum {
-  final private class Sum[T] extends AggregateFunction[T, Option[T]] {
+  final private class Sum[T, U] extends AggregateFunction[T, Option[U]] {
     override val name: String = "sum"
   }
 
-  def apply(term: IntTerm)(implicit adapter: FieldAdapter[Option[Int]]): Aggregation[Int, Option[Int]] =
-    Term(term.value, new Sum[Int])
+  def apply[T](term: Term[T])(implicit isInteger: IsInteger[T], adapter: FieldAdapter[Option[Int]]): Aggregation[T, Option[Int]] =
+    Aggregation(term, new Sum[T, Int])(adapter)
 
-  def apply(term: DoubleTerm)(implicit adapter: FieldAdapter[Option[Double]]): Aggregation[Double, Option[Double]] =
-    Term(term.value, new Sum[Double])
+  def apply[T](term: Term[T])(implicit isDouble: IsDouble[T], adapter: FieldAdapter[Option[Double]]): Aggregation[T, Option[Double]] =
+    Aggregation(term, new Sum[T, Double])(adapter)
 }
 
 object Count {
