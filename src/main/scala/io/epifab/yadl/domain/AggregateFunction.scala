@@ -4,7 +4,6 @@ sealed trait AggregateFunction[T, U] {
   def name: String
 }
 
-
 object Avg {
   final private class Avg[T] extends AggregateFunction[T, Option[Double]] {
     override val name: String = "avg"
@@ -32,7 +31,7 @@ object Count {
   }
 
   def apply[T](term: Term[T])(implicit adapter: FieldAdapter[Int]): Aggregation[T, Int] =
-    Term(term, new Count[T])
+    Aggregation(term, new Count[T])
 }
 
 object Max {

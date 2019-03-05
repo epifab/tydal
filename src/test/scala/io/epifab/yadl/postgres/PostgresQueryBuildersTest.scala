@@ -242,6 +242,32 @@ class PostgresQueryBuildersTest extends FlatSpec {
     )
   }
 
+  it should "evaluate a distinct" in {
+    val query =
+      Select
+        .from(students)
+        .take(Terms(Distinct(students.name)))
+
+    build(query) shouldBe Query(
+      "SELECT DISTINCT ds1.name AS ds1__name" +
+        " FROM students AS ds1" +
+        " WHERE 1 = 1"
+    )
+  }
+
+  it should "evaluate a count distinct" in {
+    val query =
+      Select
+        .from(students)
+        .take(Terms(Count(Distinct(students.name))))
+
+    build(query) shouldBe Query(
+      "SELECT count(DISTINCT ds1.name) AS count_ds1__name" +
+        " FROM students AS ds1" +
+        " WHERE 1 = 1"
+    )
+  }
+
   it should "evaluate a simple subquery" in {
     val exams = new ExamsSubQuery
 

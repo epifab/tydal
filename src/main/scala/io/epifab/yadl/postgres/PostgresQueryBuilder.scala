@@ -46,6 +46,9 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "." :+ termAliasQueryBuilder(term)
 
+    case Distinct(term) =>
+      Query("DISTINCT") :++ termSrcQueryBuilder(term)
+
     case value: Value[_] =>
       valueBuilder(value)
   }
@@ -59,6 +62,9 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
 
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "__" :+ termAliasQueryBuilder(term)
+
+    case Distinct(term) =>
+      termAliasQueryBuilder(term)
 
     case value: Value[_] =>
       Query(aliasLookup(value))

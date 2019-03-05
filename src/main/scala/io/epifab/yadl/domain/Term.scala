@@ -12,6 +12,10 @@ final case class Column[T](name: String, table: Table[_])(implicit val adapter: 
 final case class Aggregation[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
   extends Term[U]
 
+final case class Distinct[T](term: Term[T]) extends Term[T] {
+  override def adapter: FieldAdapter[T] = term.adapter
+}
+
 final case class SubQueryTerm[U, S, T](term: Term[U], subQuery: SubQuery[S, T]) extends Term[U] {
   override def adapter: FieldAdapter[U] = term.adapter
 }
@@ -26,10 +30,6 @@ final case class Value[T](value: T)(implicit val adapter: FieldAdapter[T]) exten
 }
 
 object Term {
-  // Workaroud for type erasure
-  implicit class IntTerm(val value: Term[Int])
-  implicit class DoubleTerm(val value: Term[Double])
-
   def apply[T](name: String, dataSource: Table[_])(implicit adapter: FieldAdapter[T]): Column[T] =
     Column(name, dataSource)
 
