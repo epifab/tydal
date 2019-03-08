@@ -13,7 +13,7 @@ trait JDBCQueryRunner {
   protected def connection: Connection
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
-    def set[U](index: Int, dbValue: U, dbType: DbType[U]): Any = dbType match {
+    def set[U](index: Int, dbValue: U, dbType: ScalarDbType[U]): Any = dbType match {
       case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
         statement.setObject(index, dbValue)
 
@@ -54,14 +54,14 @@ trait JDBCQueryRunner {
       case IntSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
           "integer",
-          dbValue.map((i: Int) => new Integer(i)).toArray
+          dbValue.map(java.lang.Integer.valueOf(_)).toArray
         )
         statement.setArray(index, array)
 
       case DoubleSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
           "double",
-          dbValue.map(new java.lang.Double(_)).toArray
+          dbValue.map(java.lang.Double.valueOf(_)).toArray
         )
         statement.setArray(index, array)
 
@@ -79,7 +79,7 @@ trait JDBCQueryRunner {
   }
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
-    def get[U](index: Int, dbType: DbType[U]): U = dbType match {
+    def get[U](index: Int, dbType: ScalarDbType[U]): U = dbType match {
       case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
         resultSet.getObject(index).toString
 
@@ -113,7 +113,7 @@ trait JDBCQueryRunner {
         Option(resultSet.getObject(index)).map(_ => get(index, innerType))
     }
 
-    adapter.fromDb(get(index, adapter.dbType))
+    adapter.read(get(index, adapter.dbType))
   }
 
   protected def extractResults[T](select: Select[_], extractor: Extractor[T])(resultSet: ResultSet): Either[ExtractorError, Seq[T]] = {
