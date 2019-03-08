@@ -170,8 +170,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
           .reduceOption(_ :+ "," :++ _)
           .map(sort => Query("ORDER BY") :++ sort) :++
         t.limit.map(limit =>
-          Query("OFFSET") :++ limit.start.toString :++
-            Query("LIMIT") :++ limit.stop.toString)
+          Query("OFFSET") :++ limit.offset.toString :++
+            Query("LIMIT") :++ limit.limit.toString)
   }
 
   def insert[T]: QueryBuilder[Insert[T]] =
