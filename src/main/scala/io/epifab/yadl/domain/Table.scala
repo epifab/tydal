@@ -1,5 +1,7 @@
 package io.epifab.yadl.domain
 
+import shapeless.HList
+
 import scala.language.implicitConversions
 
 sealed trait DataSource {
