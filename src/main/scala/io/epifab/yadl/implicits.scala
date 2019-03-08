@@ -58,8 +58,8 @@ object implicits {
     def isNotDefined: BinaryExpr = IsNotDefined(term)
   }
 
-  implicit class ExtendedTextLikeTerm[T](term: Term[T])(implicit textLike: TextLike[T]) {
-    def `like`[U](term2: Term[U])(implicit textLike2: TextLike[U]): BinaryExpr =
+  implicit class ExtendedTextLikeTerm[T](term: Term[T])(implicit textLike: IsText[T]) {
+    def `like`[U](term2: Term[U])(implicit textLike2: IsText[U]): BinaryExpr =
       Like(term, term2)
   }
 }

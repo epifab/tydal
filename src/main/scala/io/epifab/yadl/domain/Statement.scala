@@ -136,7 +136,7 @@ sealed trait Select[V] extends Statement {
 
   def sortBy(sort: Sort*): Select[V]
 
-  def inRange(start: Int, stop: Int): Select[V]
+  def inRange(offset: Int, limit: Int): Select[V]
 }
 
 object Select {
@@ -174,8 +174,8 @@ object Select {
     def sortBy(sort: Sort*): Select[V] =
       copy(sort = this.sort ++ sort)
 
-    def inRange(start: Int, stop: Int): Select[V] =
-      copy(limit = Some(Limit(start, stop)))
+    def inRange(offset: Int, limit: Int): Select[V] =
+      copy(limit = Some(Limit(offset, limit)))
   }
 
   protected final case class SelectBuilder[V](terms: Terms[V]) {
