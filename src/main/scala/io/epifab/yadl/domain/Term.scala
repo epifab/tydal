@@ -21,7 +21,7 @@ final case class SubQueryTerm[U, S, T](term: Term[U], subQuery: SubQuery[S, T]) 
 }
 
 final case class Value[T](value: T)(implicit val adapter: FieldAdapter[T]) extends Term[T] {
-  lazy val dbValue: adapter.DBTYPE = adapter.toDb(value)
+  lazy val dbValue: adapter.DBTYPE = adapter.write(value)
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case t: Value[T] => t.value == value
