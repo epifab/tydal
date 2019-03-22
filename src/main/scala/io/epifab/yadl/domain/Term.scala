@@ -43,7 +43,7 @@ object Term {
     Aggregation(term, dbFunction)
 }
 
-case class ColumnValue[T](column: Column[T], value: Value[T])
+case class ColumnValue[T](column: Column[T], value: Term[T])
 
 object ColumnValue {
   implicit def apply[T](columnValue: (Column[T], T)): ColumnValue[T] =

@@ -14,16 +14,15 @@ object DataSource {
   implicit def fromRelation[T <: DataSource](relation: Relation[T]): T = relation.dataSource
 }
 
-abstract class Table[S](val tableName: String) extends DataSource {
+abstract class View[S](val _name_ : String) extends DataSource {
+  def `*`: Terms[S]
+}
+
+abstract class Table[S](sourceName: String) extends View[S](sourceName) {
   def `*`: Columns[S]
 
   def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
     Column[T](name, this)
-}
-
-trait TableProjection[T, P] extends DataSource {
-  def table: Table[T]
-  def `*`: Terms[P]
 }
 
 case class Relation[+T <: DataSource](dataSource: T, clause: BinaryExpr)

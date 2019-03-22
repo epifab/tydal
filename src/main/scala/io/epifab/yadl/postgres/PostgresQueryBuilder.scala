@@ -137,10 +137,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     (term: Term[_]) => termSrcQueryBuilder(term) :++ "AS" :++ termAliasQueryBuilder(term)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
-    case dataSource: Table[_] =>
-      Query(dataSource.tableName + " AS " + aliasLookup(dataSource))
-    case dataSource: TableProjection[_, _] =>
-      Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource.table))
+    case dataSource: View[_] =>
+      Query(dataSource._name_ + " AS " + aliasLookup(dataSource))
     case dataSource: SubQuery[_, _] =>
       select(dataSource.select).wrap :++ "AS" :++ aliasLookup(dataSource)
   }
@@ -190,14 +188,14 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
   def insert[T]: QueryBuilder[Insert[T]] =
     (t: Insert[T]) =>
       Query("INSERT INTO") :++
-        t.table.tableName :++
+        t.table._name_ :++
         t.columnValues
           .map(colValue => Query(colValue.column.name))
           .reduce(_ :+ "," :++ _)
           .wrap :++
         Query("VALUES") :++
         t.columnValues
-          .map(columnValue => valueBuilder(columnValue.value))
+          .map(columnValue => termSrcQueryBuilder(columnValue.value))
           .reduce(_ :+ ", " :+ _)
           .wrap
 
@@ -207,7 +205,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
         dataSourceWithAliasBuilder(t.table) :++
         Query("SET") :++
         t.values
-          .map(colValue => Query(colValue.column.name) :++ Query("=") :++ valueBuilder(colValue.value))
+          .map(colValue => Query(colValue.column.name) :++ Query("=") :++ termSrcQueryBuilder(colValue.value))
           .reduce(_ :+ "," :++ _) :++
         Query("WHERE") :++
         filterExpressionBuilder(t.filter)
