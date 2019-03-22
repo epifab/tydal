@@ -43,6 +43,13 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case Aggregation(term, aggregateFunction) =>
       Query(aggregateFunction.name) :+ "(" :+ termSrcQueryBuilder(term) :+ ")"
 
+    case Conversion1(term, conversionFunction) =>
+      termSrcQueryBuilder(term).wrap(s"${conversionFunction.name}(", ")")
+
+    case Conversion2(term1, term2, conversionFunction) =>
+      (termSrcQueryBuilder(term1) :+ "," :++ termSrcQueryBuilder(term2))
+        .wrap(s"${conversionFunction.name}(", ")")
+
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "." :+ termAliasQueryBuilder(term)
 
@@ -59,6 +66,12 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
 
     case Aggregation(term, aggregateFunction) =>
       Query(aggregateFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
+
+    case Conversion1(term, conversionFunction) =>
+      Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
+
+    case Conversion2(term1, term2, conversionFunction) =>
+      Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term1) :+ "_" :+ termAliasQueryBuilder(term2)
 
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "__" :+ termAliasQueryBuilder(term)

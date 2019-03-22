@@ -19,7 +19,7 @@ sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
   type DBTYPE
   def dbType: ScalarDbType[DBTYPE]
 
-  def imap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter[U] =
+  def imap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter.Aux[U, DBTYPE] =
     new FieldAdapter[U] {
       override type DBTYPE = outer.DBTYPE
       override def dbType: ScalarDbType[outer.DBTYPE] = outer.dbType
@@ -30,7 +30,7 @@ sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
       } yield u
     }
 
-  def imap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter[U] = {
+  def imap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter.Aux[U, DBTYPE] = {
     imap[U](
       encode,
       (dbValue: T) => Try(decode(dbValue))
@@ -39,7 +39,7 @@ sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
     )
   }
 
-  def imap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter[U] = {
+  def imap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter.Aux[U, DBTYPE] = {
     imap[U](
       encode,
       (dbValue: T) => decode(dbValue) match {
@@ -156,6 +156,10 @@ object FieldAdapter {
   implicit val double: FieldAdapter.Aux[Double, Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter.Aux[LocalDate, String] = DateFieldAdapter
   implicit val dateTime: FieldAdapter.Aux[LocalDateTime, String] = DateTimeFieldAdapter
+  implicit val point: FieldAdapter.Aux[Point, String] = string.imap(
+    (point: Point) => point.value,
+    (value: String) => Point(value)
+  )
   def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
 

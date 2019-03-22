@@ -6,7 +6,7 @@ import io.epifab.yadl.domain._
 import io.epifab.yadl.examples.Address
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import shapeless.{HNil, ::}
+import shapeless.HNil
 
 class PostgresQueryBuildersTest extends FlatSpec {
   import io.epifab.yadl.examples.Schema._
@@ -300,5 +300,26 @@ class PostgresQueryBuildersTest extends FlatSpec {
         " ON ds2.ds3__student_id = ds1.id" +
         " WHERE 1 = 1"
     )
+  }
+
+  it should "integrate nicely with PostGis" in {
+    val place = new PlaceTable
+
+    val distanceToMe: Term[Option[Double]] =
+      Distance(place.coordinates, MakePoint(Value(0.0), Value(0.0)))
+
+    val query = Select
+      .from(place)
+      .take(Terms(distanceToMe))
+      .where(distanceToMe <= Value(4.0))
+      .sortBy(Asc(distanceToMe))
+
+    build(query) shouldBe Query(
+      "SELECT" +
+        " ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) AS ST_Distance_ds1__coordinates_ST_MakePoint_ds2_ds2" +
+        " FROM place AS ds1" +
+        " WHERE ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) <= ?" +
+        " ORDER BY ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) ASC",
+      List(Value(0.0), Value(0.0), Value(0.0), Value(0.0), Value(4.0), Value(0.0), Value(0.0)))
   }
 }

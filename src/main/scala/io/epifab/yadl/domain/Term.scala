@@ -12,6 +12,12 @@ final case class Column[T](name: String, table: Table[_])(implicit val adapter: 
 final case class Aggregation[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
   extends Term[U]
 
+final case class Conversion1[T, U](term: Term[T], dbFunction: DbFunction1[T, U])(implicit val adapter: FieldAdapter[U])
+  extends Term[U]
+
+final case class Conversion2[T1, T2, U](term1: Term[T1], term2: Term[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val adapter: FieldAdapter[U])
+  extends Term[U]
+
 final case class Distinct[T](term: Term[T]) extends Term[T] {
   override def adapter: FieldAdapter[T] = term.adapter
 }

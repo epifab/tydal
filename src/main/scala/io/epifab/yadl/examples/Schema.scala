@@ -116,6 +116,13 @@ object Schema {
     lazy val student: Relation[StudentsTable] = (new StudentsTable).on(_.id === studentId)
   }
 
+  class PlaceTable extends Table[Place]("place") {
+    val name: Column[String] = column("name")
+    val coordinates: Column[Option[Point]] = column("coordinates")
+
+    override def `*`: Columns[Place] = Columns(name :: coordinates :: HNil)
+  }
+
   object ExamsTable {
     val name = "exams"
   }

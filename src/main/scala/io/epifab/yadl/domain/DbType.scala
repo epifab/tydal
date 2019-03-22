@@ -12,6 +12,7 @@ case object StringDbType extends ScalarDbType[String]
 case object DoubleDbType extends ScalarDbType[Double]
 case object DateDbType extends ScalarDbType[String]
 case object DateTimeDbType extends ScalarDbType[String]
+case object PointDbType extends ScalarDbType[String]
 case class EnumDbType(name: String) extends ScalarDbType[String]
 
 case object IntSeqDbType extends ScalarDbType[Seq[Int]]
