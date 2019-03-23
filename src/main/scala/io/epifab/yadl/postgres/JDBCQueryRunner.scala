@@ -14,7 +14,7 @@ trait JDBCQueryRunner {
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
     def set[U](index: Int, dbValue: U, dbType: ScalarDbType[U]): Any = dbType match {
-      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) | GeometryDbType | GeographyDbType =>
         statement.setObject(index, dbValue)
 
       case IntDbType =>
@@ -22,9 +22,6 @@ trait JDBCQueryRunner {
 
       case DoubleDbType =>
         statement.setDouble(index, dbValue)
-
-      case PointDbType =>
-        statement.setString(index, dbValue)
 
       case StringSeqDbType =>
         val array: java.sql.Array = connection.createArrayOf(
@@ -83,7 +80,7 @@ trait JDBCQueryRunner {
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
     def get[U](index: Int, dbType: ScalarDbType[U]): U = dbType match {
-      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) | GeometryDbType | GeographyDbType =>
         resultSet.getObject(index).toString
 
       case IntDbType =>
@@ -91,9 +88,6 @@ trait JDBCQueryRunner {
 
       case DoubleDbType =>
         resultSet.getDouble(index)
-
-      case PointDbType =>
-        resultSet.getString(index)
 
       case StringSeqDbType | EnumSeqDbType(_) | DateSeqDbType | DateTimeSeqDbType =>
         resultSet.getArray(index)

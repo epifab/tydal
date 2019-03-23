@@ -40,13 +40,16 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case Column(name, table) =>
       Query(aliasLookup(table) + "." + name)
 
+    case cast@ Cast(term) =>
+      termSrcQueryBuilder(term) :+ "::" :+ cast.adapter.dbType.name
+
     case Aggregation(term, aggregateFunction) =>
       Query(aggregateFunction.name) :+ "(" :+ termSrcQueryBuilder(term) :+ ")"
 
-    case Conversion1(term, conversionFunction) =>
+    case Function1(term, conversionFunction) =>
       termSrcQueryBuilder(term).wrap(s"${conversionFunction.name}(", ")")
 
-    case Conversion2(term1, term2, conversionFunction) =>
+    case Function2(term1, term2, conversionFunction) =>
       (termSrcQueryBuilder(term1) :+ "," :++ termSrcQueryBuilder(term2))
         .wrap(s"${conversionFunction.name}(", ")")
 
@@ -64,13 +67,16 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case Column(name, table) =>
       Query(aliasLookup(table) + "__" + name)
 
+    case cast@ Cast(term) =>
+      (termAliasQueryBuilder(term) :+ s"__as_${cast.adapter.dbType.name}").wrap("\"", "\"")
+
     case Aggregation(term, aggregateFunction) =>
       Query(aggregateFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
 
-    case Conversion1(term, conversionFunction) =>
+    case Function1(term, conversionFunction) =>
       Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
 
-    case Conversion2(term1, term2, conversionFunction) =>
+    case Function2(term1, term2, conversionFunction) =>
       Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term1) :+ "_" :+ termAliasQueryBuilder(term2)
 
     case SubQueryTerm(term, subQuery) =>

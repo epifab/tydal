@@ -10,6 +10,8 @@ sealed trait IsDouble[T] extends TypeProps
 sealed trait IsText[T] extends TypeProps
 sealed trait IsDate[T] extends TypeProps
 sealed trait IsDateTime[T] extends TypeProps
+sealed trait IsNullable[T] extends TypeProps
+sealed trait IsNotNullable[T] extends TypeProps
 
 object IsNumeric {
   implicit def int[T](implicit isInteger: IsInteger[T]): IsNumeric[T] = new IsNumeric[T] {}
@@ -39,6 +41,10 @@ object IsDate {
 object IsDateTime {
   implicit val pure: IsDateTime[LocalDateTime] = new IsDateTime[LocalDateTime] {}
   implicit def optional[T](implicit textLike: IsDateTime[T]): IsDateTime[Option[T]] = new IsDateTime[Option[T]] {}
+}
+
+object IsNullable {
+  implicit def pure[T]: IsNullable[Option[T]] = new IsNullable[Option[T]] {}
 }
 
 sealed trait Sortable[T] extends TypeProps

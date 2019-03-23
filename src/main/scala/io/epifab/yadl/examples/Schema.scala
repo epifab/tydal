@@ -118,7 +118,7 @@ object Schema {
 
   class PlaceTable extends Table[Place]("place") {
     val name: Column[String] = column("name")
-    val coordinates: Column[Option[Point]] = column("coordinates")
+    val coordinates: Column[Option[Geometry]] = column("coordinates")
 
     override def `*`: Columns[Place] = Columns(name :: coordinates :: HNil)
   }

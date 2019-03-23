@@ -51,11 +51,6 @@ sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
 
 }
 
-sealed trait FieldGroupAdapter[T] extends DataAdapter[T] {
-  type DBTYPE <: HList
-  def dbType: CompositeDbType[DBTYPE]
-}
-
 abstract class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def write(value: T): DBTYPE = value
@@ -156,9 +151,13 @@ object FieldAdapter {
   implicit val double: FieldAdapter.Aux[Double, Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter.Aux[LocalDate, String] = DateFieldAdapter
   implicit val dateTime: FieldAdapter.Aux[LocalDateTime, String] = DateTimeFieldAdapter
-  implicit val point: FieldAdapter.Aux[Point, String] = string.imap(
-    (point: Point) => point.value,
-    (value: String) => Point(value)
+  implicit val geometry: FieldAdapter.Aux[Geometry, String] = string.imap(
+    (geometry: Geometry) => geometry.value,
+    (value: String) => Geometry(value)
+  )
+  implicit val geography: FieldAdapter.Aux[Geography, String] = string.imap(
+    (geography: Geography) => geography.value,
+    (value: String) => Geography(value)
   )
   def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
@@ -178,26 +177,6 @@ object FieldAdapter {
     new JsonFieldAdapter[T]
 }
 
-object FieldGroupAdapter {
-  implicit val empty: FieldGroupAdapter[HNil] = new FieldGroupAdapter[HNil] {
-    override type DBTYPE = HNil
-    override def dbType: CompositeDbType[HNil] = implicitly
-    override def read(value: HNil): Either[ExtractorError, HNil] = Right(HNil)
-    override def write(value: HNil): HNil = HNil
-  }
-
-  implicit def nonEmpty[H, T <: HList](implicit head: FieldAdapter[H], tail: FieldGroupAdapter[T]): FieldGroupAdapter[H :: T] = new FieldGroupAdapter[H :: T] {
-    override type DBTYPE = head.DBTYPE :: tail.DBTYPE
-    override def dbType: CompositeDbType[head.DBTYPE :: tail.DBTYPE] = CompositeDbType.nonEmpty(head.dbType, tail.dbType)
-
-    override def read(value: DBTYPE): Either[ExtractorError, H :: T] =
-      head.read(value.head).flatMap { h => tail.read(value.tail).map(t => h :: t) }
-    override def write(value: H :: T): DBTYPE =
-      head.write(value.head) :: tail.write(value.tail)
-  }
-}
-
 object DataAdapter {
   implicit def field[T](implicit adapter: FieldAdapter[T]): DataAdapter[T] = adapter
-  implicit def fields[T](implicit adapter: FieldGroupAdapter[T]): DataAdapter[T] = adapter
 }

@@ -4,6 +4,7 @@ import scala.language.implicitConversions
 
 sealed trait Term[T] {
   def adapter: FieldAdapter[T]
+  def as[U](implicit adapter: FieldAdapter[U]): Cast[T, U] = Cast(this)
 }
 
 final case class Column[T](name: String, table: Table[_])(implicit val adapter: FieldAdapter[T])
@@ -12,10 +13,13 @@ final case class Column[T](name: String, table: Table[_])(implicit val adapter: 
 final case class Aggregation[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
   extends Term[U]
 
-final case class Conversion1[T, U](term: Term[T], dbFunction: DbFunction1[T, U])(implicit val adapter: FieldAdapter[U])
+final case class Cast[T, U](term: Term[T])(implicit val adapter: FieldAdapter[U])
   extends Term[U]
 
-final case class Conversion2[T1, T2, U](term1: Term[T1], term2: Term[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val adapter: FieldAdapter[U])
+final case class Function1[T, U](term: Term[T], dbFunction: DbFunction1[T, U])(implicit val adapter: FieldAdapter[U])
+  extends Term[U]
+
+final case class Function2[T1, T2, U](term1: Term[T1], term2: Term[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val adapter: FieldAdapter[U])
   extends Term[U]
 
 final case class Distinct[T](term: Term[T]) extends Term[T] {

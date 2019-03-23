@@ -306,7 +306,10 @@ class PostgresQueryBuildersTest extends FlatSpec {
     val place = new PlaceTable
 
     val distanceToMe: Term[Option[Double]] =
-      Distance(place.coordinates, MakePoint(Value(0.0), Value(0.0)))
+      Distance(
+        place.coordinates.as[Option[Geography]],
+        MakePoint(Value(0.0), Value(0.0)).as[Option[Geography]]
+      )
 
     val query = Select
       .from(place)
@@ -316,7 +319,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     build(query) shouldBe Query(
       "SELECT" +
-        " ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) AS ST_Distance_ds1__coordinates_ST_MakePoint_ds2_ds2" +
+        " ST_Distance(ds1.coordinates::geography, ST_MakePoint(?, ?)::geography) AS \"ST_Distance_ds1__coordinates_ST_MakePoint_ds2_ds2_as_geography\"" +
         " FROM place AS ds1" +
         " WHERE ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) <= ?" +
         " ORDER BY ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) ASC",

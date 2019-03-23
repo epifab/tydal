@@ -2,7 +2,7 @@ package io.epifab.yadl
 
 import java.time.{LocalDate, LocalDateTime}
 
-import io.epifab.yadl.domain.Point
+import io.epifab.yadl.domain.Geometry
 
 package object examples {
   case class Address(postcode: String, line1: String, line2: Option[String])
@@ -28,5 +28,5 @@ package object examples {
     maxScore: Option[Int]
   )
 
-  case class Place(name: String, coordinates: Option[Point])
+  case class Place(name: String, coordinates: Option[Geometry])
 }
