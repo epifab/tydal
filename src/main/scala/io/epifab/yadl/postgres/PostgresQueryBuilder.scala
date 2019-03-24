@@ -64,29 +64,14 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
   }
 
   def termAliasQueryBuilder: QueryBuilder[Term[_]] = {
-    case Column(name, table) =>
-      Query(aliasLookup(table) + "__" + name)
-
-    case cast@ Cast(term) =>
-      (termAliasQueryBuilder(term) :+ s"__as_${cast.adapter.dbType.name}").wrap("\"", "\"")
-
-    case Aggregation(term, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
-
-    case Function1(term, conversionFunction) =>
-      Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
-
-    case Function2(term1, term2, conversionFunction) =>
-      Query(conversionFunction.name) :+ "_" :+ termAliasQueryBuilder(term1) :+ "_" :+ termAliasQueryBuilder(term2)
-
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "__" :+ termAliasQueryBuilder(term)
 
     case Distinct(term) =>
       termAliasQueryBuilder(term)
 
-    case value: Value[_] =>
-      Query(aliasLookup(value))
+    case term =>
+      Query(aliasLookup(term))
   }
 
   def filterExpressionBuilder: QueryBuilder[BinaryExpr] = {

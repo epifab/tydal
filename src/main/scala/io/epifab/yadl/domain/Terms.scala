@@ -3,6 +3,21 @@ package io.epifab.yadl.domain
 import shapeless.{::, Generic, HList, HNil, Lazy}
 import shapeless.syntax.std.tuple._
 
+sealed trait EditableTerms[Output, Container <: HList] {
+  def values(v: Output, terms: Container): Seq[ColumnValue[_]]
+}
+
+object EditableTerms {
+  implicit def hNil: EditableTerms[HNil, HNil] = new EditableTerms[HNil, HNil] {
+    override def values(v: HNil, terms: HNil): Seq[ColumnValue[_]] = Seq.empty
+  }
+
+  implicit def hCons[X, ValueHead <: Term[X], ContainerHead <: Column[X], ValueTail <: HList, ContainerTail <: HList](implicit editableTail: EditableTerms[ValueTail, ContainerTail]): EditableTerms[ValueHead :: ValueTail, ContainerHead :: ContainerTail] = new EditableTerms[ValueHead :: ValueTail, ContainerHead :: ContainerTail] {
+    override def values(values: ValueHead :: ValueTail, terms: ContainerHead :: ContainerTail): Seq[ColumnValue[_]] =
+      new ColumnValue(terms.head, values.head) +: editableTail.values(values.tail, terms.tail)
+  }
+}
+
 trait Terms[Output] { self =>
   type Container
   def container: Container

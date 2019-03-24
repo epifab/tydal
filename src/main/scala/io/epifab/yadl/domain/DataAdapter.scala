@@ -4,7 +4,6 @@ import java.time.{LocalDate, LocalDateTime}
 import java.time.format.DateTimeFormatter
 
 import io.circe.{Decoder, Encoder}
-import shapeless.{::, HList, HNil}
 
 import scala.util.Try
 
@@ -51,7 +50,7 @@ sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
 
 }
 
-abstract class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
+class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def write(value: T): DBTYPE = value
   def read(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
@@ -151,14 +150,17 @@ object FieldAdapter {
   implicit val double: FieldAdapter.Aux[Double, Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter.Aux[LocalDate, String] = DateFieldAdapter
   implicit val dateTime: FieldAdapter.Aux[LocalDateTime, String] = DateTimeFieldAdapter
-  implicit val geometry: FieldAdapter.Aux[Geometry, String] = string.imap(
-    (geometry: Geometry) => geometry.value,
-    (value: String) => Geometry(value)
-  )
-  implicit val geography: FieldAdapter.Aux[Geography, String] = string.imap(
-    (geography: Geography) => geography.value,
-    (value: String) => Geography(value)
-  )
+  implicit val geometry: FieldAdapter.Aux[Geometry, String] =
+    new SimpleFieldAdapter(GeometryDbType).imap(
+      (geometry: Geometry) => geometry.value,
+      (value: String) => Geometry(value)
+    )
+  implicit val geography: FieldAdapter.Aux[Geography, String] =
+    new SimpleFieldAdapter(GeographyDbType).imap(
+      (geography: Geography) => geography.value,
+      (value: String) => Geography(value)
+    )
+
   def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
 

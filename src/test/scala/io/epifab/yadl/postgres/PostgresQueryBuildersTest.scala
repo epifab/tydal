@@ -319,7 +319,7 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     build(query) shouldBe Query(
       "SELECT" +
-        " ST_Distance(ds1.coordinates::geography, ST_MakePoint(?, ?)::geography) AS \"ST_Distance_ds1__coordinates_ST_MakePoint_ds2_ds2_as_geography\"" +
+        " ST_Distance(ds1.coordinates::geography, ST_MakePoint(?, ?)::geography) AS ST_Distance_ds1__coordinates__as_geography_ST_MakePoint_ds2_ds2__as_geography" +
         " FROM place AS ds1" +
         " WHERE ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) <= ?" +
         " ORDER BY ST_Distance(ds1.coordinates, ST_MakePoint(?, ?)) ASC",
