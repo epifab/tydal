@@ -6,7 +6,7 @@ sealed abstract class ScalarDbType[T](val name: String) extends DbType[T]
 
 case object IntDbType extends ScalarDbType[Int]("int")
 case object StringDbType extends ScalarDbType[String]("varchar")
-case object DoubleDbType extends ScalarDbType[Double]("double")
+case object DoubleDbType extends ScalarDbType[Double]("float")
 case object DateDbType extends ScalarDbType[String]("date")
 case object DateTimeDbType extends ScalarDbType[String]("timestamp")
 case object GeometryDbType extends ScalarDbType[String]("geometry")
