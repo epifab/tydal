@@ -66,6 +66,9 @@ object Comparable {
 
   implicit def optionalLeft[T, U](implicit comparable: Comparable[T, U]): Comparable[Option[T], U] =
     new Comparable[Option[T], U] {}
+
+  implicit def numbers[T, U](implicit tIsNumeric: IsNumeric[T], uIsNumberic: IsNumeric[U]): Comparable[T, U] =
+    new Comparable[T, U] {}
 }
 
 sealed trait CanBeSuperset[T, U] extends TypeProps
