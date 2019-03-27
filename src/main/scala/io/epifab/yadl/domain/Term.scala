@@ -7,7 +7,7 @@ sealed trait Term[T] {
   def as[U](implicit adapter: FieldAdapter[U]): Cast[T, U] = Cast(this)
 }
 
-final case class Column[T](name: String, table: Table[_])(implicit val adapter: FieldAdapter[T])
+final case class Column[T](name: String, table: View[_])(implicit val adapter: FieldAdapter[T])
   extends Term[T]
 
 final case class Aggregation[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val adapter: FieldAdapter[U])
@@ -40,7 +40,7 @@ final case class Value[T](value: T)(implicit val adapter: FieldAdapter[T]) exten
 }
 
 object Term {
-  def apply[T](name: String, dataSource: Table[_])(implicit adapter: FieldAdapter[T]): Column[T] =
+  def apply[T](name: String, dataSource: View[_])(implicit adapter: FieldAdapter[T]): Column[T] =
     Column(name, dataSource)
 
   def apply[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U]): Aggregation[T, U] =

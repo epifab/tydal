@@ -16,13 +16,13 @@ object DataSource {
 
 abstract class View[S](val _name_ : String) extends DataSource {
   def `*`: Terms[S]
+
+  def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
+    Column[T](name, this)
 }
 
 abstract class Table[S](sourceName: String) extends View[S](sourceName) {
   def `*`: Columns[S]
-
-  def column[T](name: String)(implicit adapter: FieldAdapter[T]): Column[T] =
-    Column[T](name, this)
 }
 
 case class Relation[+T <: DataSource](dataSource: T, clause: BinaryExpr)
