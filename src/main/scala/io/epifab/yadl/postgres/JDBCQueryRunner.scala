@@ -7,6 +7,7 @@ import io.epifab.yadl.domain._
 import io.epifab.yadl.utils.LoggingSupport
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.util.Try
 
 
 trait JDBCQueryRunner {
@@ -166,6 +167,7 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
         withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
         Left(DriverError(error))
     }
+    finally Try(statement.close())
   }
 
   override def run(update: Statement with SideEffect): Id[Either[DALError, Int]] = {
@@ -181,6 +183,7 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
         withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
         Left(DriverError(error))
     }
+    finally Try(statement.close())
   }
 }
 
@@ -199,6 +202,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
           Left(DriverError(error))
       }
+      finally Try(statement.close())
     }
   }
 
@@ -216,6 +220,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
           Left(DriverError(error))
       }
+      finally Try(statement.close())
     }
   }
 }
