@@ -103,7 +103,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
       termSrcQueryBuilder(term1) :++ "<=" :++ termSrcQueryBuilder(term2)
 
     case Like(term1, term2) =>
-      termSrcQueryBuilder(term1) :++ "LIKE" :++ termSrcQueryBuilder(term2)
+      termSrcQueryBuilder(term1) :++ "ILIKE" :++ termSrcQueryBuilder(term2)
 
     case IsDefined(term) =>
       termSrcQueryBuilder(term) :++ "IS NOT NULL"
