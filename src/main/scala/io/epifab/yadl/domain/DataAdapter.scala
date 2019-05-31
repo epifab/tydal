@@ -98,15 +98,21 @@ class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => E
   override def read(dbValue: String): Either[ExtractorError, T] = decode(dbValue)
 }
 
+object DateFormatter {
+  val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .toFormatter()
+}
+
 object DateFieldAdapter extends FieldAdapter[LocalDate] {
   override type DBTYPE = String
   override def dbType: DateDbType.type = DateDbType
 
   override def write(value: LocalDate): String =
-    java.sql.Date.valueOf(value).toString
+    value.format(DateFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(java.sql.Date.valueOf(dbValue).toLocalDate)
+    Try(LocalDate.parse(dbValue, DateFormatter.formatter))
       .toEither
       .left.map(error => ExtractorError(s"Could not parse date: ${error.getMessage}", error))
 }
