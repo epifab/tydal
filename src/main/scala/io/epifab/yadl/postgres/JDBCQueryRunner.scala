@@ -164,7 +164,7 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
     }
     catch {
       case error: SQLException =>
-        withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
+        withMdc(Map("query" -> query.sql)) { log.error(s"Could not run SQL query: ${query.sql}", error) }
         Left(DriverError(error))
     }
     finally Try(statement.close())

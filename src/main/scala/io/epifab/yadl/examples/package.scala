@@ -1,6 +1,6 @@
 package io.epifab.yadl
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain.Geometry
 
@@ -16,7 +16,13 @@ package object examples {
     interests: Seq[Interest]
   )
 
-  case class Exam(studentId: Int, courseId: Int, score: Int, dateTime: LocalDateTime)
+  case class Exam(
+    studentId: Int,
+    courseId: Int,
+    score: Int,
+    dateTime: LocalDateTime,
+    registrationTime: Option[Instant]
+  )
 
   case class Course(id: Int, name: String)
 

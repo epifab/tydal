@@ -1,6 +1,7 @@
 package io.epifab.yadl.domain
 
 import java.time._
+import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
 import io.circe.{Decoder, Encoder}
 
@@ -121,15 +122,31 @@ object DateFieldAdapter extends FieldAdapter[LocalDate] {
       .left.map(error => ExtractorError(error.getMessage))
 }
 
+object TimestampFormatter {
+  val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .appendLiteral("T")
+    .appendPattern("HH:mm:ss.SSSSSSSSS")
+    .toFormatter()
+
+  val parser: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .appendLiteral(" ")
+    .appendPattern("HH:mm:ss")
+    // optional nanos, with 9, 6 or 3 digits
+    .appendPattern("[.SSSSSSSSS][.SSSSSS][.SSS][.S]")
+    .toFormatter()
+}
+
 object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
   override type DBTYPE = String
   override def dbType: DateTimeDbType.type = DateTimeDbType
 
   override def write(value: LocalDateTime): String =
-    java.sql.Timestamp.valueOf(value).toString
+    value.format(TimestampFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, LocalDateTime] =
-    Try(java.sql.Timestamp.valueOf(dbValue).toLocalDateTime)
+    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser))
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }
@@ -139,10 +156,10 @@ object InstantFieldAdapter extends FieldAdapter[Instant] {
   override def dbType: DateTimeDbType.type = DateTimeDbType
 
   override def write(value: Instant): String =
-    java.sql.Timestamp.from(value).toString
+    LocalDateTime.ofInstant(value, ZoneOffset.UTC).format(TimestampFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, Instant] =
-    Try(java.sql.Timestamp.valueOf(dbValue).toInstant)
+    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser).toInstant(ZoneOffset.UTC))
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }

@@ -90,7 +90,7 @@ trait StudentsRepo[F[_]] extends Repo[F] {
     val stats = new Schema.ExamsStats(new Schema.ExamsTable)
 
     Select
-      .from(stats)
+      .from(stats.table)
       .take(stats.*)
       .groupBy(stats.studentId)
       .where(stats.studentId === Value(id))
