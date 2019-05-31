@@ -112,7 +112,7 @@ object DateFieldAdapter extends FieldAdapter[LocalDate] {
     value.format(DateFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(LocalDate.parse(dbValue, DateFormatter.formatter))
+    Try(LocalDate.parse(dbValue.take(10), DateFormatter.formatter))
       .toEither
       .left.map(error => ExtractorError(s"Could not parse date: ${error.getMessage}", error))
 }
