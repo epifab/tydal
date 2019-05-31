@@ -1,20 +1,19 @@
 package io.epifab.yadl.domain
 
-import java.time.{LocalDate, LocalDateTime}
-import java.time.format.DateTimeFormatter
+import java.time._
 
 import io.circe.{Decoder, Encoder}
 
 import scala.util.Try
 
-sealed trait DataAdapter[T] {
+trait DataAdapter[T] {
   type DBTYPE
   def dbType: DbType[DBTYPE]
   def read(value: DBTYPE): Either[ExtractorError, T]
   def write(value: T): DBTYPE
 }
 
-sealed trait FieldAdapter[T] extends DataAdapter[T] { outer =>
+trait FieldAdapter[T] extends DataAdapter[T] { outer =>
   type DBTYPE
   def dbType: ScalarDbType[DBTYPE]
 
@@ -114,10 +113,10 @@ object DateFieldAdapter extends FieldAdapter[LocalDate] {
   override def dbType: DateDbType.type = DateDbType
 
   override def write(value: LocalDate): String =
-    value.format(DateTimeFormatter.ISO_DATE)
+    java.sql.Date.valueOf(value).toString
 
   override def read(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(LocalDate.parse(dbValue.take(10), DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+    Try(java.sql.Date.valueOf(dbValue).toLocalDate)
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }
@@ -127,10 +126,23 @@ object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
   override def dbType: DateTimeDbType.type = DateTimeDbType
 
   override def write(value: LocalDateTime): String =
-    value.format(DateTimeFormatter.ISO_DATE_TIME)
+    java.sql.Timestamp.valueOf(value).toString
 
   override def read(dbValue: String): Either[ExtractorError, LocalDateTime] =
-    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
+    Try(java.sql.Timestamp.valueOf(dbValue).toLocalDateTime)
+      .toEither
+      .left.map(error => ExtractorError(error.getMessage))
+}
+
+object InstantFieldAdapter extends FieldAdapter[Instant] {
+  override type DBTYPE = String
+  override def dbType: DateTimeDbType.type = DateTimeDbType
+
+  override def write(value: Instant): String =
+    java.sql.Timestamp.from(value).toString
+
+  override def read(dbValue: String): Either[ExtractorError, Instant] =
+    Try(java.sql.Timestamp.valueOf(dbValue).toInstant)
       .toEither
       .left.map(error => ExtractorError(error.getMessage))
 }
@@ -140,6 +152,7 @@ object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFie
 object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
 object DateSeqFieldAdapter extends SeqFieldAdapter[LocalDate, String](DateSeqDbType, DateFieldAdapter)
 object DateTimeSeqFieldAdapter extends SeqFieldAdapter[LocalDateTime, String](DateTimeSeqDbType, DateTimeFieldAdapter)
+object InstantSeqFieldAdapter extends SeqFieldAdapter[Instant, String](DateTimeSeqDbType, InstantFieldAdapter)
 
 
 object FieldAdapter {
@@ -150,6 +163,7 @@ object FieldAdapter {
   implicit val double: FieldAdapter.Aux[Double, Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter.Aux[LocalDate, String] = DateFieldAdapter
   implicit val dateTime: FieldAdapter.Aux[LocalDateTime, String] = DateTimeFieldAdapter
+  implicit val instant: FieldAdapter.Aux[Instant, String] = InstantFieldAdapter
   implicit val geometry: FieldAdapter.Aux[Geometry, String] =
     new SimpleFieldAdapter(GeometryDbType).imap(
       (geometry: Geometry) => geometry.value,
@@ -169,6 +183,7 @@ object FieldAdapter {
   implicit val doubleSeq: FieldAdapter.Aux[Seq[Double], Seq[Double]] = DoubleSeqFieldAdapter
   implicit val dateSeq: FieldAdapter.Aux[Seq[LocalDate], Seq[String]] = DateSeqFieldAdapter
   implicit val dateTimeSeq: FieldAdapter.Aux[Seq[LocalDateTime], Seq[String]] = DateTimeSeqFieldAdapter
+  implicit val instantSeq: FieldAdapter.Aux[Seq[Instant], Seq[String]] = InstantSeqFieldAdapter
   implicit def enumSeq[T](implicit enum: EnumFieldAdapter[T]): FieldAdapter[Seq[T]] =
     new SeqFieldAdapter[T, String](EnumSeqDbType(enum.dbType), enum)
 
