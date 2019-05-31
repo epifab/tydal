@@ -34,20 +34,9 @@ trait FieldAdapter[T] extends DataAdapter[T] { outer =>
       encode,
       (dbValue: T) => Try(decode(dbValue))
         .toEither
-        .left.map(error => ExtractorError(error.getMessage))
+        .left.map(error => ExtractorError(s"Extraction error: ${error.getMessage}", error))
     )
   }
-
-  def imap[U](encode: U => T, decode: T => Option[U])(implicit d1: DummyImplicit, d2: DummyImplicit): FieldAdapter.Aux[U, DBTYPE] = {
-    imap[U](
-      encode,
-      (dbValue: T) => decode(dbValue) match {
-        case Some(value) => Right(value)
-        case None => Left(ExtractorError(s"Could not decode $dbValue"))
-      }
-    )
-  }
-
 }
 
 class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
@@ -99,7 +88,7 @@ class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) ext
 
   override def read(dbValue: String): Either[ExtractorError, T] =
     decode[T](dbValue)
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse Json: ${error.getMessage}", error))
 }
 
 class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => Either[ExtractorError, T]) extends FieldAdapter[T] {
@@ -119,7 +108,7 @@ object DateFieldAdapter extends FieldAdapter[LocalDate] {
   override def read(dbValue: String): Either[ExtractorError, LocalDate] =
     Try(java.sql.Date.valueOf(dbValue).toLocalDate)
       .toEither
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse date: ${error.getMessage}", error))
 }
 
 object TimestampFormatter {
@@ -148,7 +137,7 @@ object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
   override def read(dbValue: String): Either[ExtractorError, LocalDateTime] =
     Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser))
       .toEither
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse timestamp: ${error.getMessage}", error))
 }
 
 object InstantFieldAdapter extends FieldAdapter[Instant] {
@@ -159,9 +148,10 @@ object InstantFieldAdapter extends FieldAdapter[Instant] {
     LocalDateTime.ofInstant(value, ZoneOffset.UTC).format(TimestampFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, Instant] =
-    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser).toInstant(ZoneOffset.UTC))
+    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser))
       .toEither
-      .left.map(error => ExtractorError(error.getMessage))
+      .map(_.toInstant(ZoneOffset.UTC))
+      .left.map(error => ExtractorError(s"Could not parse timestamp: ${error.getMessage}", error))
 }
 
 object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)

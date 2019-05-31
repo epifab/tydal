@@ -165,7 +165,7 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
     catch {
       case error: SQLException =>
         withMdc(Map("query" -> query.sql)) { log.error(s"Could not run SQL query: ${query.sql}", error) }
-        Left(DriverError(error))
+        Left(DriverError(error, query.sql))
     }
     finally Try(statement.close())
   }
@@ -181,7 +181,7 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
     catch {
       case error: SQLException =>
         withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-        Left(DriverError(error))
+        Left(DriverError(error, query.sql))
     }
     finally Try(statement.close())
   }
@@ -200,7 +200,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
       catch {
         case error: SQLException =>
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-          Left(DriverError(error))
+          Left(DriverError(error, query.sql))
       }
       finally Try(statement.close())
     }
@@ -218,7 +218,7 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
       catch {
         case error: SQLException =>
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-          Left(DriverError(error))
+          Left(DriverError(error, query.sql))
       }
       finally Try(statement.close())
     }
