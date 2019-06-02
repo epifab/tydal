@@ -129,7 +129,7 @@ object TimestampFormatter {
     .appendLiteral(" ")
     .appendPattern("HH:mm:ss")
     // optional nanos, with 9, 6 or 3 digits
-    .appendPattern("[.SSSSSSSSS][.SSSSSS][.SSS][.S]")
+    .appendPattern("[.SSSSSSSSS][.SSSSSSSS][.SSSSSSS][.SSSSSS][.SSSSS][.SSSS][.SSS][.SS][.S]")
     .toFormatter()
 }
 
