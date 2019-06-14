@@ -114,7 +114,7 @@ Database type               | Scala type
 `char`, `varchar`, `text`   | `String`
 `int`                       | `Int`
 `float`                     | `Double`
-`date`, `timestamp`         | `LocalDate`, `LocalDateTime` (java.time)
+`date`, `timestamp`         | `LocalDate`, `LocalDateTime`, `Instant` (java.time)
 `enum`                      | Any type `T`
 `arrays`                    | `Seq[T]` where `T` is any of the above
 `json`                      | Any type `T`

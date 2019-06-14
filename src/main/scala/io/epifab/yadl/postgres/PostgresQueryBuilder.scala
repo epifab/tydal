@@ -40,8 +40,18 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     case Column(name, table) =>
       Query(aliasLookup(table) + "." + name)
 
+    case cast@ Cast(term) =>
+      termSrcQueryBuilder(term) :+ "::" :+ cast.adapter.dbType.name
+
     case Aggregation(term, aggregateFunction) =>
       Query(aggregateFunction.name) :+ "(" :+ termSrcQueryBuilder(term) :+ ")"
+
+    case Function1(term, conversionFunction) =>
+      termSrcQueryBuilder(term).wrap(s"${conversionFunction.name}(", ")")
+
+    case Function2(term1, term2, conversionFunction) =>
+      (termSrcQueryBuilder(term1) :+ "," :++ termSrcQueryBuilder(term2))
+        .wrap(s"${conversionFunction.name}(", ")")
 
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "." :+ termAliasQueryBuilder(term)
@@ -54,20 +64,14 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
   }
 
   def termAliasQueryBuilder: QueryBuilder[Term[_]] = {
-    case Column(name, table) =>
-      Query(aliasLookup(table) + "__" + name)
-
-    case Aggregation(term, aggregateFunction) =>
-      Query(aggregateFunction.name) :+ "_" :+ termAliasQueryBuilder(term)
-
     case SubQueryTerm(term, subQuery) =>
       Query(aliasLookup(subQuery)) :+ "__" :+ termAliasQueryBuilder(term)
 
     case Distinct(term) =>
       termAliasQueryBuilder(term)
 
-    case value: Value[_] =>
-      Query(aliasLookup(value))
+    case term =>
+      Query(aliasLookup(term))
   }
 
   def filterExpressionBuilder: QueryBuilder[BinaryExpr] = {
@@ -99,7 +103,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
       termSrcQueryBuilder(term1) :++ "<=" :++ termSrcQueryBuilder(term2)
 
     case Like(term1, term2) =>
-      termSrcQueryBuilder(term1) :++ "LIKE" :++ termSrcQueryBuilder(term2)
+      termSrcQueryBuilder(term1) :++ "ILIKE" :++ termSrcQueryBuilder(term2)
 
     case IsDefined(term) =>
       termSrcQueryBuilder(term) :++ "IS NOT NULL"
@@ -124,10 +128,8 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
     (term: Term[_]) => termSrcQueryBuilder(term) :++ "AS" :++ termAliasQueryBuilder(term)
 
   def dataSourceWithAliasBuilder: QueryBuilder[DataSource] = {
-    case dataSource: Table[_] =>
-      Query(dataSource.tableName + " AS " + aliasLookup(dataSource))
-    case dataSource: TableProjection[_, _] =>
-      Query(dataSource.table.tableName + " AS " + aliasLookup(dataSource.table))
+    case dataSource: View[_] =>
+      Query(dataSource._name_ + " AS " + aliasLookup(dataSource))
     case dataSource: SubQuery[_, _] =>
       select(dataSource.select).wrap :++ "AS" :++ aliasLookup(dataSource)
   }
@@ -170,21 +172,21 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
           .reduceOption(_ :+ "," :++ _)
           .map(sort => Query("ORDER BY") :++ sort) :++
         t.limit.map(limit =>
-          Query("OFFSET") :++ limit.start.toString :++
-            Query("LIMIT") :++ limit.stop.toString)
+          Query("OFFSET") :++ limit.offset.toString :++
+            Query("LIMIT") :++ limit.limit.toString)
   }
 
   def insert[T]: QueryBuilder[Insert[T]] =
     (t: Insert[T]) =>
       Query("INSERT INTO") :++
-        t.table.tableName :++
+        t.table._name_ :++
         t.columnValues
           .map(colValue => Query(colValue.column.name))
           .reduce(_ :+ "," :++ _)
           .wrap :++
         Query("VALUES") :++
         t.columnValues
-          .map(columnValue => valueBuilder(columnValue.value))
+          .map(columnValue => termSrcQueryBuilder(columnValue.value))
           .reduce(_ :+ ", " :+ _)
           .wrap
 
@@ -194,7 +196,7 @@ class PostgresQueryBuilder(aliasLookup: AliasLookup) {
         dataSourceWithAliasBuilder(t.table) :++
         Query("SET") :++
         t.values
-          .map(colValue => Query(colValue.column.name) :++ Query("=") :++ valueBuilder(colValue.value))
+          .map(colValue => Query(colValue.column.name) :++ Query("=") :++ termSrcQueryBuilder(colValue.value))
           .reduce(_ :+ "," :++ _) :++
         Query("WHERE") :++
         filterExpressionBuilder(t.filter)

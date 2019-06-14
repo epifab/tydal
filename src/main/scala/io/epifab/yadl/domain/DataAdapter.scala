@@ -1,31 +1,45 @@
 package io.epifab.yadl.domain
 
-import java.time.{LocalDate, LocalDateTime}
-import java.time.format.DateTimeFormatter
+import java.time._
+import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
 import io.circe.{Decoder, Encoder}
-import shapeless.{::, HList, HNil}
 
 import scala.util.Try
 
-sealed trait DataAdapter[T] {
+trait DataAdapter[T] {
   type DBTYPE
   def dbType: DbType[DBTYPE]
   def read(value: DBTYPE): Either[ExtractorError, T]
   def write(value: T): DBTYPE
 }
 
-sealed trait FieldAdapter[T] extends DataAdapter[T] {
+trait FieldAdapter[T] extends DataAdapter[T] { outer =>
   type DBTYPE
   def dbType: ScalarDbType[DBTYPE]
+
+  def imap[U](encode: U => T, decode: T => Either[ExtractorError, U]): FieldAdapter.Aux[U, DBTYPE] =
+    new FieldAdapter[U] {
+      override type DBTYPE = outer.DBTYPE
+      override def dbType: ScalarDbType[outer.DBTYPE] = outer.dbType
+      override def write(value: U): outer.DBTYPE = outer.write(encode(value))
+      override def read(dbValue: outer.DBTYPE): Either[ExtractorError, U] = for {
+        t <- outer.read(dbValue)
+        u <- decode(t)
+      } yield u
+    }
+
+  def imap[U](encode: U => T, decode: T => U)(implicit d1: DummyImplicit): FieldAdapter.Aux[U, DBTYPE] = {
+    imap[U](
+      encode,
+      (dbValue: T) => Try(decode(dbValue))
+        .toEither
+        .left.map(error => ExtractorError(s"Extraction error: ${error.getMessage}", error))
+    )
+  }
 }
 
-sealed trait FieldsAdapter[T] extends DataAdapter[T] {
-  type DBTYPE <: HList
-  def dbType: CompositeDbType[DBTYPE]
-}
-
-abstract class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
+class SimpleFieldAdapter[T](override val dbType: ScalarDbType[T]) extends FieldAdapter[T] {
   type DBTYPE = T
   def write(value: T): DBTYPE = value
   def read(dbValue: DBTYPE): Either[ExtractorError, T] = Right(dbValue)
@@ -74,7 +88,7 @@ class JsonFieldAdapter[T](implicit decoder: Decoder[T], encoder: Encoder[T]) ext
 
   override def read(dbValue: String): Either[ExtractorError, T] =
     decode[T](dbValue)
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse Json: ${error.getMessage}", error))
 }
 
 class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => Either[ExtractorError, T]) extends FieldAdapter[T] {
@@ -84,17 +98,39 @@ class EnumFieldAdapter[T](name: String, encode: T => String, decode: String => E
   override def read(dbValue: String): Either[ExtractorError, T] = decode(dbValue)
 }
 
+object DateFormatter {
+  val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .toFormatter()
+}
+
 object DateFieldAdapter extends FieldAdapter[LocalDate] {
   override type DBTYPE = String
   override def dbType: DateDbType.type = DateDbType
 
   override def write(value: LocalDate): String =
-    value.format(DateTimeFormatter.ISO_DATE)
+    value.format(DateFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, LocalDate] =
-    Try(LocalDate.parse(dbValue.take(10), DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+    Try(LocalDate.parse(dbValue.take(10), DateFormatter.formatter))
       .toEither
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse date: ${error.getMessage}", error))
+}
+
+object TimestampFormatter {
+  val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .appendLiteral("T")
+    .appendPattern("HH:mm:ss.SSSSSSSSS")
+    .toFormatter()
+
+  val parser: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .appendPattern("yyyy-MM-dd")
+    .appendLiteral(" ")
+    .appendPattern("HH:mm:ss")
+    // optional nanos, with 9, 6 or 3 digits
+    .appendPattern("[.SSSSSSSSS][.SSSSSSSS][.SSSSSSS][.SSSSSS][.SSSSS][.SSSS][.SSS][.SS][.S]")
+    .toFormatter()
 }
 
 object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
@@ -102,12 +138,26 @@ object DateTimeFieldAdapter extends FieldAdapter[LocalDateTime] {
   override def dbType: DateTimeDbType.type = DateTimeDbType
 
   override def write(value: LocalDateTime): String =
-    value.format(DateTimeFormatter.ISO_DATE_TIME)
+    value.format(TimestampFormatter.formatter)
 
   override def read(dbValue: String): Either[ExtractorError, LocalDateTime] =
-    Try(LocalDateTime.parse(dbValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")))
+    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser))
       .toEither
-      .left.map(error => ExtractorError(error.getMessage))
+      .left.map(error => ExtractorError(s"Could not parse timestamp: ${error.getMessage}", error))
+}
+
+object InstantFieldAdapter extends FieldAdapter[Instant] {
+  override type DBTYPE = String
+  override def dbType: DateTimeDbType.type = DateTimeDbType
+
+  override def write(value: Instant): String =
+    LocalDateTime.ofInstant(value, ZoneOffset.UTC).format(TimestampFormatter.formatter)
+
+  override def read(dbValue: String): Either[ExtractorError, Instant] =
+    Try(LocalDateTime.parse(dbValue, TimestampFormatter.parser))
+      .toEither
+      .map(_.toInstant(ZoneOffset.UTC))
+      .left.map(error => ExtractorError(s"Could not parse timestamp: ${error.getMessage}", error))
 }
 
 object StringSeqFieldAdapter extends SeqFieldAdapter[String, String](StringSeqDbType, StringFieldAdapter)
@@ -115,6 +165,7 @@ object IntSeqFieldAdapter extends SeqFieldAdapter[Int, Int](IntSeqDbType, IntFie
 object DoubleSeqFieldAdapter extends SeqFieldAdapter[Double, Double](DoubleSeqDbType, DoubleFieldAdapter)
 object DateSeqFieldAdapter extends SeqFieldAdapter[LocalDate, String](DateSeqDbType, DateFieldAdapter)
 object DateTimeSeqFieldAdapter extends SeqFieldAdapter[LocalDateTime, String](DateTimeSeqDbType, DateTimeFieldAdapter)
+object InstantSeqFieldAdapter extends SeqFieldAdapter[Instant, String](DateTimeSeqDbType, InstantFieldAdapter)
 
 
 object FieldAdapter {
@@ -125,6 +176,18 @@ object FieldAdapter {
   implicit val double: FieldAdapter.Aux[Double, Double] = DoubleFieldAdapter
   implicit val date: FieldAdapter.Aux[LocalDate, String] = DateFieldAdapter
   implicit val dateTime: FieldAdapter.Aux[LocalDateTime, String] = DateTimeFieldAdapter
+  implicit val instant: FieldAdapter.Aux[Instant, String] = InstantFieldAdapter
+  implicit val geometry: FieldAdapter.Aux[Geometry, String] =
+    new SimpleFieldAdapter(GeometryDbType).imap(
+      (geometry: Geometry) => geometry.value,
+      (value: String) => Geometry(value)
+    )
+  implicit val geography: FieldAdapter.Aux[Geography, String] =
+    new SimpleFieldAdapter(GeographyDbType).imap(
+      (geography: Geography) => geography.value,
+      (value: String) => Geography(value)
+    )
+
   def enum[T](name: String, encode: T => String, decode: String => T): EnumFieldAdapter[T] =
     new EnumFieldAdapter[T](name, encode, v => Right(decode(v)))
 
@@ -133,6 +196,7 @@ object FieldAdapter {
   implicit val doubleSeq: FieldAdapter.Aux[Seq[Double], Seq[Double]] = DoubleSeqFieldAdapter
   implicit val dateSeq: FieldAdapter.Aux[Seq[LocalDate], Seq[String]] = DateSeqFieldAdapter
   implicit val dateTimeSeq: FieldAdapter.Aux[Seq[LocalDateTime], Seq[String]] = DateTimeSeqFieldAdapter
+  implicit val instantSeq: FieldAdapter.Aux[Seq[Instant], Seq[String]] = InstantSeqFieldAdapter
   implicit def enumSeq[T](implicit enum: EnumFieldAdapter[T]): FieldAdapter[Seq[T]] =
     new SeqFieldAdapter[T, String](EnumSeqDbType(enum.dbType), enum)
 
@@ -143,26 +207,6 @@ object FieldAdapter {
     new JsonFieldAdapter[T]
 }
 
-object FieldsAdapter {
-  implicit val empty: FieldsAdapter[HNil] = new FieldsAdapter[HNil] {
-    override type DBTYPE = HNil
-    override def dbType: CompositeDbType[HNil] = implicitly
-    override def read(value: HNil): Either[ExtractorError, HNil] = Right(HNil)
-    override def write(value: HNil): HNil = HNil
-  }
-
-  implicit def nonEmpty[H, T <: HList](implicit head: FieldAdapter[H], tail: FieldsAdapter[T]): FieldsAdapter[H :: T] = new FieldsAdapter[H :: T] {
-    override type DBTYPE = head.DBTYPE :: tail.DBTYPE
-    override def dbType: CompositeDbType[head.DBTYPE :: tail.DBTYPE] = CompositeDbType.nonEmpty(head.dbType, tail.dbType)
-
-    override def read(value: DBTYPE): Either[ExtractorError, H :: T] =
-      head.read(value.head).flatMap { h => tail.read(value.tail).map(t => h :: t) }
-    override def write(value: H :: T): DBTYPE =
-      head.write(value.head) :: tail.write(value.tail)
-  }
-}
-
 object DataAdapter {
   implicit def field[T](implicit adapter: FieldAdapter[T]): DataAdapter[T] = adapter
-  implicit def fields[T](implicit adapter: FieldsAdapter[T]): DataAdapter[T] = adapter
 }

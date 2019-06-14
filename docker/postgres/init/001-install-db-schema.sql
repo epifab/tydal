@@ -14,6 +14,7 @@ create table exams(
   course_id int,
   score int,
   exam_timestamp timestamp without time zone,
+  registration_timestamp timestamp without time zone,
   primary key (student_id, course_id)
 );
 

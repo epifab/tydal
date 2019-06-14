@@ -1,0 +1,29 @@
+version: '3'
+services:
+  app:
+    build: .
+    command: sbt test
+    working_dir: /home/root/code
+    volumes:
+      - .:/home/root/code
+      - $HOME/.ivy2:/home/root/.ivy2
+      - $HOME/.sbt:/home/root/.sbt
+    links:
+      - postgres:postgres.local
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://root:p4ssw0rd@postgres.local:5432/yadl
+      POSTGRES_SSL: "false"
+
+  postgres:
+    build: ./docker/postgres
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d/
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: p4ssw0rd
+      POSTGRES_DB: yadl

@@ -1,10 +1,9 @@
 package io.epifab.yadl.examples
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
-import io.epifab.yadl.postgres
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import shapeless._
@@ -20,9 +19,14 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq(Interest.Music))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
-  val exam1 = Exam(studentId = 1, courseId = 1, 24, LocalDateTime.of(2018, 3, 8, 9, 5, 6, 0))
-  val exam2 = Exam(studentId = 2, courseId = 1, 29, LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0))
-  val exam3 = Exam(studentId = 2, courseId = 2, 30, LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0))
+
+  private val marchThe8th: LocalDateTime = LocalDateTime.of(2018, 3, 8, 9, 5, 6, 0)
+  private val novemberThe22nd3PM: LocalDateTime = LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0)
+  private val novemberThe22nd5PM: LocalDateTime = LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0)
+
+  val exam1 = Exam(studentId = 1, courseId = 1, 24, marchThe8th, Some(marchThe8th.withNano(123456000).toInstant(ZoneOffset.UTC)))
+  val exam2 = Exam(studentId = 2, courseId = 1, 29, novemberThe22nd3PM, Some(novemberThe22nd3PM.withNano(123456000).toInstant(ZoneOffset.UTC)))
+  val exam3 = Exam(studentId = 2, courseId = 2, 30, novemberThe22nd5PM, None)
 
   val student1Exams: Seq[(Exam, Course)] = Seq(exam1 -> course1)
   val student2Exams: Seq[(Exam, Course)] = Seq(exam2 -> course1, exam3 -> course2)

@@ -7,6 +7,7 @@ import io.epifab.yadl.domain._
 import io.epifab.yadl.utils.LoggingSupport
 
 import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.util.Try
 
 
 trait JDBCQueryRunner {
@@ -14,7 +15,7 @@ trait JDBCQueryRunner {
 
   private def setParameter[T](statement: PreparedStatement, index: Integer, value: Value[T]): Unit = {
     def set[U](index: Int, dbValue: U, dbType: ScalarDbType[U]): Any = dbType match {
-      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) | GeometryDbType | GeographyDbType =>
         statement.setObject(index, dbValue)
 
       case IntDbType =>
@@ -80,7 +81,7 @@ trait JDBCQueryRunner {
 
   private def getColumn[T](resultSet: ResultSet, index: Int)(implicit adapter: FieldAdapter[T]): Either[ExtractorError, T] = {
     def get[U](index: Int, dbType: ScalarDbType[U]): U = dbType match {
-      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) =>
+      case StringDbType | DateDbType | DateTimeDbType | JsonDbType | EnumDbType(_) | GeometryDbType | GeographyDbType =>
         resultSet.getObject(index).toString
 
       case IntDbType =>
@@ -163,9 +164,10 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
     }
     catch {
       case error: SQLException =>
-        withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-        Left(DriverError(error))
+        withMdc(Map("query" -> query.sql)) { log.error(s"Could not run SQL query: ${query.sql}", error) }
+        Left(DriverError(error, query.sql))
     }
+    finally Try(statement.close())
   }
 
   override def run(update: Statement with SideEffect): Id[Either[DALError, Int]] = {
@@ -179,8 +181,9 @@ class SyncQueryRunner(protected val connection: Connection, queryBuilder: QueryB
     catch {
       case error: SQLException =>
         withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-        Left(DriverError(error))
+        Left(DriverError(error, query.sql))
     }
+    finally Try(statement.close())
   }
 }
 
@@ -197,8 +200,9 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
       catch {
         case error: SQLException =>
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-          Left(DriverError(error))
+          Left(DriverError(error, query.sql))
       }
+      finally Try(statement.close())
     }
   }
 
@@ -214,8 +218,9 @@ class AsyncPostgresQueryRunner(protected val connection: Connection, queryBuilde
       catch {
         case error: SQLException =>
           withMdc(Map("query" -> query.sql)) { log.error("Could not run SQL query", error) }
-          Left(DriverError(error))
+          Left(DriverError(error, query.sql))
       }
+      finally Try(statement.close())
     }
   }
 }

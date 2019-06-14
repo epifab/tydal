@@ -1,6 +1,6 @@
 package io.epifab.yadl.examples
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime}
 
 import io.epifab.yadl.domain._
 import io.epifab.yadl.implicits._
@@ -42,7 +42,7 @@ object Adapters {
 object Schema {
   import Adapters._
 
-  class ExamsStats(override val table: ExamsTable) extends TableProjection[Exam, StudentExams] {
+  class ExamsStats(val table: ExamsTable) {
     val studentId: Column[Int] = table.studentId
     val examsCount: Term[Int] = Count(table.courseId)
     val avgScore: Term[Option[Double]] = Avg(table.score)
@@ -102,18 +102,27 @@ object Schema {
     val courseId: Column[Int] = column("course_id")
     val score: Column[Int] = column("score")
     val dateTime: Column[LocalDateTime] = column("exam_timestamp")
+    val registrationTime: Column[Option[Instant]] = column("registration_timestamp")
 
     override val `*`: Columns[Exam] = Columns(
       studentId ::
       courseId ::
       score ::
       dateTime ::
+      registrationTime ::
       HNil
     )
 
     lazy val course: Relation[CoursesTable] = (new CoursesTable).on(_.id === courseId)
 
     lazy val student: Relation[StudentsTable] = (new StudentsTable).on(_.id === studentId)
+  }
+
+  class PlaceTable extends Table[Place]("place") {
+    val name: Column[String] = column("name")
+    val coordinates: Column[Option[Geometry]] = column("coordinates")
+
+    override def `*`: Columns[Place] = Columns(name :: coordinates :: HNil)
   }
 
   object ExamsTable {

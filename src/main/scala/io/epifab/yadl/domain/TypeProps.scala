@@ -10,6 +10,8 @@ sealed trait IsDouble[T] extends TypeProps
 sealed trait IsText[T] extends TypeProps
 sealed trait IsDate[T] extends TypeProps
 sealed trait IsDateTime[T] extends TypeProps
+sealed trait IsNullable[T] extends TypeProps
+sealed trait IsNotNullable[T] extends TypeProps
 
 object IsNumeric {
   implicit def int[T](implicit isInteger: IsInteger[T]): IsNumeric[T] = new IsNumeric[T] {}
@@ -41,6 +43,10 @@ object IsDateTime {
   implicit def optional[T](implicit textLike: IsDateTime[T]): IsDateTime[Option[T]] = new IsDateTime[Option[T]] {}
 }
 
+object IsNullable {
+  implicit def pure[T]: IsNullable[Option[T]] = new IsNullable[Option[T]] {}
+}
+
 sealed trait Sortable[T] extends TypeProps
 
 object Sortable {
@@ -60,6 +66,9 @@ object Comparable {
 
   implicit def optionalLeft[T, U](implicit comparable: Comparable[T, U]): Comparable[Option[T], U] =
     new Comparable[Option[T], U] {}
+
+  implicit def numbers[T, U](implicit tIsNumeric: IsNumeric[T], uIsNumberic: IsNumeric[U]): Comparable[T, U] =
+    new Comparable[T, U] {}
 }
 
 sealed trait CanBeSuperset[T, U] extends TypeProps
