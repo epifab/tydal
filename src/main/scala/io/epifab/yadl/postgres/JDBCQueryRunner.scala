@@ -137,7 +137,7 @@ trait JDBCQueryRunner {
       results += extractor.extract(row)
     }
 
-    firstLeftOrRights(results)
+    firstLeftOrRights(results.toSeq)
   }
 
   protected def preparedStatement(query: Query): PreparedStatement = {
