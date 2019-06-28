@@ -12,16 +12,23 @@ object SelectV2 {
   import io.epifab.yadl.implicits._
   import shapeless.{::, HList, HNil}
 
+  trait Alias[A]
+
+  type AS[T <: DataSource[_], A] = T with Alias[A]
+
   trait DataSource[TERMS <: HList] {
     def `*`: TERMS
-    def on(clause: this.type => BinaryExpr): Join[TERMS, this.type] = new Join(this, clause(this))
+
+    def on(clause: this.type => BinaryExpr): Join[this.type] =
+      new Join(this, clause(this))
+
+    def as[A]: this.type with Alias[A] =
+      this.asInstanceOf[this.type with Alias[A]]
   }
 
   abstract class Table[TERMS <: HList](val tableName: String) extends DataSource[TERMS]
 
-  class Join[TERMS <: HList, +DS <: DataSource[TERMS]](val dataSource: DS, filter: BinaryExpr) extends DataSource[TERMS] {
-    def `*`: TERMS = dataSource.*
-  }
+  class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
   class SubQuery[SOURCES <: HList, TERMS <: HList](val select: Select[SOURCES, TERMS]) extends DataSource[TERMS] {
     def `*`: TERMS = select.terms
@@ -32,26 +39,46 @@ object SelectV2 {
     def terms: TERMS
   }
 
+  trait DataSourceFinder[X, U] {
+    def find(u: U): X
+  }
+
+  object DataSourceFinder {
+    implicit def joinedFinder[X <: DataSource[_], T <: HList]: DataSourceFinder[X, Join[X] :: T] =
+      (u: Join[X] :: T) => u.head.dataSource
+
+    implicit def headFinder[X, T <: HList]: DataSourceFinder[X, X :: T] =
+      (u: X :: T) => u.head
+
+    implicit def tailFinder[X, H, T <: HList](implicit finder: DataSourceFinder[X, T]): DataSourceFinder[X, H :: T] =
+      (u: H :: T) => finder.find(u.tail)
+  }
+
+  class DataSourceContext[SOURCES <: HList](sources: SOURCES) {
+    def get[X](implicit dataSourceFinder: DataSourceFinder[X, SOURCES]): X =
+      dataSourceFinder.find(sources)
+  }
+
   trait EmptySelect extends Select[HNil, HNil] {
     override def sources: HNil = HNil
     override def terms: HNil = HNil
 
-    def from[T <: DataSource[_]](source: T): NonEmptySelect[T :: HNil, HNil] =
+    def from[T <: DataSource[_] with Alias[_]](source: T): NonEmptySelect[T :: HNil, HNil] =
       new NonEmptySelect(source :: HNil, terms)
   }
 
   class NonEmptySelect[SOURCES <: HList, TERMS <: HList](val sources: SOURCES, val terms: TERMS)
       extends Select[SOURCES, TERMS] {
     def take[NEW_TERMS <: HList]
-        (f: SOURCES => NEW_TERMS):
+        (f: DataSourceContext[SOURCES] => NEW_TERMS):
         NonEmptySelect[SOURCES, NEW_TERMS] =
-      new NonEmptySelect(sources, f(sources))
+      new NonEmptySelect(sources, f(new DataSourceContext(sources)))
 
-    def join[JOIN_TERMS <: HList, NEW_SOURCE <: DataSource[JOIN_TERMS], SOURCE_RESULTS <: HList]
-        (f: SOURCES => Join[JOIN_TERMS, NEW_SOURCE])
-        (implicit appender: Appender.Aux[SOURCES, Join[JOIN_TERMS, NEW_SOURCE], SOURCE_RESULTS]):
+    def join[NEW_SOURCE <: DataSource[_] with Alias[_], SOURCE_RESULTS <: HList]
+        (f: DataSourceContext[SOURCES] => Join[NEW_SOURCE])
+        (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
         NonEmptySelect[SOURCE_RESULTS, TERMS] =
-      new NonEmptySelect(appender.append(sources, f(sources)), terms)
+      new NonEmptySelect(appender.append(sources, f(new DataSourceContext(sources))), terms)
   }
 
   object Select extends EmptySelect
@@ -60,14 +87,15 @@ object SelectV2 {
   // examples
   //////////////////////////////////////////////////////
 
-  import language.implicitConversions
-  implicit def joinToDataSource[TERMS <: HList, DS <: DataSource[TERMS]](join: Join[TERMS, DS]): DS = join.dataSource
-
   class Students extends Table[Term[Int] :: Term[String] :: HNil]("students") {
     val id: Term[Int] = Value(1)
     val name: Term[String] = Value("John")
 
     val `*`: Term[Int] :: Term[String] :: HNil = id :: name :: HNil
+  }
+
+  object Students {
+    def as[T]: Students AS T = (new Students).as[T]
   }
 
   class Exams extends Table[Term[Int] :: Term[Int] :: Term[Int] :: HNil]("exams") {
@@ -79,7 +107,11 @@ object SelectV2 {
       studentId :: courseId :: score :: HNil
   }
 
-  class Course extends Table[Term[Int] :: Term[String] :: HNil]("courses") {
+  object Exams {
+    def as[T]: Exams AS T = (new Exams).as[T]
+  }
+
+  class Courses extends Table[Term[Int] :: Term[String] :: HNil]("courses") {
     val id: Term[Int] = Value(1)
     val name: Term[String] = Value("Math")
 
@@ -87,27 +119,28 @@ object SelectV2 {
       id :: name :: HNil
   }
 
-  val examsSelect: Select[Exams :: HNil, Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
+  object Courses {
+    def as[T]: Courses AS T = (new Courses).as[T]
+  }
+
+  val examsSelect: Select[AS[Exams, "e"] :: HNil, Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
     Select
-      .from(new Exams)
-      .take { case exams :: HNil => exams.studentId :: Max(exams.score) :: HNil }
+      .from(Exams.as["e"])
+      .take(ctx => ctx.get[Exams AS "e"].studentId :: Max(ctx.get[Exams AS "e"].score) :: HNil)
 
   class ExamsSubQuery extends SubQuery(examsSelect) {
     val (id: Term[Int], score: Aggregation[Int, Option[Int]]) = select.terms.tupled
   }
 
-  trait Alias
-  trait S1 extends Alias
-  trait E1 extends Alias
-
-  val studentsSelect: Select[Students :: Join[Term[Int] :: Aggregation[Int, Option[Int]] :: HNil, ExamsSubQuery] :: Join[Term[Int] :: Term[String] :: HNil, Course] :: HNil, Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
+  val studentsSelect: Select[Students with Alias["s"] :: Join[ExamsSubQuery with Alias["e"]] :: Join[Courses with Alias["c"]] :: HNil, Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
     Select
-      .from(new Students)
-      .join { case students :: HNil =>
-        (new ExamsSubQuery).on(_.id === students.id) }
-      .join { case _ :: exams :: HNil =>
-        (new Course).on(_.id === exams.id) }
-      .take { case students :: exams :: course :: HNil => students.* ++ course.* ++ exams.* }
+      .from(Students.as["s"])
+      .join(ctx => (new ExamsSubQuery).as["e"].on(_.id === ctx.get[Students AS "s"].id))
+      .join(ctx => Courses.as["c"].on(_.id === ctx.get[ExamsSubQuery AS "e"].id))
+      .take(ctx =>
+        ctx.get[Students AS "s"].* ++
+          ctx.get[Courses AS "c"].* ++
+          ctx.get[ExamsSubQuery AS "e"].*)
 }
 
 
