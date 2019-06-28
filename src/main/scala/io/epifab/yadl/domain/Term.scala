@@ -4,7 +4,7 @@ import scala.language.implicitConversions
 
 sealed trait Term[T] {
   def adapter: FieldAdapter[T]
-  def as[U](implicit adapter: FieldAdapter[U]): Cast[T, U] = Cast(this)
+  def castTo[U](implicit adapter: FieldAdapter[U]): Cast[T, U] = Cast(this)
 }
 
 final case class Column[T](name: String, table: View[_])(implicit val adapter: FieldAdapter[T])

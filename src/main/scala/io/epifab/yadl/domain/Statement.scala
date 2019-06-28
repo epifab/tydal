@@ -30,13 +30,13 @@ object SelectV2 {
 
   class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
-  class SubQuery[SOURCES <: HList, TERMS <: HList](val select: Select[SOURCES, TERMS]) extends DataSource[TERMS] {
+  class SubQuery[TERMS <: HList, SOURCES <: HList](val select: Select[TERMS, SOURCES]) extends DataSource[TERMS] {
     def `*`: TERMS = select.terms
   }
 
-  sealed trait Select[SOURCES <: HList, TERMS <: HList] {
-    def sources: SOURCES
+  sealed trait Select[TERMS <: HList, SOURCES <: HList] {
     def terms: TERMS
+    def sources: SOURCES
   }
 
   trait DataSourceFinder[X, U] {
@@ -60,25 +60,25 @@ object SelectV2 {
   }
 
   trait EmptySelect extends Select[HNil, HNil] {
-    override def sources: HNil = HNil
     override def terms: HNil = HNil
+    override def sources: HNil = HNil
 
-    def from[T <: DataSource[_] with Alias[_]](source: T): NonEmptySelect[T :: HNil, HNil] =
-      new NonEmptySelect(source :: HNil, terms)
+    def from[T <: DataSource[_] with Alias[_]](source: T): NonEmptySelect[HNil, T :: HNil] =
+      new NonEmptySelect(terms, source :: HNil)
   }
 
-  class NonEmptySelect[SOURCES <: HList, TERMS <: HList](val sources: SOURCES, val terms: TERMS)
-      extends Select[SOURCES, TERMS] {
+  class NonEmptySelect[TERMS <: HList, SOURCES <: HList](val terms: TERMS, val sources: SOURCES)
+      extends Select[TERMS, SOURCES] {
     def take[NEW_TERMS <: HList]
         (f: DataSourceContext[SOURCES] => NEW_TERMS):
-        NonEmptySelect[SOURCES, NEW_TERMS] =
-      new NonEmptySelect(sources, f(new DataSourceContext(sources)))
+        NonEmptySelect[NEW_TERMS, SOURCES] =
+      new NonEmptySelect(f(new DataSourceContext(sources)), sources)
 
     def join[NEW_SOURCE <: DataSource[_] with Alias[_], SOURCE_RESULTS <: HList]
         (f: DataSourceContext[SOURCES] => Join[NEW_SOURCE])
         (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
-        NonEmptySelect[SOURCE_RESULTS, TERMS] =
-      new NonEmptySelect(appender.append(sources, f(new DataSourceContext(sources))), terms)
+        NonEmptySelect[TERMS, SOURCE_RESULTS] =
+      new NonEmptySelect(terms, appender.append(sources, f(new DataSourceContext(sources))))
   }
 
   object Select extends EmptySelect
@@ -123,7 +123,7 @@ object SelectV2 {
     def as[T]: Courses AS T = (new Courses).as[T]
   }
 
-  val examsSelect: Select[AS[Exams, "e"] :: HNil, Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
+  val examsSelect: Select[Term[Int] :: Aggregation[Int, Option[Int]] :: HNil, AS[Exams, "e"] :: HNil] =
     Select
       .from(Exams.as["e"])
       .take(ctx => ctx.get[Exams AS "e"].studentId :: Max(ctx.get[Exams AS "e"].score) :: HNil)
@@ -132,15 +132,15 @@ object SelectV2 {
     val (id: Term[Int], score: Aggregation[Int, Option[Int]]) = select.terms.tupled
   }
 
-  val studentsSelect: Select[Students with Alias["s"] :: Join[ExamsSubQuery with Alias["e"]] :: Join[Courses with Alias["c"]] :: HNil, Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: Term[Int] :: Aggregation[Int, Option[Int]] :: HNil] =
+  val studentsSelect: Select[Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: Term[Int] :: Aggregation[Int, Option[Int]] :: HNil, Students with Alias["s"] :: Join[ExamsSubQuery with Alias["e"]] :: Join[Courses with Alias["c"]] :: HNil] =
     Select
       .from(Students.as["s"])
       .join(ctx => (new ExamsSubQuery).as["e"].on(_.id === ctx.get[Students AS "s"].id))
       .join(ctx => Courses.as["c"].on(_.id === ctx.get[ExamsSubQuery AS "e"].id))
       .take(ctx =>
         ctx.get[Students AS "s"].* ++
-          ctx.get[Courses AS "c"].* ++
-          ctx.get[ExamsSubQuery AS "e"].*)
+        ctx.get[Courses AS "c"].* ++
+        ctx.get[ExamsSubQuery AS "e"].*)
 }
 
 

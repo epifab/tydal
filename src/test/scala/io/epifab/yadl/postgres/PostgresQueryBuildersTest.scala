@@ -307,8 +307,8 @@ class PostgresQueryBuildersTest extends FlatSpec {
 
     val distanceToMe: Term[Option[Double]] =
       Distance(
-        place.coordinates.as[Option[Geography]],
-        MakePoint(Value(0.0), Value(0.0)).as[Option[Geography]]
+        place.coordinates.castTo[Option[Geography]],
+        MakePoint(Value(0.0), Value(0.0)).castTo[Option[Geography]]
       )
 
     val query = Select
