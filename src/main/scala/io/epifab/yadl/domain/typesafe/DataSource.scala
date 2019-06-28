@@ -47,10 +47,13 @@ trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
     placeHolderFinder.find(placeholders)
 }
 
-sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, SOURCES <: HList] extends SelectContext[PLACEHOLDERS, SOURCES] {
+sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, SOURCES <: HList]
+    extends SelectContext[PLACEHOLDERS, SOURCES] with DataSource[TERMS] {
   def placeholders: PLACEHOLDERS
   def terms: TERMS
   def sources: SOURCES
+
+  def `*`: TERMS = terms
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil] {

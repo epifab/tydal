@@ -56,4 +56,7 @@ object Example {
         ctx.dataSource[Courses AS "c"].*
       )
       .where(ctx => ctx.dataSource[Students AS "s"].id === ctx.placeholder[Int, "studentId"])
+
+  Select.from(Students.as["s"])
+    .join(ctx => examsSelect.as["xx"].on(_.dataSource[Exams AS "e"].studentId === ctx.dataSource[Students AS "s"].id))
 }
