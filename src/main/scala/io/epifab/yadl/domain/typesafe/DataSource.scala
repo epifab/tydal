@@ -40,11 +40,11 @@ trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
   def placeholders: PLACEHOLDERS
   def sources: SOURCES
 
-  def get[X](implicit dataSourceFinder: DataSourceFinder[X, SOURCES]): X =
+  def dataSource[X](implicit dataSourceFinder: DataSourceFinder[X, SOURCES]): X =
     dataSourceFinder.find(sources)
 
-  def placeholder[X](implicit dataSourceFinder: Finder[X, PLACEHOLDERS]): X =
-    dataSourceFinder.find(placeholders)
+  def placeholder[X, A](implicit placeHolderFinder: Finder[Placeholder[X] with Alias[A], PLACEHOLDERS]): Placeholder[X] with Alias[A] =
+    placeHolderFinder.find(placeholders)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, SOURCES <: HList] extends SelectContext[PLACEHOLDERS, SOURCES] {
@@ -63,7 +63,7 @@ trait EmptySelect extends Select[HNil, HNil, HNil] {
 }
 
 class NonEmptySelect[PLACEHOLDERS <: HList, TERMS <: HList, SOURCES <: HList]
-    (val placeholders: PLACEHOLDERS, val terms: TERMS, val sources: SOURCES) extends Select[PLACEHOLDERS, TERMS, SOURCES] {
+    (val placeholders: PLACEHOLDERS, val terms: TERMS, val sources: SOURCES, val where: BinaryExpr = BinaryExpr.empty) extends Select[PLACEHOLDERS, TERMS, SOURCES] {
 
   def take[NEW_TERMS <: HList]
     (f: SelectContext[PLACEHOLDERS, SOURCES] => NEW_TERMS):
@@ -78,6 +78,9 @@ class NonEmptySelect[PLACEHOLDERS <: HList, TERMS <: HList, SOURCES <: HList]
 
   def withPlaceholder[T, U](implicit fieldAdapter: FieldAdapter[T]): NonEmptySelect[(Placeholder[T] with Alias[U]) :: PLACEHOLDERS, TERMS, SOURCES] =
     new NonEmptySelect(new Placeholder[T].as[U] :: placeholders, terms, sources)
+
+  def where(f: SelectContext[PLACEHOLDERS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, TERMS, SOURCES] =
+    new NonEmptySelect(placeholders, terms, sources, where and f(this))
 }
 
 object Select extends EmptySelect

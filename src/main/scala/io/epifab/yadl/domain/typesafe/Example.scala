@@ -43,16 +43,17 @@ object Example {
   val examsSelect: Select[HNil, Term[Int] :: Aggregation[Int, Option[Int]] :: HNil, AS[Exams, "e"] :: HNil] =
     Select
       .from(Exams.as["e"])
-      .take(ctx => ctx.get[Exams AS "e"].studentId :: Max(ctx.get[Exams AS "e"].score) :: HNil)
+      .take(ctx => ctx.dataSource[Exams AS "e"].studentId :: Max(ctx.dataSource[Exams AS "e"].score) :: HNil)
 
   val studentsSelect: Select[Placeholder[Int] with Alias["studentId"] :: HNil, Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: HNil, Students with Alias["s"] :: Join[Exams with Alias["e"]] :: Join[Courses with Alias["c"]] :: HNil] =
     Select
       .from(Students.as["s"])
       .withPlaceholder[Int, "studentId"]
-      .join(ctx => Exams.as["e"].on(_.studentId === ctx.get[Students AS "s"].id))
-      .join(ctx => Courses.as["c"].on(_.id === ctx.get[Exams AS "e"].courseId))
+      .join(ctx => Exams.as["e"].on(_.studentId === ctx.dataSource[Students AS "s"].id))
+      .join(ctx => Courses.as["c"].on(_.id === ctx.dataSource[Exams AS "e"].courseId))
       .take(ctx =>
-        ctx.get[Students AS "s"].* ++
-        ctx.get[Courses AS "c"].*
+        ctx.dataSource[Students AS "s"].* ++
+        ctx.dataSource[Courses AS "c"].*
       )
+      .where(ctx => ctx.dataSource[Students AS "s"].id === ctx.placeholder[Int, "studentId"])
 }
