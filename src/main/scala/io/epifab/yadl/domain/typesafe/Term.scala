@@ -1,7 +1,7 @@
 package io.epifab.yadl.domain.typesafe
 
 import io.epifab.yadl.domain.{DbFunction1, DbFunction2, FieldAdapter}
-import shapeless.HList
+import shapeless.{::, HList, HNil}
 
 sealed trait Term[T] extends Taggable {
   def adapter: FieldAdapter[T]
@@ -33,4 +33,24 @@ object Term {
 
   def apply[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldAdapter[U]): Aggregation[T, U] =
     Aggregation(term, dbFunction)
+}
+
+trait Terms[X] {
+  def get[DS <: DataSource[_ <: HList]](ds: DS): X
+}
+
+object Terms {
+  implicit val hNil: Terms[HNil] = new Terms[HNil] {
+    override def get[DS <: DataSource[_ <: HList]](ds: DS): HNil = HNil
+  }
+
+  implicit def hCons[HT, HA <: String, T <: HList]
+    (implicit
+     tailTerms: Terms[T],
+     fieldAdapter: FieldAdapter[HT],
+     valueOf: ValueOf[HA]): Terms[(Term[HT] AS HA) :: T] = new Terms[(Term[HT] AS HA) :: T] {
+
+    override def get[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Alias[HA]) :: T =
+      new Column[HT](valueOf.value, ds).as[HA] :: tailTerms.get(ds)
+  }
 }

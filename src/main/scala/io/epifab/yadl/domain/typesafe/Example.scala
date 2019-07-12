@@ -1,62 +1,77 @@
 package io.epifab.yadl.domain.typesafe
 
 import Implicits._
-import shapeless.{HNil, ::}
+import shapeless.{::, HNil}
 
 object Example {
-  class Students extends Table[Term[Int] :: Term[String] :: HNil]("students") {
-    val id: Term[Int] = term("id")
-    val name: Term[String] = term("name")
-
-    val `*`: Term[Int] :: Term[String] :: HNil = id :: name :: HNil
+  class Students extends Table[
+    "students",
+      (Term[Int] AS "id") ::
+      (Term[String] AS "name") ::
+      HNil
+  ] {
+    def id: Term[Int] AS "id" = *.select[Term[Int] AS "id"]
+    def name: Term[String] AS "name" = *.select[Term[String] AS "name"]
   }
 
   object Students {
     def as[T]: Students AS T = (new Students).as[T]
   }
 
-  class Exams extends Table[Term[Int] :: Term[Int] :: Term[Int] :: HNil]("exams") {
-    val studentId: Term[Int] = term("student_id")
-    val courseId: Term[Int] = term("course_id")
-    val score: Term[Int] = term("score")
-
-    val `*`: Term[Int] :: Term[Int] :: Term[Int] :: HNil =
-      studentId :: courseId :: score :: HNil
+  class Exams extends Table[
+    "exams",
+      (Term[Int] AS "student_id") ::
+      (Term[Int] AS "course_id") ::
+      (Term[Int] AS "score") ::
+      HNil
+  ] {
+    val studentId: Term[Int] AS "student_id" = *.select[Term[Int] AS "student_id"]
+    val courseId: Term[Int] AS "course_id" = *.select[Term[Int] AS "course_id"]
+    val score: Term[Int] AS "score" = *.select[Term[Int] AS "score"]
   }
 
   object Exams {
     def as[T]: Exams AS T = (new Exams).as[T]
   }
 
-  class Courses extends Table[Term[Int] :: Term[String] :: HNil]("courses") {
-    val id: Term[Int] = term("id")
-    val name: Term[String] = term("name")
-
-    val `*`: Term[Int] :: Term[String] :: HNil =
-      id :: name :: HNil
+  class Courses extends Table[
+    "courses",
+      (Term[Int] AS "id") ::
+      (Term[String] AS "name") ::
+      HNil
+  ] {
+    def id: Term[Int] AS "id" = *.select[Term[Int] AS "id"]
+    def name: Term[String] AS "name" = *.select[Term[String] AS "name"]
   }
 
   object Courses {
     def as[T]: Courses AS T = (new Courses).as[T]
   }
 
-  val examsSelect: Select[HNil, Term[Int] :: Aggregation[Int, Option[Int]] :: HNil, AS[Exams, "e"] :: HNil] =
-    Select
-      .from(Exams.as["e"])
-      .take(ctx => ctx.dataSource[Exams AS "e"].studentId :: Max(ctx.dataSource[Exams AS "e"].score) :: HNil)
+  type MaxScoreSubQuery[E, C] = Select[HNil, AS[Exams, E] :: Aggregation[Int, Option[Int]] with Alias["max_score"] :: Aggregation[Int, Option[Int]] with Alias["course_id"] :: HNil, Term[Int] with Alias["student_id"] :: HNil, AS[Exams, E] :: HNil]
 
-  val studentsSelect: Select[Placeholder[Int] with Alias["studentId"] :: HNil, Term[Int] :: Term[String] :: Term[Int] :: Term[String] :: HNil, Students with Alias["s"] :: Join[Exams with Alias["e"]] :: Join[Courses with Alias["c"]] :: HNil] =
+  def maxScoreSubQuery[A, E, C]: MaxScoreSubQuery[E, C] with Alias[A] =
+    Select
+      .from(Exams.as[E])
+      .groupBy(ctx => ctx.source[Exams AS E].term[Term[Int] AS "student_id"] :: HNil)
+      .take(ctx => ctx.source[Exams AS E] ::
+        Max(ctx.source[Exams AS E].term[Term[Int] AS "score"]).as["max_score"] ::
+        Min(ctx.source[Exams AS E].term[Term[Int] AS "course_id"]).as["course_id"] ::
+        HNil)
+      .as[A]
+
+  val studentsSelect =
     Select
       .from(Students.as["s"])
-      .withPlaceholder[Int, "studentId"]
-      .join(ctx => Exams.as["e"].on(_.studentId === ctx.dataSource[Students AS "s"].id))
-      .join(ctx => Courses.as["c"].on(_.id === ctx.dataSource[Exams AS "e"].courseId))
+      .join(ctx => maxScoreSubQuery["maxScore", "ee", "cc"]
+        .on(_.source[Exams AS "ee"].studentId === ctx.source[Students AS "s"].id))
+      .join(ctx => Courses.as["c"].on(_.id ===
+        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].term[Aggregation[Int, Option[Int]] AS "course_id"]))
       .take(ctx =>
-        ctx.dataSource[Students AS "s"].* ++
-        ctx.dataSource[Courses AS "c"].*
+        ctx.source[Students AS "s"].* ::
+        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].* ::
+        ctx.source[Courses AS "c"].*
       )
-      .where(ctx => ctx.dataSource[Students AS "s"].id === ctx.placeholder[Int, "studentId"])
-
-  Select.from(Students.as["s"])
-    .join(ctx => examsSelect.as["xx"].on(_.dataSource[Exams AS "e"].studentId === ctx.dataSource[Students AS "s"].id))
+      .withPlaceholder[Int, "studentId"]
+      .where(ctx => ctx.source[Students AS "s"].id === ctx.placeholder[Placeholder[Int] AS "studentId"])
 }
