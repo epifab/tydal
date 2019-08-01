@@ -1,8 +1,7 @@
 package io.epifab.yadl.domain.typesafe
 
 import io.epifab.yadl.domain.FieldAdapter
-import io.epifab.yadl.domain.typesafe.DataSource.DataSourceFinder
-import io.epifab.yadl.utils.{AliasFinder, Appender, Finder}
+import io.epifab.yadl.utils.{AliasFinder, Appender}
 import shapeless.{::, HList, HNil}
 
 class PartiallyAppliedFinder[ALIAS, HAYSTACK](haystack: HAYSTACK) {
@@ -63,13 +62,8 @@ trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
   def placeholders: PLACEHOLDERS
   def sources: SOURCES
 
-  def placeholder[X](implicit finder: Finder[X, PLACEHOLDERS]): X =
-    finder.find(placeholders)
-
-  def source[X](implicit dataSourceFinder: DataSourceFinder[X, SOURCES]): X =
-    dataSourceFinder.find(sources)
-
-  def byAlias[ALIAS] = new PartiallyAppliedFinder[ALIAS, SOURCES](sources)
+  def placeholder[A] = new PartiallyAppliedFinder[A, PLACEHOLDERS](placeholders)
+  def source[A] = new PartiallyAppliedFinder[A, SOURCES](sources)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SOURCES <: HList]

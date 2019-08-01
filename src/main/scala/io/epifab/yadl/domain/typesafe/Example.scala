@@ -50,28 +50,27 @@ object Example {
 
   type MaxScoreSubQuery[E, C] = Select[HNil, AS[Exams, E] :: Aggregation[Int, Option[Int]] with Alias["max_score"] :: Aggregation[Int, Option[Int]] with Alias["course_id"] :: HNil, Term[Int] with Alias["student_id"] :: HNil, AS[Exams, E] :: HNil]
 
-  def maxScoreSubQuery[A, E, C]: MaxScoreSubQuery[E, C] with Alias[A] =
+  def maxScoreSubQuery[E, C]: MaxScoreSubQuery[E, C] =
     Select
       .from(Exams.as[E])
-      .groupBy(ctx => ctx.source[Exams AS E].field["student_id"].get :: HNil)
-      .take(ctx => ctx.source[Exams AS E] ::
-        Max(ctx.source[Exams AS E].field["score"].get).as["max_score"] ::
-        Min(ctx.source[Exams AS E].field["course_id"].get).as["course_id"] ::
+      .groupBy(ctx => ctx.source[E].get.field["student_id"].get :: HNil)
+      .take(ctx => ctx.source[E].get ::
+        Max(ctx.source[E].get.field["score"].get).as["max_score"] ::
+        Min(ctx.source[E].get.field["course_id"].get).as["course_id"] ::
         HNil)
-      .as[A]
 
   val studentsSelect =
     Select
       .from(Students.as["s"])
-      .join(ctx => maxScoreSubQuery["maxScore", "ee", "cc"]
-        .on(_.source[Exams AS "ee"].field["student_id"].get === ctx.source[Students AS "s"].id))
+      .join(ctx => maxScoreSubQuery["ee", "cc"].as["ms"]
+        .on(_.source["ee"].get.field["student_id"].get === ctx.source["s"].get.id))
       .join(ctx => Courses.as["c"].on(_.id ===
-        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].field["course_id"].get))
+        ctx.source["ms"].get.field["course_id"].get))
       .take(ctx =>
-        ctx.source[Students AS "s"].* ::
-        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].* ::
-        ctx.source[Courses AS "c"].*
+        ctx.source["s"].get.* ::
+        ctx.source["ms"].get.* ::
+        ctx.source["c"].get.*
       )
       .withPlaceholder[Int, "studentId"]
-      .where(ctx => ctx.source[Students AS "s"].id === ctx.placeholder[Placeholder[Int] AS "studentId"])
+      .where(ctx => ctx.source["s"].get.id === ctx.placeholder["studentId"].get)
 }
