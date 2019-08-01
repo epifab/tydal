@@ -1,9 +1,14 @@
 package io.epifab.yadl.domain.typesafe
 
-import io.epifab.yadl.domain.typesafe.DataSource.DataSourceFinder
 import io.epifab.yadl.domain.FieldAdapter
-import io.epifab.yadl.utils.{Appender, Concat, Finder}
+import io.epifab.yadl.domain.typesafe.DataSource.DataSourceFinder
+import io.epifab.yadl.utils.{AliasFinder, Appender, Finder}
 import shapeless.{::, HList, HNil}
+
+class PartiallyAppliedFinder[ALIAS, HAYSTACK](haystack: HAYSTACK) {
+  def get[X](implicit finder: AliasFinder[ALIAS, X, HAYSTACK]): X AS ALIAS =
+    finder.find(haystack)
+}
 
 object DataSource {
   trait DataSourceFinder[X, U] {
@@ -40,14 +45,14 @@ object DataSource {
 trait DataSource[TERMS <: HList] extends Taggable {
   def `*`: TERMS
 
-  def term[X](implicit finder: Finder[X, TERMS]): X =
-    finder.find(*)
+  def field[ALIAS] = new PartiallyAppliedFinder[ALIAS, TERMS](*)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
     new Join(this, clause(this))
 }
 
-abstract class Table[NAME <: String, TERMS <: HList](implicit valueOf: ValueOf[NAME], terms: Terms[TERMS]) extends DataSource[TERMS] {
+abstract class Table[NAME <: String, TERMS <: HList](implicit valueOf: ValueOf[NAME], terms: Terms[TERMS])
+    extends DataSource[TERMS] {
   def tableName: String = valueOf.value
   def `*`: TERMS = terms.get(this)
 }
@@ -63,6 +68,8 @@ trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
 
   def source[X](implicit dataSourceFinder: DataSourceFinder[X, SOURCES]): X =
     dataSourceFinder.find(sources)
+
+  def byAlias[ALIAS] = new PartiallyAppliedFinder[ALIAS, SOURCES](sources)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SOURCES <: HList]

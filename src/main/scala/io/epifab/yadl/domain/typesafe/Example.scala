@@ -1,6 +1,6 @@
 package io.epifab.yadl.domain.typesafe
 
-import Implicits._
+import io.epifab.yadl.domain.typesafe.Implicits._
 import shapeless.{::, HNil}
 
 object Example {
@@ -10,8 +10,8 @@ object Example {
       (Term[String] AS "name") ::
       HNil
   ] {
-    def id: Term[Int] AS "id" = *.select[Term[Int] AS "id"]
-    def name: Term[String] AS "name" = *.select[Term[String] AS "name"]
+    def id = field["id"].get
+    def name = field["name"].get
   }
 
   object Students {
@@ -25,9 +25,9 @@ object Example {
       (Term[Int] AS "score") ::
       HNil
   ] {
-    val studentId: Term[Int] AS "student_id" = *.select[Term[Int] AS "student_id"]
-    val courseId: Term[Int] AS "course_id" = *.select[Term[Int] AS "course_id"]
-    val score: Term[Int] AS "score" = *.select[Term[Int] AS "score"]
+    def studentId = field["student_id"].get
+    def courseId = field["course_id"].get
+    def score = field["score"].get
   }
 
   object Exams {
@@ -40,8 +40,8 @@ object Example {
       (Term[String] AS "name") ::
       HNil
   ] {
-    def id: Term[Int] AS "id" = *.select[Term[Int] AS "id"]
-    def name: Term[String] AS "name" = *.select[Term[String] AS "name"]
+    def id = field["id"].get
+    def name = field["name"].get
   }
 
   object Courses {
@@ -53,10 +53,10 @@ object Example {
   def maxScoreSubQuery[A, E, C]: MaxScoreSubQuery[E, C] with Alias[A] =
     Select
       .from(Exams.as[E])
-      .groupBy(ctx => ctx.source[Exams AS E].term[Term[Int] AS "student_id"] :: HNil)
+      .groupBy(ctx => ctx.source[Exams AS E].field["student_id"].get :: HNil)
       .take(ctx => ctx.source[Exams AS E] ::
-        Max(ctx.source[Exams AS E].term[Term[Int] AS "score"]).as["max_score"] ::
-        Min(ctx.source[Exams AS E].term[Term[Int] AS "course_id"]).as["course_id"] ::
+        Max(ctx.source[Exams AS E].field["score"].get).as["max_score"] ::
+        Min(ctx.source[Exams AS E].field["course_id"].get).as["course_id"] ::
         HNil)
       .as[A]
 
@@ -64,9 +64,9 @@ object Example {
     Select
       .from(Students.as["s"])
       .join(ctx => maxScoreSubQuery["maxScore", "ee", "cc"]
-        .on(_.source[Exams AS "ee"].studentId === ctx.source[Students AS "s"].id))
+        .on(_.source[Exams AS "ee"].field["student_id"].get === ctx.source[Students AS "s"].id))
       .join(ctx => Courses.as["c"].on(_.id ===
-        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].term[Aggregation[Int, Option[Int]] AS "course_id"]))
+        ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].field["course_id"].get))
       .take(ctx =>
         ctx.source[Students AS "s"].* ::
         ctx.source[MaxScoreSubQuery["ee", "cc"] AS "maxScore"].* ::
