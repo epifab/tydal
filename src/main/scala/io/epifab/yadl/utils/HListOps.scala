@@ -3,21 +3,6 @@ package io.epifab.yadl.utils
 import io.epifab.yadl.domain.typesafe.{AS, Alias, DataSource, Join}
 import shapeless.{::, HList, HNil, Lazy}
 
-trait AliasFinder[ALIAS, X, HAYSTACK] {
-  def find(u: HAYSTACK): X AS ALIAS
-}
-
-object AliasFinder {
-  implicit def dataSourceFinder[ALIAS, X <: DataSource[_], T <: HList]: AliasFinder[ALIAS, X, Join[X AS ALIAS] :: T] =
-    (u: Join[X AS ALIAS] :: T) => u.head.dataSource
-
-  implicit def headFinder[ALIAS, X, T <: HList]: AliasFinder[ALIAS, X, (X AS ALIAS) :: T] =
-    (u: (X AS ALIAS) :: T) => u.head
-
-  implicit def tailFinder[ALIAS, X, H, T <: HList](implicit finder: AliasFinder[ALIAS, X, T]): AliasFinder[ALIAS, X, H :: T] =
-    (u: H :: T) => finder.find(u.tail)
-}
-
 trait Finder[X, U] {
   def find(u: U): X
 }

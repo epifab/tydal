@@ -1,59 +1,42 @@
 package io.epifab.yadl.domain.typesafe
 
 import io.epifab.yadl.domain.FieldAdapter
-import io.epifab.yadl.utils.{AliasFinder, Appender}
+import io.epifab.yadl.utils.Appender
 import shapeless.{::, HList, HNil}
+
+trait AliasFinder[ALIAS, X, HAYSTACK] {
+  def find(u: HAYSTACK): X AS ALIAS
+}
+
+object AliasFinder {
+  implicit def dataSourceFinder[ALIAS, X <: DataSource[_], T <: HList]: AliasFinder[ALIAS, X, Join[X AS ALIAS] :: T] =
+    (u: Join[X AS ALIAS] :: T) => u.head.dataSource
+
+  implicit def headFinder[ALIAS, X, T <: HList]: AliasFinder[ALIAS, X, (X AS ALIAS) :: T] =
+    (u: (X AS ALIAS) :: T) => u.head
+
+  implicit def tailFinder[ALIAS, X, H, T <: HList](implicit finder: AliasFinder[ALIAS, X, T]): AliasFinder[ALIAS, X, H :: T] =
+    (u: H :: T) => finder.find(u.tail)
+}
 
 class PartiallyAppliedFinder[ALIAS, HAYSTACK](haystack: HAYSTACK) {
   def get[X](implicit finder: AliasFinder[ALIAS, X, HAYSTACK]): X AS ALIAS =
     finder.find(haystack)
 }
 
-object DataSource {
-  trait DataSourceFinder[X, U] {
-    def find(u: U): X
-  }
-
-  object DataSourceFinder {
-    implicit def joinedFinder[X <: DataSource[_], T <: HList]: DataSourceFinder[X, Join[X] :: T] =
-      (u: Join[X] :: T) => u.head.dataSource
-
-    implicit def headFinder[X, T <: HList]: DataSourceFinder[X, X :: T] =
-      (u: X :: T) => u.head
-
-    implicit def tailFinder[X, H, T <: HList](implicit finder: DataSourceFinder[X, T]): DataSourceFinder[X, H :: T] =
-      (u: H :: T) => finder.find(u.tail)
-
-    implicit def tuple2FinderA[X, A, B](implicit finder: DataSourceFinder[X, A]): DataSourceFinder[X, (A, B)] =
-      (u: (A, B)) => finder.find(u._1)
-
-    implicit def tuple2FinderB[X, A, B](implicit finder: DataSourceFinder[X, B]): DataSourceFinder[X, (A, B)] =
-      (u: (A, B)) => finder.find(u._2)
-
-    implicit def tuple3FinderA[X, A, B, C](implicit finder: DataSourceFinder[X, A]): DataSourceFinder[X, (A, B, C)] =
-      (u: (A, B, C)) => finder.find(u._1)
-
-    implicit def tuple3FinderB[X, A, B, C](implicit finder: DataSourceFinder[X, B]): DataSourceFinder[X, (A, B, C)] =
-      (u: (A, B, C)) => finder.find(u._2)
-
-    implicit def tuple3FinderC[X, A, B, C](implicit finder: DataSourceFinder[X, C]): DataSourceFinder[X, (A, B, C)] =
-      (u: (A, B, C)) => finder.find(u._3)
-  }
-}
-
 trait DataSource[TERMS <: HList] extends Taggable {
-  def `*`: TERMS
+  def terms: TERMS
 
-  def field[ALIAS] = new PartiallyAppliedFinder[ALIAS, TERMS](*)
+  def term[ALIAS] = new PartiallyAppliedFinder[ALIAS, TERMS](terms)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
     new Join(this, clause(this))
 }
 
-abstract class Table[NAME <: String, TERMS <: HList](implicit valueOf: ValueOf[NAME], terms: Terms[TERMS])
+abstract class Table[NAME <: String, TERMS <: HList](implicit val tableNameWrapper: ValueOf[NAME], termsBuilder: TermsBuilder[TERMS])
     extends DataSource[TERMS] {
-  def tableName: String = valueOf.value
-  def `*`: TERMS = terms.get(this)
+  val tableName: String = tableNameWrapper.value
+  def terms: TERMS = termsBuilder.build(this)
 }
 
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
@@ -72,8 +55,6 @@ sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SOU
   def terms: TERMS
   def groupByTerms: GROUPBY
   def sources: SOURCES
-
-  def `*`: TERMS = terms
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, HNil] {

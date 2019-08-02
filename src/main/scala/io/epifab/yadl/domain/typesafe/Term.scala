@@ -35,22 +35,22 @@ object Term {
     Aggregation(term, dbFunction)
 }
 
-trait Terms[X] {
-  def get[DS <: DataSource[_ <: HList]](ds: DS): X
+trait TermsBuilder[X] {
+  def build[DS <: DataSource[_ <: HList]](ds: DS): X
 }
 
-object Terms {
-  implicit val hNil: Terms[HNil] = new Terms[HNil] {
-    override def get[DS <: DataSource[_ <: HList]](ds: DS): HNil = HNil
+object TermsBuilder {
+  implicit val hNil: TermsBuilder[HNil] = new TermsBuilder[HNil] {
+    override def build[DS <: DataSource[_ <: HList]](ds: DS): HNil = HNil
   }
 
   implicit def hCons[HT, HA <: String, T <: HList]
     (implicit
-     tailTerms: Terms[T],
+     tailTerms: TermsBuilder[T],
      fieldAdapter: FieldAdapter[HT],
-     valueOf: ValueOf[HA]): Terms[(Term[HT] AS HA) :: T] = new Terms[(Term[HT] AS HA) :: T] {
+     valueOf: ValueOf[HA]): TermsBuilder[(Term[HT] AS HA) :: T] = new TermsBuilder[(Term[HT] AS HA) :: T] {
 
-    override def get[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Alias[HA]) :: T =
-      new Column[HT](valueOf.value, ds).as[HA] :: tailTerms.get(ds)
+    override def build[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Alias[HA]) :: T =
+      new Column[HT](valueOf.value, ds).as[HA] :: tailTerms.build(ds)
   }
 }
