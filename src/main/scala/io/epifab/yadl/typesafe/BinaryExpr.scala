@@ -1,4 +1,4 @@
-package io.epifab.yadl.domain.typesafe
+package io.epifab.yadl.typesafe
 
 sealed trait BinaryExpr {
   def and(otherExpression: BinaryExpr): BinaryExpr = And(this, otherExpression)

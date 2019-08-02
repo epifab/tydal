@@ -1,6 +1,6 @@
-package io.epifab.yadl.domain.typesafe
+package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.domain.typesafe.fields.FieldDecoder
+import io.epifab.yadl.typesafe.fields.FieldDecoder
 
 sealed trait AggregateFunction[+T, +U] {
   def name: String

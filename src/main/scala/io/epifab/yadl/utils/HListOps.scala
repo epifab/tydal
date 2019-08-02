@@ -1,7 +1,6 @@
 package io.epifab.yadl.utils
 
-import io.epifab.yadl.domain.typesafe.{AS, Alias, DataSource, Join}
-import shapeless.{::, HList, HNil, Lazy}
+import shapeless.{::, HList, HNil}
 
 trait Finder[X, U] {
   def find(u: U): X

@@ -1,4 +1,4 @@
-package io.epifab.yadl.domain.typesafe
+package io.epifab.yadl.typesafe
 
 object Implicits {
   implicit class ExtendedGenericTerm[T](term: Term[T]) {

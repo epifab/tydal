@@ -1,6 +1,6 @@
-package io.epifab.yadl.domain.typesafe
+package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.domain.typesafe.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
 import shapeless.{::, HList, HNil}
 
 sealed trait Term[+T] extends Taggable {

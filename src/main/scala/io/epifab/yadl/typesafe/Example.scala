@@ -1,6 +1,6 @@
-package io.epifab.yadl.domain.typesafe
+package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.domain.typesafe.Implicits._
+import io.epifab.yadl.typesafe.Implicits._
 import shapeless.{::, HNil}
 
 object Example {

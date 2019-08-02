@@ -1,4 +1,4 @@
-package io.epifab.yadl.domain.typesafe.fields
+package io.epifab.yadl.typesafe.fields
 
 import scala.language.reflectiveCalls
 
