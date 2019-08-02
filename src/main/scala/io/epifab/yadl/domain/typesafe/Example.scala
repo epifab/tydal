@@ -9,10 +9,7 @@ object Example {
       (Term[Int] AS "id") ::
       (Term[String] AS "name") ::
       HNil
-  ] {
-    def id = term["id"].get
-    def name = term["name"].get
-  }
+  ]
 
   object Students {
     def as[T]: Students AS T = (new Students).as[T]
@@ -24,11 +21,7 @@ object Example {
       (Term[Int] AS "course_id") ::
       (Term[Int] AS "score") ::
       HNil
-  ] {
-    def studentId = term["student_id"].get
-    def courseId = term["course_id"].get
-    def score = term["score"].get
-  }
+  ]
 
   object Exams {
     def as[T]: Exams AS T = (new Exams).as[T]
@@ -39,22 +32,18 @@ object Example {
       (Term[Int] AS "id") ::
       (Term[String] AS "name") ::
       HNil
-  ] {
-    def id = term["id"].get
-    def name = term["name"].get
-  }
+  ]
 
   object Courses {
     def as[T]: Courses AS T = (new Courses).as[T]
   }
 
-  type MaxScoreSubQuery[E, C] = Select[HNil, AS[Exams, E] :: Aggregation[Int, Option[Int]] with Alias["max_score"] :: Aggregation[Int, Option[Int]] with Alias["course_id"] :: HNil, Term[Int] with Alias["student_id"] :: HNil, AS[Exams, E] :: HNil]
-
-  def maxScoreSubQuery[E, C]: MaxScoreSubQuery[E, C] =
+  def maxScoreSubQuery[E, C] =
     Select
       .from(Exams.as[E])
       .groupBy(ctx => ctx.source[E].get.term["student_id"].get :: HNil)
-      .take(ctx => ctx.source[E].get ::
+      .take(ctx =>
+        ctx.source[E].get.term["student_id"].get ::
         Max(ctx.source[E].get.term["score"].get).as["max_score"] ::
         Min(ctx.source[E].get.term["course_id"].get).as["course_id"] ::
         HNil)
@@ -63,14 +52,14 @@ object Example {
     Select
       .from(Students.as["s"])
       .join(ctx => maxScoreSubQuery["ee", "cc"].as["ms"]
-        .on(_.source["ee"].get.term["student_id"].get === ctx.source["s"].get.id))
-      .join(ctx => Courses.as["c"].on(_.id ===
+        .on(_.term["student_id"].get === ctx.source["s"].get.term["id"].get))
+      .join(ctx => Courses.as["c"].on(_.term["id"].get ===
         ctx.source["ms"].get.term["course_id"].get))
       .take(ctx =>
         ctx.source["s"].get.terms ::
         ctx.source["ms"].get.terms ::
         ctx.source["c"].get.terms
       )
-      .withPlaceholder[Int, "studentId"]
-      .where(ctx => ctx.source["s"].get.id === ctx.placeholder["studentId"].get)
+      .withPlaceholder[Int, "student_id"]
+      .where(ctx => ctx.source["s"].get.term["id"].get === ctx.placeholder["student_id"].get)
 }
