@@ -1,6 +1,6 @@
 package io.epifab.yadl.domain.typesafe
 
-import io.epifab.yadl.domain.FieldAdapter
+import io.epifab.yadl.domain.typesafe.fields.{FieldDecoder, FieldEncoder}
 import io.epifab.yadl.utils.Appender
 import shapeless.{::, HList, HNil}
 
@@ -26,7 +26,6 @@ class PartiallyAppliedFinder[ALIAS, HAYSTACK](haystack: HAYSTACK) {
 
 trait DataSource[TERMS <: HList] extends Taggable {
   def terms: TERMS
-
   def term[ALIAS] = new PartiallyAppliedFinder[ALIAS, TERMS](terms)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
@@ -87,8 +86,8 @@ class NonEmptySelect[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SO
     NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCE_RESULTS] =
       new NonEmptySelect(placeholders, terms, groupByTerms, appender.append(sources, f(this)))
 
-  def withPlaceholder[T, U](implicit fieldAdapter: FieldAdapter[T]): NonEmptySelect[(Placeholder[T] with Alias[U]) :: PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
-    new NonEmptySelect(new Placeholder[T].as[U] :: placeholders, terms, groupByTerms, sources)
+  def withPlaceholder[T, U](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T]): NonEmptySelect[(Placeholder[T, T] with Alias[U]) :: PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
+    new NonEmptySelect(new Placeholder[T, T].as[U] :: placeholders, terms, groupByTerms, sources)
 
   def where(f: SelectContext[PLACEHOLDERS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
     new NonEmptySelect(placeholders, terms, groupByTerms, sources, where and f(this))
