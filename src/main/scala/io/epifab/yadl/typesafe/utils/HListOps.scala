@@ -1,4 +1,4 @@
-package io.epifab.yadl.utils
+package io.epifab.yadl.typesafe.utils
 
 import shapeless.{::, HList, HNil}
 
@@ -31,6 +31,17 @@ object Concat {
     override type Out = H :: O
     override def concat(t: H :: T, u: L): Out = t.head :: tailConcat.concat(t.tail, u)
   }
+
+  def apply[A, B, AB](a: A, b: B)
+       (implicit
+        concat: Concat.Aux[A, B, AB]): AB =
+    concat.concat(a, b)
+
+  def apply[A, B, C, AB, ABC](a: A, b: B, c: C)
+       (implicit
+        concat1: Concat.Aux[A, B, AB],
+        concat2: Concat.Aux[AB, C, ABC]): ABC =
+    concat2.concat(concat1.concat(a, b), c)
 }
 
 trait ReverseAppender[T, U] {

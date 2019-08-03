@@ -1,32 +1,12 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
-import io.epifab.yadl.utils.Appender
+import io.epifab.yadl.typesafe.utils.{AliasFinder, Appender, FindByAlias}
 import shapeless.{::, HList, HNil}
-
-trait AliasFinder[ALIAS, X, HAYSTACK] {
-  def find(u: HAYSTACK): X AS ALIAS
-}
-
-object AliasFinder {
-  implicit def dataSourceFinder[ALIAS, X <: DataSource[_], T <: HList]: AliasFinder[ALIAS, X, Join[X AS ALIAS] :: T] =
-    (u: Join[X AS ALIAS] :: T) => u.head.dataSource
-
-  implicit def headFinder[ALIAS, X, T <: HList]: AliasFinder[ALIAS, X, (X AS ALIAS) :: T] =
-    (u: (X AS ALIAS) :: T) => u.head
-
-  implicit def tailFinder[ALIAS, X, H, T <: HList](implicit finder: AliasFinder[ALIAS, X, T]): AliasFinder[ALIAS, X, H :: T] =
-    (u: H :: T) => finder.find(u.tail)
-}
-
-class PartiallyAppliedFinder[ALIAS, HAYSTACK](haystack: HAYSTACK) {
-  def get[X](implicit finder: AliasFinder[ALIAS, X, HAYSTACK]): X AS ALIAS =
-    finder.find(haystack)
-}
 
 trait DataSource[TERMS <: HList] extends Taggable {
   def terms: TERMS
-  def term[ALIAS] = new PartiallyAppliedFinder[ALIAS, TERMS](terms)
+  def term[ALIAS] = new FindByAlias[ALIAS, TERMS](terms)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
     new Join(this, clause(this))
@@ -41,11 +21,14 @@ abstract class Table[NAME <: String, TERMS <: HList](implicit val tableNameWrapp
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
 trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
+  implicit def dataSourceFinder[ALIAS, X <: DataSource[_], T <: HList]: AliasFinder[ALIAS, X, Join[X AS ALIAS] :: T] =
+    (u: Join[X AS ALIAS] :: T) => u.head.dataSource
+
   def placeholders: PLACEHOLDERS
   def sources: SOURCES
 
-  def placeholder[A] = new PartiallyAppliedFinder[A, PLACEHOLDERS](placeholders)
-  def source[A] = new PartiallyAppliedFinder[A, SOURCES](sources)
+  def placeholder[A] = new FindByAlias[A, PLACEHOLDERS](placeholders)
+  def source[A] = new FindByAlias[A, SOURCES](sources)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SOURCES <: HList]

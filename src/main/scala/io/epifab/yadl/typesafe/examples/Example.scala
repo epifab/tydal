@@ -1,6 +1,8 @@
-package io.epifab.yadl.typesafe
+package io.epifab.yadl.typesafe.examples
 
 import io.epifab.yadl.typesafe.Implicits._
+import io.epifab.yadl.typesafe._
+import io.epifab.yadl.typesafe.utils.BoundedList
 import shapeless.{::, HNil}
 
 object Example {
@@ -56,10 +58,16 @@ object Example {
       .join(ctx => Courses.as["c"].on(_.term["id"].get ===
         ctx.source["ms"].get.term["course_id"].get))
       .take(ctx =>
-        ctx.source["s"].get.terms ::
-        ctx.source["ms"].get.terms ::
-        ctx.source["c"].get.terms
+        ctx.source["s"].get.terms.head :: HNil
+//        Concat(
+//          ctx.source["s"].get.terms,
+//          ctx.source["ms"].get.terms,
+//          ctx.source["c"].get.terms
+//        )
       )
       .withPlaceholder[Int, "student_id"]
       .where(ctx => ctx.source["s"].get.term["id"].get === ctx.placeholder["student_id"].get)
+
+  val terms: Seq[Term[_] with Alias[_]] =
+    BoundedList[Term[_] with Alias[_]].get(studentsSelect.terms)
 }
