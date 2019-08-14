@@ -68,6 +68,6 @@ object Example {
       .withPlaceholder[Int, "student_id"]
       .where(ctx => ctx.source["s"].get.term["id"].get === ctx.placeholder["student_id"].get)
 
-  val terms: Seq[Term[_] with Alias[_]] =
-    BoundedList[Term[_] with Alias[_]].get(studentsSelect.terms)
+  val terms: Seq[Term[_] with Tag[_]] =
+    BoundedList[Term[_] with Tag[_]].get(studentsSelect.terms)
 }

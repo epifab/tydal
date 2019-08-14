@@ -49,7 +49,7 @@ object TermsBuilder {
      fieldAdapter: FieldDecoder[HT],
      valueOf: ValueOf[HA]): TermsBuilder[(Term[HT] AS HA) :: T] = new TermsBuilder[(Term[HT] AS HA) :: T] {
 
-    override def build[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Alias[HA]) :: T =
+    override def build[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Tag[HA]) :: T =
       new Column[HT](valueOf.value, ds).as[HA] :: tailTerms.build(ds)
   }
 }
