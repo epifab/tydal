@@ -2,7 +2,6 @@ package io.epifab.yadl.typesafe.examples
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.utils.BoundedList
 import shapeless.{::, HNil}
 
 object Example {
@@ -40,7 +39,7 @@ object Example {
     def as[T]: Courses AS T = (new Courses).as[T]
   }
 
-  def maxScoreSubQuery[E, C] =
+  def maxScoreSubQuery[E] =
     Select
       .from(Exams.as[E])
       .groupBy(ctx => ctx.source[E].get.term["student_id"].get :: HNil)
@@ -53,21 +52,20 @@ object Example {
   val studentsSelect =
     Select
       .from(Students.as["s"])
-      .join(ctx => maxScoreSubQuery["ee", "cc"].as["ms"]
+      .join(ctx => maxScoreSubQuery["e"].as["ms"]
         .on(_.term["student_id"].get === ctx.source["s"].get.term["id"].get))
-      .join(ctx => Courses.as["c"].on(_.term["id"].get ===
+      .join(ctx => Courses.as["cc"].on(_.term["id"].get ===
         ctx.source["ms"].get.term["course_id"].get))
       .take(ctx =>
-        ctx.source["s"].get.terms.head :: HNil
-//        Concat(
-//          ctx.source["s"].get.terms,
-//          ctx.source["ms"].get.terms,
-//          ctx.source["c"].get.terms
-//        )
+        ctx.source["s"].get.term["id"].get.as["sid"] ::
+        ctx.source["s"].get.term["name"].get.as["sname"] ::
+        ctx.source["ms"].get.term["max_score"].get.as["score"] ::
+        //ctx.source["cc"].get.term["name"].get.as["cname"] ::
+        HNil
       )
       .withPlaceholder[Int, "student_id"]
       .where(ctx => ctx.source["s"].get.term["id"].get === ctx.placeholder["student_id"].get)
 
-  val terms: Seq[Term[_] with Tag[_]] =
-    BoundedList[Term[_] with Tag[_]].get(studentsSelect.terms)
+  val terms: Map[String, Term[Any]] =
+    TagMap(studentsSelect.terms)
 }
