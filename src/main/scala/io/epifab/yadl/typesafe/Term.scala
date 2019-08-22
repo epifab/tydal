@@ -3,35 +3,40 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
 import shapeless.{::, HList, HNil}
 
-sealed trait Term[+T] extends Taggable {
+sealed trait Term[+T] {
   def decoder: FieldDecoder[T]
   def castTo[U](implicit adapter: FieldDecoder[U]): Cast[T, U] = Cast(this)
+  def as[TAG]: Term[T] with Tag[TAG]
 }
 
-final case class Column[+T](name: String, dataSource: DataSource[_ <: HList])(implicit val decoder: FieldDecoder[T])
-  extends Term[T]
+case class Column[+T](name: String, dataSource: DataSource[_ <: HList])(implicit val decoder: FieldDecoder[T])
+  extends Term[T] {
+  def as[TAG]: Column[T] with Tag[TAG] = new Column[T](name, dataSource) with Tag[TAG]
+}
 
-final case class Aggregation[+T, +U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val decoder: FieldDecoder[U])
-  extends Term[U]
+case class Aggregation[+T, +U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit val decoder: FieldDecoder[U])
+  extends Term[U] {
+  def as[TAG]: Aggregation[T, U] with Tag[TAG] = new Aggregation(term, dbFunction) with Tag[TAG]
+}
 
-final case class Cast[+T, +U](term: Term[T])(implicit val decoder: FieldDecoder[U])
-  extends Term[U]
+case class Cast[+T, +U](term: Term[T])(implicit val decoder: FieldDecoder[U])
+  extends Term[U] {
+  def as[TAG]: Cast[T, U] with Tag[TAG] = new Cast(term) with Tag[TAG]
+}
 
-final case class TermExpr1[+T, +U](term: Term[T], dbFunction: DbFunction1[T, U])(implicit val decoder: FieldDecoder[U])
-  extends Term[U]
+case class TermExpr1[+T, +U](term: Term[T], dbFunction: DbFunction1[T, U])(implicit val decoder: FieldDecoder[U])
+  extends Term[U] {
+  def as[TAG]: TermExpr1[T, U] with Tag[TAG] = new TermExpr1[T, U](term, dbFunction) with Tag[TAG]
+}
 
-final case class TermExpr2[+T1, +T2, +U](term1: Term[T1], term2: Term[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
-  extends Term[U]
+case class TermExpr2[+T1, +T2, +U](term1: Term[T1], term2: Term[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
+  extends Term[U] {
+  def as[TAG]: TermExpr2[T1, T2, U] with Tag[TAG] = new TermExpr2(term1, term2, dbFunction) with Tag[TAG]
+}
 
-final class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
-  extends Term[T]
-
-object Term {
-  def apply[T](name: String, dataSource: DataSource[_ <: HList])(implicit adapter: FieldDecoder[T]): Column[T] =
-    Column(name, dataSource)
-
-  def apply[T, U](term: Term[T], dbFunction: AggregateFunction[T, U])(implicit adapter: FieldDecoder[U]): Aggregation[T, U] =
-    Aggregation(term, dbFunction)
+class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
+  extends Term[T] {
+  def as[TAG]: Placeholder[T, U] with Tag[TAG] = new Placeholder[T, U] with Tag[TAG]
 }
 
 trait TermsBuilder[+X] {

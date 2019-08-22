@@ -1,10 +1,10 @@
-package io.epifab.yadl.typesafe.examples
+package io.epifab.yadl.examples
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
 import shapeless.{::, HNil}
 
-object Example {
+object TypesafeSchema {
   class Students extends Table[
     "students",
       (Term[Int] AS "id") ::
@@ -13,7 +13,7 @@ object Example {
   ]
 
   object Students {
-    def as[T]: Students AS T = (new Students).as[T]
+    def as[T]: Students AS T = new Students with Tag[T]
   }
 
   class Exams extends Table[
@@ -25,7 +25,7 @@ object Example {
   ]
 
   object Exams {
-    def as[T]: Exams AS T = (new Exams).as[T]
+    def as[T]: Exams AS T = new Exams with Tag[T]
   }
 
   class Courses extends Table[
@@ -36,7 +36,7 @@ object Example {
   ]
 
   object Courses {
-    def as[T]: Courses AS T = (new Courses).as[T]
+    def as[T]: Courses AS T = new Courses with Tag[T]
   }
 
   def maxScoreSubQuery[E] =
@@ -65,7 +65,4 @@ object Example {
       )
       .withPlaceholder[Int, "student_id"]
       .where(ctx => ctx.source["s"].get.term["id"].get === ctx.placeholder["student_id"].get)
-
-  val terms: Map[String, Term[Any]] =
-    TagMap(studentsSelect.terms)
 }

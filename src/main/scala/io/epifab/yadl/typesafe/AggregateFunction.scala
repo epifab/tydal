@@ -42,7 +42,7 @@ object Max {
   }
 
   def apply[T](term: Term[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    Term(term, new Max[T])
+    Aggregation(term, new Max[T])
 }
 
 object Min {
@@ -51,5 +51,5 @@ object Min {
   }
 
   def apply[T](term: Term[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    Term(term, new Min[T])
+    Aggregation(term, new Min[T])
 }

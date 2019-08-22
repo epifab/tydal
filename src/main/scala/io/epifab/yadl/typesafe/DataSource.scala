@@ -4,7 +4,7 @@ import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
 import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, TaggedFinder}
 import shapeless.{::, HList, HNil}
 
-trait DataSource[TERMS <: HList] extends Taggable {
+trait DataSource[TERMS <: HList] {
   def terms: TERMS
   def term[TAG] = new FindByTag[TAG, TERMS](terms)
 
@@ -74,6 +74,9 @@ class NonEmptySelect[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SO
 
   def where(f: SelectContext[PLACEHOLDERS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
     new NonEmptySelect(placeholders, terms, groupByTerms, sources, where and f(this))
+
+  def as[TAG]: NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] with Tag[TAG] =
+    new NonEmptySelect(placeholders, terms, groupByTerms, sources, where) with Tag[TAG]
 }
 
 object Select extends EmptySelect

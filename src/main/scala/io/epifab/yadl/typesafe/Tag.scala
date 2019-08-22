@@ -4,11 +4,6 @@ import shapeless.{::, HList, HNil}
 
 trait Tag[A]
 
-trait Taggable {
-  def as[TAG]: this.type with Tag[TAG] =
-    this.asInstanceOf[this.type with Tag[TAG]]
-}
-
 trait TagMap[+NEEDLE, HAYSTACK] {
   def toMap(list: HAYSTACK): Map[String, NEEDLE]
 }
