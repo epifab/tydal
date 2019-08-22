@@ -12,18 +12,15 @@ trait DataSource[TERMS <: HList] {
     new Join(this, clause(this))
 }
 
-abstract class Table[NAME <: String, TERMS <: HList](implicit val tableNameWrapper: ValueOf[NAME], termsBuilder: TermsBuilder[TERMS])
+abstract class Table[NAME <: String, TERMS <: HList](implicit val tableNameWrapper: ValueOf[NAME], columnsBuilder: ColumnsBuilder[TERMS])
     extends DataSource[TERMS] {
   val tableName: String = tableNameWrapper.value
-  def terms: TERMS = termsBuilder.build(this)
+  def terms: TERMS = columnsBuilder.build(this)
 }
 
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
 trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
-  implicit def dataSourceFinder[TAG, X <: DataSource[_], T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG] :: T] =
-    (u: Join[X AS TAG] :: T) => u.head.dataSource
-
   def placeholders: PLACEHOLDERS
   def sources: SOURCES
 

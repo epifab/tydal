@@ -60,7 +60,7 @@ object TypesafeSchema {
         ctx.source["s"].get.term["id"].get.as["sid"] ::
         ctx.source["s"].get.term["name"].get.as["sname"] ::
         ctx.source["ms"].get.term["max_score"].get.as["score"] ::
-        //ctx.source["cc"].get.term["name"].get.as["cname"] ::
+        ctx.source["cc"].get.term["name"].get.as["cname"] ::
         HNil
       )
       .withPlaceholder[Int, "student_id"]

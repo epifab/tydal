@@ -39,20 +39,20 @@ class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: Fi
   def as[TAG]: Placeholder[T, U] with Tag[TAG] = new Placeholder[T, U] with Tag[TAG]
 }
 
-trait TermsBuilder[+X] {
+trait ColumnsBuilder[+X] {
   def build[DS <: DataSource[_ <: HList]](ds: DS): X
 }
 
-object TermsBuilder {
-  implicit val hNil: TermsBuilder[HNil] = new TermsBuilder[HNil] {
+object ColumnsBuilder {
+  implicit val hNil: ColumnsBuilder[HNil] = new ColumnsBuilder[HNil] {
     override def build[DS <: DataSource[_ <: HList]](ds: DS): HNil = HNil
   }
 
   implicit def hCons[HT, HA <: String, T <: HList]
     (implicit
-     tailTerms: TermsBuilder[T],
-     fieldAdapter: FieldDecoder[HT],
-     valueOf: ValueOf[HA]): TermsBuilder[(Term[HT] AS HA) :: T] = new TermsBuilder[(Term[HT] AS HA) :: T] {
+     tailTerms: ColumnsBuilder[T],
+     fieldDecoder: FieldDecoder[HT],
+     valueOf: ValueOf[HA]): ColumnsBuilder[(Term[HT] AS HA) :: T] = new ColumnsBuilder[(Term[HT] AS HA) :: T] {
 
     override def build[DS <: DataSource[_ <: HList]](ds: DS): (Term[HT] with Tag[HA]) :: T =
       new Column[HT](valueOf.value, ds).as[HA] :: tailTerms.build(ds)
