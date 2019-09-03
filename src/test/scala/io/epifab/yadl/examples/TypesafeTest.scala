@@ -6,11 +6,11 @@ import org.scalatest.{FlatSpec, Matchers}
 import shapeless.{::, HNil}
 
 class TypesafeTest extends FlatSpec with Matchers {
-  "The TagMap typeclass" should "bind terms to their alias" in {
-    val terms: Map[String, Term[Any]] =
-      TagMap(studentsSelect.terms)
+  "The TagMap typeclass" should "bind fields to their alias" in {
+    val fields: Map[String, Field[Any]] =
+      TagMap(studentsSelect.fields)
 
-    terms.keys.toSet shouldBe Set("sid", "sname", "score", "cname")
+    fields.keys.toSet shouldBe Set("sid", "sname", "score", "cname")
   }
 
   "The source finder" should "get any source" in {

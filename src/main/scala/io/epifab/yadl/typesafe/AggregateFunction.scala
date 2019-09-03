@@ -11,8 +11,8 @@ object Avg {
     override val name: String = "avg"
   }
 
-  def apply[T](term: Term[T])(implicit isNumeric: IsNumeric[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
-    Aggregation(term, new Avg[T])(decoder)
+  def apply[T](field: Field[T])(implicit isNumeric: IsNumeric[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
+    Aggregation(field, new Avg[T])(decoder)
 }
 
 object Sum {
@@ -20,11 +20,11 @@ object Sum {
     override val name: String = "sum"
   }
 
-  def apply[T](term: Term[T])(implicit isInteger: IsInteger[T], decoder: FieldDecoder[Option[Int]]): Aggregation[T, Option[Int]] =
-    Aggregation(term, new Sum[T, Int])(decoder)
+  def apply[T](field: Field[T])(implicit isInteger: IsInteger[T], decoder: FieldDecoder[Option[Int]]): Aggregation[T, Option[Int]] =
+    Aggregation(field, new Sum[T, Int])(decoder)
 
-  def apply[T](term: Term[T])(implicit isDouble: IsDouble[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
-    Aggregation(term, new Sum[T, Double])(decoder)
+  def apply[T](field: Field[T])(implicit isDouble: IsDouble[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
+    Aggregation(field, new Sum[T, Double])(decoder)
 }
 
 object Count {
@@ -32,8 +32,8 @@ object Count {
     override val name: String = "count"
   }
 
-  def apply[T](term: Term[T])(implicit decoder: FieldDecoder[Int]): Aggregation[T, Int] =
-    Aggregation(term, new Count[T])
+  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Int]): Aggregation[T, Int] =
+    Aggregation(field, new Count[T])
 }
 
 object Max {
@@ -41,8 +41,8 @@ object Max {
     override val name: String = "max"
   }
 
-  def apply[T](term: Term[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    Aggregation(term, new Max[T])
+  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
+    Aggregation(field, new Max[T])
 }
 
 object Min {
@@ -50,6 +50,6 @@ object Min {
     override val name: String = "min"
   }
 
-  def apply[T](term: Term[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    Aggregation(term, new Min[T])
+  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
+    Aggregation(field, new Min[T])
 }
