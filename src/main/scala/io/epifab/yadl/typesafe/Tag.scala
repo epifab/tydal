@@ -2,24 +2,17 @@ package io.epifab.yadl.typesafe
 
 import shapeless.{::, HList, HNil}
 
-trait Tag[A]
+trait Tag[A <: String] {
+  def tagValue: String
+}
 
 trait TagMap[+NEEDLE, HAYSTACK] {
   def toMap(list: HAYSTACK): Map[String, NEEDLE]
 }
 
 object TagMap {
-  trait TagValue[-X <: Tag[_]] {
-    def getTag(x: X): String
-  }
-
-  object TagValue {
-    implicit def pure[TAG <: String](implicit tag: ValueOf[TAG]): TagValue[Tag[TAG]] =
-      (_: Tag[TAG]) => tag.value
-  }
-
-  implicit def pure[NEEDLE <: Tag[_]](implicit tagValue: TagValue[NEEDLE]): TagMap[NEEDLE, NEEDLE] =
-    (x: NEEDLE) => Map(tagValue.getTag(x) -> x)
+  implicit def pure[NEEDLE <: Tag[_]]: TagMap[NEEDLE, NEEDLE] =
+    (x: NEEDLE) => Map(x.tagValue -> x)
 
   implicit def hNil[NEEDLE]: TagMap[NEEDLE, HNil] =
     (_: HNil) => Map.empty

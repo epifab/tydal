@@ -1,12 +1,12 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.typesafe.fields.{BinaryExpr, ColumnsBuilder, FieldDecoder, FieldEncoder, Placeholder}
-import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, TaggedFinder}
+import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.typesafe.utils.{Appender, FindByTag}
 import shapeless.{::, HList, HNil}
 
-trait DataSource[TERMS <: HList] {
+trait DataSource[TERMS] {
   def fields: TERMS
-  def field[TAG] = new FindByTag[TAG, TERMS](fields)
+  def field[TAG <: String] = new FindByTag[TAG, TERMS](fields)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
     new Join(this, clause(this))
@@ -24,8 +24,8 @@ trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
   def placeholders: PLACEHOLDERS
   def sources: SOURCES
 
-  def placeholder[TAG] = new FindByTag[TAG, PLACEHOLDERS](placeholders)
-  def source[TAG] = new FindByTag[TAG, SOURCES](sources)
+  def placeholder[TAG <: String] = new FindByTag[TAG, PLACEHOLDERS](placeholders)
+  def source[TAG <: String] = new FindByTag[TAG, SOURCES](sources)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SOURCES <: HList]
@@ -66,14 +66,16 @@ class NonEmptySelect[PLACEHOLDERS <: HList, TERMS <: HList, GROUPBY <: HList, SO
     NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCE_RESULTS] =
       new NonEmptySelect(placeholders, fields, groupByTerms, appender.append(sources, f(this)))
 
-  def withPlaceholder[T, U](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T]): NonEmptySelect[(Placeholder[T, T] with Tag[U]) :: PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
-    new NonEmptySelect(new Placeholder[T, T].as[U] :: placeholders, fields, groupByTerms, sources)
+  def withPlaceholder[T, TAG <: String](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T], alias: ValueOf[TAG]): NonEmptySelect[(Placeholder[T, T] with Tag[TAG]) :: PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
+    new NonEmptySelect(new Placeholder[T, T].as[TAG] :: placeholders, fields, groupByTerms, sources)
 
   def where(f: SelectContext[PLACEHOLDERS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] =
     new NonEmptySelect(placeholders, fields, groupByTerms, sources, where and f(this))
 
-  def as[TAG]: NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] with Tag[TAG] =
-    new NonEmptySelect(placeholders, fields, groupByTerms, sources, where) with Tag[TAG]
+  def as[TAG <: String](implicit alias: ValueOf[TAG]): NonEmptySelect[PLACEHOLDERS, TERMS, GROUPBY, SOURCES] with Tag[TAG] =
+    new NonEmptySelect(placeholders, fields, groupByTerms, sources, where) with Tag[TAG] {
+      override def tagValue: String = alias.value
+    }
 }
 
 object Select extends EmptySelect

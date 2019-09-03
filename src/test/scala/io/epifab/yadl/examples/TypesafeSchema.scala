@@ -2,45 +2,52 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.fields.{Field, Max, Min}
+import io.epifab.yadl.typesafe.fields.{Column, Max, Min}
 import shapeless.{::, HNil}
 
 object TypesafeSchema {
   class Students extends Table[
     "students",
-      (Field[Int] AS "id") ::
-      (Field[String] AS "name") ::
+      (Column[Int] AS "id") ::
+      (Column[String] AS "name") ::
       HNil
   ]
 
   object Students {
-    def as[T]: Students AS T = new Students with Tag[T]
+    def as[T <: String](implicit alias: ValueOf[T]): Students AS T =
+      new Students with Tag[T] {
+        override def tagValue: String = alias.value
+      }
   }
 
   class Exams extends Table[
     "exams",
-      (Field[Int] AS "student_id") ::
-      (Field[Int] AS "course_id") ::
-      (Field[Int] AS "score") ::
+      (Column[Int] AS "student_id") ::
+      (Column[Int] AS "course_id") ::
+      (Column[Int] AS "score") ::
       HNil
   ]
 
   object Exams {
-    def as[T]: Exams AS T = new Exams with Tag[T]
+    def as[T <: String](implicit alias: ValueOf[T]): Exams AS T = new Exams with Tag[T] {
+      override def tagValue: String = alias.value
+    }
   }
 
   class Courses extends Table[
     "courses",
-      (Field[Int] AS "id") ::
-      (Field[String] AS "name") ::
+      (Column[Int] AS "id") ::
+      (Column[String] AS "name") ::
       HNil
   ]
 
   object Courses {
-    def as[T]: Courses AS T = new Courses with Tag[T]
+    def as[T <: String](implicit alias: ValueOf[T]): Courses AS T = new Courses with Tag[T] {
+      override def tagValue: String = alias.value
+    }
   }
 
-  def maxScoreSubQuery[E] =
+  def maxScoreSubQuery[E <: String](implicit eAlias: ValueOf[E]) =
     Select
       .from(Exams.as[E])
       .groupBy(ctx => ctx.source[E].get.field["student_id"].get :: HNil)
