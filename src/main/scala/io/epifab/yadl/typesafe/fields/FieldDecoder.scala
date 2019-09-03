@@ -6,14 +6,14 @@ case class DecoderError(reason: String)
 
 trait FieldDecoder[+T] {
   type DBTYPE
-  def dbType: ScalarDbType[DBTYPE]
+  def dbType: DbType[DBTYPE]
   def decode(value: DBTYPE): Either[DecoderError, T]
 }
 
 object FieldDecoder {
   type Aux[+T, D] = FieldDecoder[T] { type DBTYPE = D }
 
-  case class OptionFieldDecoder[T, U](override val dbType: ScalarDbType[Option[U]], baseDecoder: FieldDecoder.Aux[T, U]) extends FieldDecoder[Option[T]] {
+  case class OptionFieldDecoder[T, U](override val dbType: DbType[Option[U]], baseDecoder: FieldDecoder.Aux[T, U]) extends FieldDecoder[Option[T]] {
     override type DBTYPE = Option[baseDecoder.DBTYPE]
     override def decode(dbValue: DBTYPE): Either[DecoderError, Option[T]] = dbValue match {
       case None => Right(None)
@@ -23,13 +23,13 @@ object FieldDecoder {
 
   implicit val stringDecoder: FieldDecoder.Aux[String, String] = new FieldDecoder[String] {
     override type DBTYPE = String
-    override def dbType: ScalarDbType[String] = StringDbType
+    override def dbType: DbType[String] = StringDbType
     override def decode(value: String): Either[DecoderError, String] = Right(value)
   }
 
   implicit val intDecoder: FieldDecoder.Aux[Int, Int] = new FieldDecoder[Int] {
     override type DBTYPE = Int
-    override def dbType: ScalarDbType[Int] = IntDbType
+    override def dbType: DbType[Int] = IntDbType
     override def decode(value: Int): Either[DecoderError, Int] = Right(value)
   }
 

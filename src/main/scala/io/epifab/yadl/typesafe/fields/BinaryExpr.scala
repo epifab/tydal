@@ -1,4 +1,6 @@
-package io.epifab.yadl.typesafe
+package io.epifab.yadl.typesafe.fields
+
+import io.epifab.yadl.typesafe.fields
 
 sealed trait BinaryExpr {
   def and(otherExpression: BinaryExpr): BinaryExpr = And(this, otherExpression)
@@ -19,22 +21,22 @@ case class And(expr1: BinaryExpr, expr2: BinaryExpr)
 case class Or(expr1: BinaryExpr, expr2: BinaryExpr)
   extends BinaryExpr
 
-case class Equals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class Equals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
-case class NotEquals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class NotEquals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
-case class GreaterThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class GreaterThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
-case class LessThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class LessThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
-case class GreaterThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class GreaterThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
-case class LessThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: Comparable[T, U])
+case class LessThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
   extends BinaryExpr
 
 case class Like[T, U](field1: Field[T], field2: Field[U])(implicit text1: IsText[T], text2: IsText[U])

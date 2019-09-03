@@ -1,6 +1,6 @@
-package io.epifab.yadl.typesafe
+package io.epifab.yadl.typesafe.fields
 
-import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.yadl.typesafe._
 import shapeless.{::, HList, HNil}
 
 sealed trait Field[+T] {
@@ -14,7 +14,7 @@ case class Column[+T](name: String, dataSource: DataSource[_ <: HList])(implicit
   def as[TAG]: Column[T] with Tag[TAG] = new Column[T](name, dataSource) with Tag[TAG]
 }
 
-case class Aggregation[+T, +U](field: Field[T], dbFunction: AggregateFunction[T, U])(implicit val decoder: FieldDecoder[U])
+case class Aggregation[+T, +U](field: Field[T], dbFunction: DbAggregationFunction[T, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
   def as[TAG]: Aggregation[T, U] with Tag[TAG] = new Aggregation(field, dbFunction) with Tag[TAG]
 }
@@ -32,6 +32,11 @@ case class FieldExpr1[+T, +U](field: Field[T], dbFunction: DbFunction1[T, U])(im
 case class FieldExpr2[+T1, +T2, +U](field1: Field[T1], field2: Field[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
   def as[TAG]: FieldExpr2[T1, T2, U] with Tag[TAG] = new FieldExpr2(field1, field2, dbFunction) with Tag[TAG]
+}
+
+case class FieldExpr3[+T1, +T2, +T3, +U](field1: Field[T1], field2: Field[T2], field3: Field[T3], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
+  extends Field[U] {
+  def as[TAG]: FieldExpr3[T1, T2, T3, U] with Tag[TAG] = new FieldExpr3(field1, field2, field3, dbFunction) with Tag[TAG]
 }
 
 class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])

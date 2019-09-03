@@ -2,6 +2,7 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
+import io.epifab.yadl.typesafe.fields.{Field, Max, Min}
 import shapeless.{::, HNil}
 
 object TypesafeSchema {

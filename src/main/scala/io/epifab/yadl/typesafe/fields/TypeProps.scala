@@ -1,4 +1,4 @@
-package io.epifab.yadl.typesafe
+package io.epifab.yadl.typesafe.fields
 
 import java.time.{LocalDate, LocalDateTime}
 

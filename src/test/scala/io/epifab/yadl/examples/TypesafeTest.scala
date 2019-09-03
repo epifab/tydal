@@ -2,6 +2,7 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students, studentsSelect}
 import io.epifab.yadl.typesafe._
+import io.epifab.yadl.typesafe.fields.{AlwaysTrue, Field}
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.{::, HNil}
 

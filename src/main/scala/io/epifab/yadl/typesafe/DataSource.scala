@@ -1,6 +1,6 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.typesafe.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.yadl.typesafe.fields.{BinaryExpr, ColumnsBuilder, FieldDecoder, FieldEncoder, Placeholder}
 import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, TaggedFinder}
 import shapeless.{::, HList, HNil}
 
