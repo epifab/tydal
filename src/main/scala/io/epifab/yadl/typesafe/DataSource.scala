@@ -1,12 +1,11 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.utils.{Appender, FindByTag}
+import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, TaggedFinder}
 import shapeless.{::, HList, HNil}
 
 trait DataSource[FIELDS] {
   def fields: FIELDS
-  def field[TAG <: String] = new FindByTag[TAG, FIELDS](fields)
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
     new Join(this, clause(this))
@@ -16,20 +15,24 @@ abstract class Table[NAME <: String, FIELDS <: HList](implicit val tableNameWrap
     extends DataSource[FIELDS] {
   val tableName: String = tableNameWrapper.value
   def fields: FIELDS = columnsBuilder.build(this)
+
+  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, FIELDS] =
+    new FindByTag(fields)
 }
 
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
-trait SelectContext[PLACEHOLDERS <: HList, SOURCES <: HList] {
+trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] {
   def placeholders: PLACEHOLDERS
+  def fields: FIELDS
   def sources: SOURCES
 
-  def placeholder[TAG <: String] = new FindByTag[TAG, PLACEHOLDERS](placeholders)
-  def source[TAG <: String] = new FindByTag[TAG, SOURCES](sources)
+  def apply[TAG <: String](implicit tag: ValueOf[TAG]) =
+    new FindByTag[TAG, (PLACEHOLDERS, FIELDS, SOURCES)]((placeholders, fields, sources))
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    extends SelectContext[PLACEHOLDERS, SOURCES] with DataSource[FIELDS] {
+    extends SelectContext[PLACEHOLDERS, FIELDS, SOURCES] with DataSource[FIELDS] {
   def placeholders: PLACEHOLDERS
   def fields: FIELDS
   def groupByFIELDs: GROUPBY
@@ -51,17 +54,17 @@ class NonEmptySelect[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, S
     extends Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] {
 
   def take[NEW_FIELDS <: HList]
-    (f: SelectContext[PLACEHOLDERS, SOURCES] => NEW_FIELDS):
+    (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_FIELDS):
     NonEmptySelect[PLACEHOLDERS, NEW_FIELDS, GROUPBY, SOURCES] =
       new NonEmptySelect(placeholders, f(this), groupByFIELDs, sources)
 
   def groupBy[NEW_GROUPBY <: HList]
-    (f: SelectContext[PLACEHOLDERS, SOURCES] => NEW_GROUPBY):
+    (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_GROUPBY):
     NonEmptySelect[PLACEHOLDERS, FIELDS, NEW_GROUPBY, SOURCES] =
       new NonEmptySelect(placeholders, fields, f(this), sources)
 
   def join[NEW_SOURCE <: DataSource[_] with Tag[_], SOURCE_RESULTS <: HList]
-    (f: SelectContext[PLACEHOLDERS, SOURCES] => Join[NEW_SOURCE])
+    (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => Join[NEW_SOURCE])
     (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
     NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCE_RESULTS] =
       new NonEmptySelect(placeholders, fields, groupByFIELDs, appender.append(sources, f(this)))
@@ -69,7 +72,7 @@ class NonEmptySelect[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, S
   def withPlaceholder[T, TAG <: String](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T], alias: ValueOf[TAG]): NonEmptySelect[(Placeholder[T, T] with Tag[TAG]) :: PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
     new NonEmptySelect(new Placeholder[T, T].as[TAG] :: placeholders, fields, groupByFIELDs, sources)
 
-  def where(f: SelectContext[PLACEHOLDERS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
+  def where(f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
     new NonEmptySelect(placeholders, fields, groupByFIELDs, sources, where and f(this))
 
   def as[TAG <: String](implicit alias: ValueOf[TAG]): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] with Tag[TAG] =

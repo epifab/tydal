@@ -50,27 +50,27 @@ object TypesafeSchema {
   def maxScoreSubQuery[E <: String](implicit eAlias: ValueOf[E]) =
     Select
       .from(Exams.as[E])
-      .groupBy(ctx => ctx.source[E].get.field["student_id"].get :: HNil)
+      .groupBy(ctx => ctx[E].get.apply["student_id"].get :: HNil)
       .take(ctx =>
-        ctx.source[E].get.field["student_id"].get ::
-        Max(ctx.source[E].get.field["score"].get).as["max_score"] ::
-        Min(ctx.source[E].get.field["course_id"].get).as["course_id"] ::
+        ctx[E].get.apply["student_id"].get ::
+        Max(ctx[E].get.apply["score"].get).as["max_score"] ::
+        Min(ctx[E].get.apply["course_id"].get).as["course_id"] ::
         HNil)
 
   val studentsSelect =
     Select
       .from(Students.as["s"])
       .join(ctx => maxScoreSubQuery["e"].as["ms"]
-        .on(_.field["student_id"].get === ctx.source["s"].get.field["id"].get))
-      .join(ctx => Courses.as["cc"].on(_.field["id"].get ===
-        ctx.source["ms"].get.field["course_id"].get))
+        .on(_["student_id"].get === ctx["s"].get.apply["id"].get))
+      .join(ctx => Courses.as["cc"].on(_["id"].get ===
+        ctx["ms"].get.apply["course_id"].get))
       .take(ctx =>
-        ctx.source["s"].get.field["id"].get.as["sid"] ::
-        ctx.source["s"].get.field["name"].get.as["sname"] ::
-        ctx.source["ms"].get.field["max_score"].get.as["score"] ::
-        ctx.source["cc"].get.field["name"].get.as["cname"] ::
+        ctx["s"].get.apply["id"].get.as["sid"] ::
+        ctx["s"].get.apply["name"].get.as["sname"] ::
+        ctx["ms"].get.apply["max_score"].get.as["score"] ::
+        ctx["cc"].get.apply["name"].get.as["cname"] ::
         HNil
       )
       .withPlaceholder[Int, "student_id"]
-      .where(ctx => ctx.source["s"].get.field["id"].get === ctx.placeholder["student_id"].get)
+      .where(ctx => ctx["s"].get.apply["id"].get === ctx["student_id"].get)
 }

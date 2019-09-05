@@ -3,7 +3,7 @@ package io.epifab.yadl.typesafe.utils
 import io.epifab.yadl.typesafe.{AS, DataSource, Join}
 import shapeless.{::, HList}
 
-trait TaggedFinder[TAG <: String, X, HAYSTACK] {
+trait TaggedFinder[TAG <: String, +X, HAYSTACK] {
   def find(u: HAYSTACK): X AS TAG
 }
 
