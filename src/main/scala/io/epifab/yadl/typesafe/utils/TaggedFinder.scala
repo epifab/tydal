@@ -8,6 +8,31 @@ trait TaggedFinder[TAG <: String, X, HAYSTACK] {
 }
 
 object TaggedFinder {
+  implicit def tuple2Finder1[TAG <: String, X, T1, T2]
+      (implicit t1Finder: TaggedFinder[TAG, X, T1])
+      : TaggedFinder[TAG, X, (T1, T2)] =
+    (u: (T1, T2)) => t1Finder.find(u._1)
+
+  implicit def tuple2Finder2[TAG <: String, X, T1, T2]
+      (implicit t2Finder: TaggedFinder[TAG, X, T2])
+      : TaggedFinder[TAG, X, (T1, T2)] =
+    (u: (T1, T2)) => t2Finder.find(u._2)
+
+  implicit def tuple3Finder1[TAG <: String, X, T1, T2, T3]
+      (implicit t1Finder: TaggedFinder[TAG, X, T1])
+      : TaggedFinder[TAG, X, (T1, T2, T3)] =
+    (u: (T1, T2, T3)) => t1Finder.find(u._1)
+
+  implicit def tuple3Finder2[TAG <: String, X, T1, T2, T3]
+      (implicit t2Finder: TaggedFinder[TAG, X, T2])
+      : TaggedFinder[TAG, X, (T1, T2, T3)] =
+    (u: (T1, T2, T3)) => t2Finder.find(u._2)
+
+  implicit def tuple3Finder3[TAG <: String, X, T1, T2, T3]
+      (implicit t3Finder: TaggedFinder[TAG, X, T3])
+      : TaggedFinder[TAG, X, (T1, T2, T3)] =
+    (u: (T1, T2, T3)) => t3Finder.find(u._3)
+
   implicit def headFinder[TAG <: String, X, T <: HList]: TaggedFinder[TAG, X, (X AS TAG) :: T] =
     (u: (X AS TAG) :: T) => u.head
 
