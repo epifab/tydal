@@ -9,10 +9,9 @@ sealed trait Field[+T] {
   def as[TAG <: String](implicit alias: ValueOf[TAG]): Field[T] with Tag[TAG]
 }
 
-case class Column[+T](name: String, dataSource: DataSource[_])(implicit val decoder: FieldDecoder[T])
-  extends Field[T] {
+case class Column[+T](name: String, srcAlias: String)(implicit val decoder: FieldDecoder[T]) extends Field[T] {
   override def as[TAG <: String](implicit alias: ValueOf[TAG]): Column[T] with Tag[TAG] =
-    new Column[T](name, dataSource) with Tag[TAG] {
+    new Column[T](name, srcAlias) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }
@@ -66,26 +65,21 @@ class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: Fi
 }
 
 trait ColumnsBuilder[+X] {
-  def build[DS <: DataSource[_]](ds: DS): X
+  def build(ds: String): X
 }
 
 object ColumnsBuilder {
-  implicit def pure[TYPE, NAME <: String](implicit decoder: FieldDecoder[TYPE], name: ValueOf[NAME]): ColumnsBuilder[Column[TYPE] with Tag[NAME]] = new ColumnsBuilder[Column[TYPE] with Tag[NAME]] {
-    override def build[DS <: DataSource[_]](ds: DS): Column[TYPE] with Tag[NAME] = new Column[TYPE](name.value, ds) with Tag[NAME] {
+  implicit def pure[TYPE, NAME <: String](implicit decoder: FieldDecoder[TYPE], name: ValueOf[NAME]): ColumnsBuilder[Column[TYPE] with Tag[NAME]] =
+    (ds: String) => new Column[TYPE](name.value, ds) with Tag[NAME] {
       override def tagValue: String = name
     }
-  }
 
-  implicit val hNil: ColumnsBuilder[HNil] = new ColumnsBuilder[HNil] {
-    override def build[DS <: DataSource[_]](ds: DS): HNil = HNil
-  }
+  implicit val hNil: ColumnsBuilder[HNil] =
+    (ds: String) => HNil
 
   implicit def hCons[H, T <: HList]
-    (implicit
-     headTerm: ColumnsBuilder[H],
-     tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] = new ColumnsBuilder[H :: T] {
-
-    override def build[DS <: DataSource[_]](ds: DS): H :: T =
-      headTerm.build(ds) :: tailTerms.build(ds)
-  }
+      (implicit
+       headTerm: ColumnsBuilder[H],
+       tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] =
+    (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
 }

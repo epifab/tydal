@@ -6,21 +6,14 @@ import io.epifab.yadl.typesafe.fields.{Aggregation, Column, Max, Min, Placeholde
 import shapeless.{::, HNil}
 
 object TypesafeSchema {
-  class Students extends Table[
+  object Students extends TableBuilder[
     "students",
       (Column[Int] AS "id") ::
       (Column[String] AS "name") ::
       HNil
   ]
 
-  object Students {
-    def as[T <: String](implicit alias: ValueOf[T]): Students AS T =
-      new Students with Tag[T] {
-        override def tagValue: String = alias.value
-      }
-  }
-
-  class Exams extends Table[
+  object Exams extends TableBuilder[
     "exams",
       (Column[Int] AS "student_id") ::
       (Column[Int] AS "course_id") ::
@@ -28,24 +21,12 @@ object TypesafeSchema {
       HNil
   ]
 
-  object Exams {
-    def as[T <: String](implicit alias: ValueOf[T]): Exams AS T = new Exams with Tag[T] {
-      override def tagValue: String = alias.value
-    }
-  }
-
-  class Courses extends Table[
+  object Courses extends TableBuilder[
     "courses",
       (Column[Int] AS "id") ::
       (Column[String] AS "name") ::
       HNil
   ]
-
-  object Courses {
-    def as[T <: String](implicit alias: ValueOf[T]): Courses AS T = new Courses with Tag[T] {
-      override def tagValue: String = alias.value
-    }
-  }
 
   def maxScoreSubQuery[E <: String](implicit eAlias: ValueOf[E]) =
     Select
@@ -57,7 +38,7 @@ object TypesafeSchema {
         Min(ctx[E, "course_id"].get).as["course_id"] ::
         HNil)
 
-  val studentsSelect: NonEmptySelect[Placeholder[Int, Int] with Tag["student_id"] :: HNil, Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Aggregation[Int, Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil, HNil, Students with Tag["s"] :: Join[NonEmptySelect[HNil, AS[Column[Int], "student_id"] :: Aggregation[Int, Option[Int]] with Tag["max_score"] :: Aggregation[Int, Option[Int]] with Tag["course_id"] :: HNil, AS[Column[Int], "student_id"] :: HNil, AS[Exams, "e"] :: HNil] with Tag["ms"]] :: Join[Courses with Tag["cc"]] :: HNil] =
+  val studentsSelect =
     Select
       .from(Students.as["s"])
       .join(ctx => maxScoreSubQuery["e"].as["ms"]

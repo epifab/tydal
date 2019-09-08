@@ -15,13 +15,20 @@ trait FindContext[HAYSTACK] {
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, HAYSTACK]
 }
 
-abstract class Table[NAME <: String, FIELDS <: HList](implicit val tableNameWrapper: ValueOf[NAME], columnsBuilder: ColumnsBuilder[FIELDS])
-    extends DataSource[FIELDS] with FindContext[FIELDS] {
-  val tableName: String = tableNameWrapper.value
-  def fields: FIELDS = columnsBuilder.build(this)
+class TableBuilder[NAME <: String, FIELDS <: HList] {
+  def as[ALIAS <: String](implicit name: ValueOf[NAME], alias: ValueOf[ALIAS], columnsBuilder: ColumnsBuilder[FIELDS]): Table[NAME, FIELDS] with Tag[ALIAS] =
+    Table(name.value, columnsBuilder.build(alias.value), alias.value)
+}
 
+class Table[NAME <: String, FIELDS <: HList] private(tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, FIELDS] =
     new FindByTag(fields)
+}
+
+object Table {
+  protected[typesafe] def apply[NAME <: String, FIELDS <: HList, ALIAS <: String](tableName: String, fields: FIELDS, tableAlias: String): Table[NAME, FIELDS] with Tag[ALIAS] = new Table[NAME, FIELDS](tableName, fields) with Tag[ALIAS] {
+    override def tagValue: String = tableAlias
+  }
 }
 
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
