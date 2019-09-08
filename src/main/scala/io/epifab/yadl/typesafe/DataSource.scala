@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, TaggedFinder}
+import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindByNestedTag, TaggedFinder}
 import shapeless.{::, HList, HNil}
 
 trait DataSource[FIELDS] {
@@ -11,8 +11,12 @@ trait DataSource[FIELDS] {
     new Join(this, clause(this))
 }
 
+trait FindContext[HAYSTACK] {
+  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, HAYSTACK]
+}
+
 abstract class Table[NAME <: String, FIELDS <: HList](implicit val tableNameWrapper: ValueOf[NAME], columnsBuilder: ColumnsBuilder[FIELDS])
-    extends DataSource[FIELDS] {
+    extends DataSource[FIELDS] with FindContext[FIELDS] {
   val tableName: String = tableNameWrapper.value
   def fields: FIELDS = columnsBuilder.build(this)
 
@@ -22,13 +26,16 @@ abstract class Table[NAME <: String, FIELDS <: HList](implicit val tableNameWrap
 
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
-trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] {
+trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] extends FindContext[(PLACEHOLDERS, FIELDS, SOURCES)] {
   def placeholders: PLACEHOLDERS
   def fields: FIELDS
   def sources: SOURCES
 
-  def apply[TAG <: String](implicit tag: ValueOf[TAG]) =
-    new FindByTag[TAG, (PLACEHOLDERS, FIELDS, SOURCES)]((placeholders, fields, sources))
+  override def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, (PLACEHOLDERS, FIELDS, SOURCES)] =
+    new FindByTag((placeholders, fields, sources))
+
+  def apply[TAG1 <: String, TAG2 <: String](implicit tag1: ValueOf[TAG1], tag2: ValueOf[TAG2]): FindByNestedTag[TAG1, TAG2, SOURCES] =
+    new FindByNestedTag(sources)
 }
 
 sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]

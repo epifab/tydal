@@ -2,7 +2,7 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.fields.{Column, Max, Min}
+import io.epifab.yadl.typesafe.fields.{Aggregation, Column, Max, Min, Placeholder}
 import shapeless.{::, HNil}
 
 object TypesafeSchema {
@@ -50,27 +50,26 @@ object TypesafeSchema {
   def maxScoreSubQuery[E <: String](implicit eAlias: ValueOf[E]) =
     Select
       .from(Exams.as[E])
-      .groupBy(ctx => ctx[E].get.apply["student_id"].get :: HNil)
+      .groupBy(ctx => ctx[E, "student_id"].get :: HNil)
       .take(ctx =>
-        ctx[E].get.apply["student_id"].get ::
-        Max(ctx[E].get.apply["score"].get).as["max_score"] ::
-        Min(ctx[E].get.apply["course_id"].get).as["course_id"] ::
+        ctx[E, "student_id"].get ::
+        Max(ctx[E, "score"].get).as["max_score"] ::
+        Min(ctx[E, "course_id"].get).as["course_id"] ::
         HNil)
 
-  val studentsSelect =
+  val studentsSelect: NonEmptySelect[Placeholder[Int, Int] with Tag["student_id"] :: HNil, Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Aggregation[Int, Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil, HNil, Students with Tag["s"] :: Join[NonEmptySelect[HNil, AS[Column[Int], "student_id"] :: Aggregation[Int, Option[Int]] with Tag["max_score"] :: Aggregation[Int, Option[Int]] with Tag["course_id"] :: HNil, AS[Column[Int], "student_id"] :: HNil, AS[Exams, "e"] :: HNil] with Tag["ms"]] :: Join[Courses with Tag["cc"]] :: HNil] =
     Select
       .from(Students.as["s"])
       .join(ctx => maxScoreSubQuery["e"].as["ms"]
-        .on(_["student_id"].get === ctx["s"].get.apply["id"].get))
-      .join(ctx => Courses.as["cc"].on(_["id"].get ===
-        ctx["ms"].get.apply["course_id"].get))
+        .on(_["student_id"].get === ctx["s", "id"].get))
+      .join(ctx => Courses.as["cc"].on(_["id"].get === ctx["ms", "course_id"].get))
       .take(ctx =>
-        ctx["s"].get.apply["id"].get.as["sid"] ::
-        ctx["s"].get.apply["name"].get.as["sname"] ::
-        ctx["ms"].get.apply["max_score"].get.as["score"] ::
-        ctx["cc"].get.apply["name"].get.as["cname"] ::
+        ctx["s", "id"].get.as["sid"] ::
+        ctx["s", "name"].get.as["sname"] ::
+        ctx["ms", "max_score"].get.as["score"] ::
+        ctx["cc", "name"].get.as["cname"] ::
         HNil
       )
       .withPlaceholder[Int, "student_id"]
-      .where(ctx => ctx["s"].get.apply["id"].get === ctx["student_id"].get)
+      .where(ctx => ctx["s", "id"].get === ctx["student_id"].get)
 }

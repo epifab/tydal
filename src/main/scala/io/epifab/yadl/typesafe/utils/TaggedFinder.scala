@@ -1,6 +1,6 @@
 package io.epifab.yadl.typesafe.utils
 
-import io.epifab.yadl.typesafe.{AS, DataSource, Join}
+import io.epifab.yadl.typesafe.{AS, DataSource, FindContext, Join}
 import shapeless.{::, HList}
 
 trait TaggedFinder[TAG <: String, +X, HAYSTACK] {
@@ -46,4 +46,12 @@ object TaggedFinder {
 class FindByTag[TAG <: String, HAYSTACK](haystack: HAYSTACK) {
   def get[X](implicit finder: TaggedFinder[TAG, X, HAYSTACK]): X AS TAG =
     finder.find(haystack)
+}
+
+class FindByNestedTag[TAG1 <: String, TAG2 <: String, HAYSTACK1](haystack: HAYSTACK1)(implicit tag2: ValueOf[TAG2]) {
+  def get[HAYSTACK2, X2]
+      (implicit
+       finder1: TaggedFinder[TAG1, FindContext[HAYSTACK2], HAYSTACK1],
+       finder2: TaggedFinder[TAG2, X2, HAYSTACK2]): X2 AS TAG2 =
+    finder1.find(haystack).apply[TAG2].get[X2]
 }
