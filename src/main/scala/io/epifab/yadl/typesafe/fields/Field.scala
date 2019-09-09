@@ -56,10 +56,10 @@ case class FieldExpr3[+T1, +T2, +T3, +U](field1: Field[T1], field2: Field[T2], f
     }
 }
 
-class Placeholder[+T, -U](implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
+case class Placeholder[+T, -U](name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
   extends Field[T] {
   def as[TAG <: String](implicit alias: ValueOf[TAG]): Placeholder[T, U] with Tag[TAG] =
-    new Placeholder[T, U] with Tag[TAG] {
+    new Placeholder[T, U](name) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }

@@ -4,7 +4,7 @@ import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindByNestedTag, TaggedFinder}
 import shapeless.{::, HList, HNil}
 
-trait DataSource[FIELDS] {
+trait DataSource[FIELDS] { self: Tag[_] =>
   def fields: FIELDS
 
   def on(clause: this.type => BinaryExpr): Join[this.type] =
@@ -31,6 +31,32 @@ object Table {
   }
 }
 
+class SubQuery[PLACEHOLDERS <: HList, FIELDS <: HList, SUBQUERYFIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
+    (select: Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES])
+    (implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERYFIELDS]) extends DataSource[SUBQUERYFIELDS] with FindContext[SUBQUERYFIELDS] { self: Tag[_] =>
+  override def fields: SUBQUERYFIELDS = subQueryFields.build(tagValue, select.fields)
+
+  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, SUBQUERYFIELDS] =
+    new FindByTag(fields)
+}
+
+trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
+  def build(srcAlias: String, fields: FIELDS): SUBQUERY_FIELDS
+}
+
+object SubQueryFields {
+  implicit def singleField[T, ALIAS <: String]: SubQueryFields[Field[T] with Tag[ALIAS], Column[T] with Tag[ALIAS]] =
+    (srcAlias: String, field: Field[T] with Tag[ALIAS]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tag[ALIAS] {
+      override def tagValue: String = field.tagValue
+    }
+
+  implicit def hNil: SubQueryFields[HNil, HNil] =
+    (_: String, _: HNil) => HNil
+
+  implicit def hCons[H, RH, T <: HList, RT <: HList](implicit headField: SubQueryFields[H, RH], tailFields: SubQueryFields[T, RT]): SubQueryFields[H :: T, RH :: RT] =
+    (srcAlias: String, list: H :: T) => headField.build(srcAlias, list.head) :: tailFields.build(srcAlias, list.tail)
+}
+
 class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
 
 trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] extends FindContext[(PLACEHOLDERS, FIELDS, SOURCES)] {
@@ -45,32 +71,41 @@ trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] ex
     new FindByNestedTag(sources)
 }
 
-sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    extends SelectContext[PLACEHOLDERS, FIELDS, SOURCES] with DataSource[FIELDS] {
+sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends SelectContext[PLACEHOLDERS, FIELDS, SOURCES] { select =>
   def placeholders: PLACEHOLDERS
   def fields: FIELDS
-  def groupByFIELDs: GROUPBY
+  def groupByFields: GROUPBY
   def sources: SOURCES
+
+  class SubQueryBuilder[REFINED_FIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, REFINED_FIELDS]) {
+    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SubQuery[PLACEHOLDERS, FIELDS, REFINED_FIELDS, GROUPBY, SOURCES] with Tag[ALIAS] =
+      new SubQuery(select) with Tag[ALIAS] {
+        override def tagValue: String = alias.value
+      }
+  }
+
+  def subQuery[REFINED <: HList](implicit refinedFields: SubQueryFields[FIELDS, REFINED]) =
+    new SubQueryBuilder[REFINED]
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, HNil] {
   override def placeholders: HNil = HNil
   override def fields: HNil = HNil
-  override def groupByFIELDs: HNil = HNil
+  override def groupByFields: HNil = HNil
   override def sources: HNil = HNil
 
   def from[T <: DataSource[_] with Tag[_]](source: T): NonEmptySelect[HNil, HNil, HNil, T :: HNil] =
-    new NonEmptySelect(HNil, fields, groupByFIELDs, source :: HNil)
+    new NonEmptySelect(HNil, fields, groupByFields, source :: HNil)
 }
 
 class NonEmptySelect[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    (val placeholders: PLACEHOLDERS, val fields: FIELDS, val groupByFIELDs: GROUPBY, val sources: SOURCES, val where: BinaryExpr = BinaryExpr.empty)
+    (val placeholders: PLACEHOLDERS, val fields: FIELDS, val groupByFields: GROUPBY, val sources: SOURCES, val where: BinaryExpr = BinaryExpr.empty)
     extends Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] {
 
   def take[NEW_FIELDS <: HList]
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_FIELDS):
     NonEmptySelect[PLACEHOLDERS, NEW_FIELDS, GROUPBY, SOURCES] =
-      new NonEmptySelect(placeholders, f(this), groupByFIELDs, sources)
+      new NonEmptySelect(placeholders, f(this), groupByFields, sources)
 
   def groupBy[NEW_GROUPBY <: HList]
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_GROUPBY):
@@ -81,18 +116,13 @@ class NonEmptySelect[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, S
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => Join[NEW_SOURCE])
     (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
     NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCE_RESULTS] =
-      new NonEmptySelect(placeholders, fields, groupByFIELDs, appender.append(sources, f(this)))
+      new NonEmptySelect(placeholders, fields, groupByFields, appender.append(sources, f(this)))
 
-  def withPlaceholder[T, TAG <: String](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T], alias: ValueOf[TAG]): NonEmptySelect[(Placeholder[T, T] with Tag[TAG]) :: PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
-    new NonEmptySelect(new Placeholder[T, T].as[TAG] :: placeholders, fields, groupByFIELDs, sources)
+  def withPlaceholder[T, TAG <: String](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T], name: ValueOf[TAG]): NonEmptySelect[(Placeholder[T, T] with Tag[TAG]) :: PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
+    new NonEmptySelect(new Placeholder[T, T](name.value).as[TAG] :: placeholders, fields, groupByFields, sources)
 
   def where(f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
-    new NonEmptySelect(placeholders, fields, groupByFIELDs, sources, where and f(this))
-
-  def as[TAG <: String](implicit alias: ValueOf[TAG]): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] with Tag[TAG] =
-    new NonEmptySelect(placeholders, fields, groupByFIELDs, sources, where) with Tag[TAG] {
-      override def tagValue: String = alias.value
-    }
+    new NonEmptySelect(placeholders, fields, groupByFields, sources, where and f(this))
 }
 
 object Select extends EmptySelect

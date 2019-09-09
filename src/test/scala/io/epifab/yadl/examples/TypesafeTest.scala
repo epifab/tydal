@@ -29,4 +29,8 @@ class TypesafeTest extends FlatSpec with Matchers {
     select["e"].get shouldBe a[Table["exams", _] with Tag["e"]]
     select["c"].get shouldBe a[Table["courses", _] with Tag["c"]]
   }
+
+  "The QueryBuilder" should "build the fields clause" in {
+    QueryBuilder.fields(studentsSelect.fields) shouldBe "s.id AS sid, s.name AS sname, ms.max_score AS score, cc.name AS cname"
+  }
 }
