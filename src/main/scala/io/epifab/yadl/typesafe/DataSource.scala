@@ -20,19 +20,21 @@ class TableBuilder[NAME <: String, FIELDS <: HList] {
     Table(name.value, columnsBuilder.build(alias.value), alias.value)
 }
 
-class Table[NAME <: String, FIELDS <: HList] private(tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
+class Table[NAME <: String, FIELDS <: HList] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, FIELDS] =
     new FindByTag(fields)
 }
 
 object Table {
+  def unapply(table: Table[_, _]): Option[String] = Some(table.tableName)
+
   protected[typesafe] def apply[NAME <: String, FIELDS <: HList, ALIAS <: String](tableName: String, fields: FIELDS, tableAlias: String): Table[NAME, FIELDS] with Tag[ALIAS] = new Table[NAME, FIELDS](tableName, fields) with Tag[ALIAS] {
     override def tagValue: String = tableAlias
   }
 }
 
 class SubQuery[PLACEHOLDERS <: HList, FIELDS <: HList, SUBQUERYFIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    (select: Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES])
+    (val select: Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES])
     (implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERYFIELDS]) extends DataSource[SUBQUERYFIELDS] with FindContext[SUBQUERYFIELDS] { self: Tag[_] =>
   override def fields: SUBQUERYFIELDS = subQueryFields.build(tagValue, select.fields)
 

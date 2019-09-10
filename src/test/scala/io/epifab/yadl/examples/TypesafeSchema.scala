@@ -39,7 +39,7 @@ object TypesafeSchema {
         HNil)
       .subQuery
 
-  val studentsSelect =
+  val studentsSelect: NonEmptySelect[Placeholder[Int, Int] with Tag["student_id"] :: HNil, Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Column[Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil, HNil, Table["students", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["s"] :: Join[SubQuery[HNil, AS[Column[Int], "student_id"] :: Aggregation[Int, Option[Int]] with Tag["max_score"] :: Aggregation[Int, Option[Int]] with Tag["course_id"] :: HNil, Column[Int] with Tag["student_id"] :: Column[Option[Int]] with Tag["max_score"] :: Column[Option[Int]] with Tag["course_id"] :: HNil, AS[Column[Int], "student_id"] :: HNil, Table["exams", AS[Column[Int], "student_id"] :: AS[Column[Int], "course_id"] :: AS[Column[Int], "score"] :: HNil] with Tag["e"] :: HNil] with Tag["ms"]] :: Join[Table["courses", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["cc"]] :: HNil] =
     Select
       .from(Students.as["s"])
       .join($ => maxScoreSubQuery["e"].as["ms"]
