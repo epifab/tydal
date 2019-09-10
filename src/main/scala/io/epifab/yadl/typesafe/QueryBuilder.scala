@@ -57,24 +57,28 @@ object QueryBuilder {
     (implicit query: QueryBuilder[Select[HList, FIELDS, GROUPBY, SOURCES], "query"]): QueryBuilder[SubQuery[HList, FIELDS, HList, GROUPBY, SOURCES] with Tag[_], "from"] =
     QueryBuilder.instance(subQuery => query.build(subQuery.select).map(sql => "(" + sql + ") AS " + subQuery.tagValue))
 
-  implicit def fields[FIELDS](implicit tagMap: TagMap[Field[Any], FIELDS]): QueryBuilder[FIELDS, "fields"] =
-    new QueryBuilder[FIELDS, "fields"] {
-      def build(fields: FIELDS): Option[String] = {
-        tagMap.toMap(fields)
-          .map[String] { case (alias, field) => fieldSrc(field) + " AS " + alias }
-          .mapNonEmpty(_.mkString(", "))
-      }
-
-      def fieldSrc(field: Field[_]): String = field match {
-        case Column(name, srcAlias) => s"$srcAlias.$name"
-        case cast@ Cast(field) => fieldSrc(field) + "::" + cast.decoder.dbType.sqlName
-        case Aggregation(field, dbFunction) => dbFunction.name + "(" + fieldSrc(field) + ")"
-        case FieldExpr1(field, dbFunction) => dbFunction.name + "(" + fieldSrc(field) + ")"
-        case FieldExpr2(field1, field2, dbFunction) => dbFunction.name + "(" + fieldSrc(field1) + "," + fieldSrc(field2) + ")"
-        case FieldExpr3(field1, field2, field3, dbFunction) => dbFunction.name + "(" + fieldSrc(field1) + "," + fieldSrc(field2) + "," + fieldSrc(field3) + ")"
-        case Placeholder(name) => s":$name"
-      }
+  implicit def field: QueryBuilder[Field[_] with Tag[_], "fields"] = {
+    def fieldSrc(field: Field[_]): String = field match {
+      case Column(name, srcAlias) => s"$srcAlias.$name"
+      case cast@ Cast(field) => fieldSrc(field) + "::" + cast.decoder.dbType.sqlName
+      case Aggregation(field, dbFunction) => dbFunction.name + "(" + fieldSrc(field) + ")"
+      case FieldExpr1(field, dbFunction) => dbFunction.name + "(" + fieldSrc(field) + ")"
+      case FieldExpr2(field1, field2, dbFunction) => dbFunction.name + "(" + fieldSrc(field1) + "," + fieldSrc(field2) + ")"
+      case FieldExpr3(field1, field2, field3, dbFunction) => dbFunction.name + "(" + fieldSrc(field1) + "," + fieldSrc(field2) + "," + fieldSrc(field3) + ")"
+      case Placeholder(name) => s":$name"
     }
+
+    QueryBuilder.instance(field => Some(fieldSrc(field)))
+  }
+
+  implicit def emptyFields: QueryBuilder[HNil, "fields"] =
+    QueryBuilder.instance(_ => None)
+
+  implicit def nonEmptyFields[H, T <: HList](implicit head: QueryBuilder[H, "fields"], tail: QueryBuilder[T, "fields"]): QueryBuilder[H :: T, "fields"] =
+    QueryBuilder.instance(fields => for {
+      h <- head.build(fields.head)
+      t <- tail.build(fields.tail)
+    } yield (h + ", " + t))
 
   implicit def groupBy[FIELDS](implicit tagMap: TagMap[Field[Any], FIELDS]): QueryBuilder[FIELDS, "groupBy"] =
     QueryBuilder.instance(fields => tagMap.toMap(fields).keys.mapNonEmpty(_.mkString(", ")))

@@ -34,7 +34,7 @@ class TypesafeTest extends FlatSpec with Matchers {
     QueryBuilder[
       Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Column[Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil,
       "fields"
-    ](studentsSelect.fields)(QueryBuilder.fields) shouldBe
+    ](studentsSelect.fields) shouldBe
       Some("s.id AS sid, s.name AS sname, ms.max_score AS score, cc.name AS cname")
   }
 }
