@@ -42,8 +42,8 @@ class SubQuery[PLACEHOLDERS <: HList, FIELDS <: HList, SUBQUERYFIELDS <: HList, 
     new FindByTag(fields)
 }
 
-trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
-  def build(srcAlias: String, fields: FIELDS): SUBQUERY_FIELDS
+trait SubQueryFields[-FIELDS, +SUBQUERYFIELDS] {
+  def build(srcAlias: String, fields: FIELDS): SUBQUERYFIELDS
 }
 
 object SubQueryFields {

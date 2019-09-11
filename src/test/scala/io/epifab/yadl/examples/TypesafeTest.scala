@@ -2,7 +2,7 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students, studentsSelect}
 import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.fields.{AlwaysTrue, Column, Field}
+import io.epifab.yadl.typesafe.fields.{AlwaysTrue, Field}
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.{::, HNil}
 
@@ -31,10 +31,12 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   "The QueryBuilder" should "build the fields clause" in {
-    QueryBuilder[
-      Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Column[Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil,
-      "fields"
-    ](studentsSelect.fields) shouldBe
-      Some("s.id AS sid, s.name AS sname, ms.max_score AS score, cc.name AS cname")
+    QueryBuilder(studentsSelect["ms"].get.select) shouldBe
+      Some("SELECT" +
+        " e.student_id AS student_id," +
+        " max(e.score) AS max_score," +
+        " min(e.course_id) AS course_id" +
+        " FROM exams AS e" +
+        " GROUP BY e.student_id")
   }
 }
