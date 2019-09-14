@@ -54,7 +54,7 @@ object QueryBuilder {
     QueryBuilder.instance(join => src.build(join.dataSource)
       .map("INNER JOIN " + _)
       .map(joinQuery =>
-        where(join.filter)
+        binaryExprFragment(join.filter)
           .map(joinQuery + " ON " + _)
           .getOrElse(joinQuery))
     )
@@ -95,13 +95,6 @@ object QueryBuilder {
       ).flatten.reduceOption(_ + ", " + _)
     )
 
-  def where(filter: BinaryExpr): Option[String] = {
-    filter match {
-      case AlwaysTrue => None
-      case filter => Some(binaryExprFragment(filter))
-    }
-  }
-
   private def fieldFragment(field: Field[_]): String = field match {
     case Column(name, srcAlias) => s"$srcAlias.$name"
     case cast@Cast(field) => fieldFragment(field) + "::" + cast.decoder.dbType.sqlName
@@ -112,22 +105,32 @@ object QueryBuilder {
     case Placeholder(name) => s":$name"
   }
 
-  private def binaryExprFragment(binaryExpr: BinaryExpr): String = binaryExpr match {
-    case AlwaysTrue => "1 = 1"
-    case And(left, right) => binaryExprFragment(left) + " AND " + binaryExprFragment(right)
-    case Or(left, op) => "(" + binaryExprFragment(left) + " OR " + binaryExprFragment(op) + ")"
-    case Equals(term1, term2) => fieldFragment(term1) + " = " + fieldFragment(term2)
-    case NotEquals(term1, term2) => fieldFragment(term1) + " != " + fieldFragment(term2)
-    case GreaterThan(term1, term2) => fieldFragment(term1) + " > " + fieldFragment(term2)
-    case LessThan(term1, term2) => fieldFragment(term1) + " < " + fieldFragment(term2)
-    case GreaterThanOrEqual(term1, term2) => fieldFragment(term1) + " >= " + fieldFragment(term2)
-    case LessThanOrEqual(term1, term2) => fieldFragment(term1) + " <= " + fieldFragment(term2)
-    case Like(term1, term2) => fieldFragment(term1) + " ILIKE " + fieldFragment(term2)
-    case IsDefined(term) => fieldFragment(term) + " IS NOT NULL"
-    case IsNotDefined(term) => fieldFragment(term) + " IS NULL"
-    case IsSuperset(terms1, terms2) => fieldFragment(terms1) + " @> " + fieldFragment(terms2)
-    case IsSubset(terms1, terms2) => fieldFragment(terms1) + " <@ " + fieldFragment(terms2)
-    case Overlaps(terms1, terms2) => fieldFragment(terms1) + " && " + fieldFragment(terms2)
-    case IsIncluded(term, terms) => fieldFragment(term) + " = ANY(" + fieldFragment(terms) + ")"
+  private def binaryExprFragment(binaryExpr: BinaryExpr): Option[String] = binaryExpr match {
+    case AlwaysTrue => None
+    case And(left, right) => (binaryExprFragment(left), binaryExprFragment(right)) match {
+      case (Some(l), Some(r)) => Some(l + " AND " + r)
+      case (Some(l), None) => Some(l)
+      case (None, Some(r)) => Some(r)
+      case (None, None) => None
+    }
+    case Or(left, right) => (binaryExprFragment(left), binaryExprFragment(right)) match {
+      case (Some(l), Some(r)) => Some("(" + l + " OR " + r + ")")
+      case (Some(l), None) => Some(l)
+      case (None, Some(r)) => Some(r)
+      case (None, None) => None
+    }
+    case Equals(term1, term2) => Some(fieldFragment(term1) + " = " + fieldFragment(term2))
+    case NotEquals(term1, term2) => Some(fieldFragment(term1) + " != " + fieldFragment(term2))
+    case GreaterThan(term1, term2) => Some(fieldFragment(term1) + " > " + fieldFragment(term2))
+    case LessThan(term1, term2) => Some(fieldFragment(term1) + " < " + fieldFragment(term2))
+    case GreaterThanOrEqual(term1, term2) => Some(fieldFragment(term1) + " >= " + fieldFragment(term2))
+    case LessThanOrEqual(term1, term2) => Some(fieldFragment(term1) + " <= " + fieldFragment(term2))
+    case Like(term1, term2) => Some(fieldFragment(term1) + " ILIKE " + fieldFragment(term2))
+    case IsDefined(term) => Some(fieldFragment(term) + " IS NOT NULL")
+    case IsNotDefined(term) => Some(fieldFragment(term) + " IS NULL")
+    case IsSuperset(terms1, terms2) => Some(fieldFragment(terms1) + " @> " + fieldFragment(terms2))
+    case IsSubset(terms1, terms2) => Some(fieldFragment(terms1) + " <@ " + fieldFragment(terms2))
+    case Overlaps(terms1, terms2) => Some(fieldFragment(terms1) + " && " + fieldFragment(terms2))
+    case IsIncluded(term, terms) => Some(fieldFragment(term) + " = ANY(" + fieldFragment(terms) + ")")
   }
 }
