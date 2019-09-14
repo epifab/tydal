@@ -76,6 +76,7 @@ sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SO
   def fields: FIELDS
   def groupByFields: GROUPBY
   def sources: SOURCES
+  def filter: BinaryExpr
 
   class SubQueryBuilder[SUBQUERYFIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, SUBQUERYFIELDS]) {
     def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SubQuery[SUBQUERYFIELDS, Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES]] with Tag[ALIAS] =
@@ -89,40 +90,45 @@ sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SO
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, HNil] {
-  override def placeholders: HNil = HNil
-  override def fields: HNil = HNil
-  override def groupByFields: HNil = HNil
-  override def sources: HNil = HNil
+  override val placeholders: HNil = HNil
+  override val fields: HNil = HNil
+  override val groupByFields: HNil = HNil
+  override val sources: HNil = HNil
+  override val filter: BinaryExpr = AlwaysTrue
 
   def from[T <: DataSource[_] with Tag[_]](source: T): NonEmptySelect[HNil, HNil, HNil, T :: HNil] =
-    new NonEmptySelect(HNil, fields, groupByFields, source :: HNil)
+    new NonEmptySelect(HNil, fields, groupByFields, source :: HNil, filter)
 }
 
 class NonEmptySelect[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    (val placeholders: PLACEHOLDERS, val fields: FIELDS, val groupByFields: GROUPBY, val sources: SOURCES, val where: BinaryExpr = BinaryExpr.empty)
+    (override val placeholders: PLACEHOLDERS,
+     override val fields: FIELDS,
+     override val groupByFields: GROUPBY,
+     override val sources: SOURCES,
+     override val filter: BinaryExpr)
     extends Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] {
 
   def take[NEW_FIELDS <: HList]
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_FIELDS):
     NonEmptySelect[PLACEHOLDERS, NEW_FIELDS, GROUPBY, SOURCES] =
-      new NonEmptySelect(placeholders, f(this), groupByFields, sources)
+      new NonEmptySelect(placeholders, f(this), groupByFields, sources, filter)
 
   def groupBy[NEW_GROUPBY <: HList]
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => NEW_GROUPBY):
     NonEmptySelect[PLACEHOLDERS, FIELDS, NEW_GROUPBY, SOURCES] =
-      new NonEmptySelect(placeholders, fields, f(this), sources)
+      new NonEmptySelect(placeholders, fields, f(this), sources, filter)
 
   def join[NEW_SOURCE <: DataSource[_] with Tag[_], SOURCE_RESULTS <: HList]
     (f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => Join[NEW_SOURCE])
     (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
     NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCE_RESULTS] =
-      new NonEmptySelect(placeholders, fields, groupByFields, appender.append(sources, f(this)))
+      new NonEmptySelect(placeholders, fields, groupByFields, appender.append(sources, f(this)), filter)
 
   def withPlaceholder[T, TAG <: String](implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T], name: ValueOf[TAG]): NonEmptySelect[(Placeholder[T, T] with Tag[TAG]) :: PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
-    new NonEmptySelect(new Placeholder[T, T](name.value).as[TAG] :: placeholders, fields, groupByFields, sources)
+    new NonEmptySelect(new Placeholder[T, T](name.value).as[TAG] :: placeholders, fields, groupByFields, sources, filter)
 
   def where(f: SelectContext[PLACEHOLDERS, FIELDS, SOURCES] => BinaryExpr): NonEmptySelect[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES] =
-    new NonEmptySelect(placeholders, fields, groupByFields, sources, where and f(this))
+    new NonEmptySelect(placeholders, fields, groupByFields, sources, filter and f(this))
 }
 
 object Select extends EmptySelect

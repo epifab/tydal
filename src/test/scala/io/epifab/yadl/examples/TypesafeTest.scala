@@ -64,6 +64,13 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   it should "build a query with subqueries" in {
+    val subQuery =
+      "SELECT e.student_id AS student_id," +
+        " max(e.score) AS max_score," +
+        " min(e.course_id) AS course_id" +
+        " FROM exams AS e" +
+        " GROUP BY e.student_id"
+
     QueryBuilder(studentsSelect) shouldBe Some(
       "SELECT" +
         " s.id AS sid," +
@@ -71,13 +78,9 @@ class TypesafeTest extends FlatSpec with Matchers {
         " ms.max_score AS score," +
         " cc.name AS cname" +
         " FROM students AS s" +
-        " INNER JOIN (" +
-        "SELECT e.student_id AS student_id," +
-        " max(e.score) AS max_score," +
-        " min(e.course_id) AS course_id" +
-        " FROM exams AS e" +
-        " GROUP BY e.student_id) AS ms ON ms.student_id = s.id" +
-        " INNER JOIN courses AS cc ON cc.id = ms.course_id"
+        " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
+        " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
+        " WHERE s.id = :student_id"
     )
   }
 }

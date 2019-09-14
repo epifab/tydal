@@ -34,7 +34,8 @@ object QueryBuilder {
           Seq(
             fields.build(select.fields).orElse(Some("1")),
             from.build(select.sources).map("FROM " + _),
-            groupBy.build(select.groupByFields).map("GROUP BY " + _)
+            groupBy.build(select.groupByFields).map("GROUP BY " + _),
+            binaryExprFragment(select.filter).map("WHERE " + _)
           ).flatten.mkString(" ")
       )
     )
