@@ -33,11 +33,9 @@ object Table {
   }
 }
 
-class SubQuery[PLACEHOLDERS <: HList, FIELDS <: HList, SUBQUERYFIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    (val select: Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES])
-    (implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERYFIELDS]) extends DataSource[SUBQUERYFIELDS] with FindContext[SUBQUERYFIELDS] { self: Tag[_] =>
-  override def fields: SUBQUERYFIELDS = subQueryFields.build(tagValue, select.fields)
-
+class SubQuery[SUBQUERYFIELDS <: HList, S <: Select[_, _, _, _]]
+    (val select: S, override val fields: SUBQUERYFIELDS)
+    extends DataSource[SUBQUERYFIELDS] with FindContext[SUBQUERYFIELDS] { self: Tag[_] =>
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, SUBQUERYFIELDS] =
     new FindByTag(fields)
 }
@@ -59,7 +57,7 @@ object SubQueryFields {
     (srcAlias: String, list: H :: T) => headField.build(srcAlias, list.head) :: tailFields.build(srcAlias, list.tail)
 }
 
-class Join[+DS <: DataSource[_]](val dataSource: DS, filter: BinaryExpr)
+class Join[+DS <: DataSource[_]](val dataSource: DS, val filter: BinaryExpr)
 
 trait SelectContext[PLACEHOLDERS <: HList, FIELDS <: HList, SOURCES <: HList] extends FindContext[(PLACEHOLDERS, FIELDS, SOURCES)] {
   def placeholders: PLACEHOLDERS
@@ -79,9 +77,9 @@ sealed trait Select[PLACEHOLDERS <: HList, FIELDS <: HList, GROUPBY <: HList, SO
   def groupByFields: GROUPBY
   def sources: SOURCES
 
-  class SubQueryBuilder[REFINED_FIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, REFINED_FIELDS]) {
-    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SubQuery[PLACEHOLDERS, FIELDS, REFINED_FIELDS, GROUPBY, SOURCES] with Tag[ALIAS] =
-      new SubQuery(select) with Tag[ALIAS] {
+  class SubQueryBuilder[SUBQUERYFIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, SUBQUERYFIELDS]) {
+    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SubQuery[SUBQUERYFIELDS, Select[PLACEHOLDERS, FIELDS, GROUPBY, SOURCES]] with Tag[ALIAS] =
+      new SubQuery(select, refinedFields.build(alias.value, select.fields)) with Tag[ALIAS] {
         override def tagValue: String = alias.value
       }
   }

@@ -1,10 +1,23 @@
 package io.epifab.yadl.examples
 
 import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students, studentsSelect}
+import io.epifab.yadl.typesafe.Implicits.ExtendedField
 import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.fields.{AlwaysTrue, Field}
+import io.epifab.yadl.typesafe.fields.{AlwaysTrue, Column, Field}
 import org.scalatest.{FlatSpec, Matchers}
+import Implicits._
 import shapeless.{::, HNil}
+
+object SelectsQueries {
+  val examsWithCourse: Select[HNil, Column[String] with Tag["cname"] :: Column[Int] with Tag["score"] :: HNil, HNil, Table["exams", AS[Column[Int], "student_id"] :: AS[Column[Int], "course_id"] :: AS[Column[Int], "score"] :: HNil] with Tag["e"] :: Join[Table["courses", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["c"]] :: HNil] =
+    Select
+      .from(Exams.as["e"])
+      .join($ => Courses.as["c"].on(_["id"].get === $["e", "course_id"].get))
+      .take($ =>
+        $["c", "name"].get.as["cname"] ::
+        $["e", "score"].get.as["score"] ::
+        HNil)
+}
 
 class TypesafeTest extends FlatSpec with Matchers {
   "The TagMap typeclass" should "bind fields to their alias" in {
@@ -30,7 +43,7 @@ class TypesafeTest extends FlatSpec with Matchers {
     select["c"].get shouldBe a[Table["courses", _] with Tag["c"]]
   }
 
-  "The QueryBuilder" should "build the fields clause" in {
+  "The QueryBuilder" should "build a simple query" in {
     QueryBuilder(studentsSelect["ms"].get.select) shouldBe
       Some("SELECT" +
         " e.student_id AS student_id," +
@@ -38,5 +51,33 @@ class TypesafeTest extends FlatSpec with Matchers {
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
         " GROUP BY e.student_id")
+  }
+
+  it should "build a query with join" in {
+    QueryBuilder(SelectsQueries.examsWithCourse) shouldBe Some(
+      "SELECT" +
+        " c.name AS cname," +
+        " e.score AS score" +
+        " FROM exams AS e" +
+        " INNER JOIN courses AS c ON c.id = e.course_id"
+    )
+  }
+
+  it should "build a query with subqueries" in {
+    QueryBuilder(studentsSelect) shouldBe Some(
+      "SELECT" +
+        " s.id AS sid," +
+        " s.name AS sname," +
+        " ms.max_score AS score," +
+        " cc.name AS cname" +
+        " FROM students AS s" +
+        " INNER JOIN (" +
+        "SELECT e.student_id AS student_id," +
+        " max(e.score) AS max_score," +
+        " min(e.course_id) AS course_id" +
+        " FROM exams AS e" +
+        " GROUP BY e.student_id) AS ms ON ms.student_id = s.id" +
+        " INNER JOIN courses AS cc ON cc.id = ms.course_id"
+    )
   }
 }

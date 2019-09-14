@@ -3,7 +3,7 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields.{BinaryExpr, CanBeIncluded, CanBeSubset, CanBeSuperset, CanOverlap, Equals, Field, GreaterThan, GreaterThanOrEqual, IsIncluded, IsSubset, IsSuperset, LessThan, LessThanOrEqual, NotEquals, Overlaps}
 
 object Implicits {
-  implicit class ExtendedGenericTerm[T](field: Field[T]) {
+  implicit class ExtendedField[T](field: Field[T]) {
     def ===[U](field2: Field[U])(implicit comparable: fields.Comparable[T, U]): BinaryExpr =
       Equals(field, field2)
 
