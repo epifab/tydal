@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindByNestedTag, TaggedFinder}
+import io.epifab.yadl.typesafe.utils.{Appender, FindByNestedTag, FindByTag}
 import shapeless.{::, HList, HNil}
 
 trait DataSource[FIELDS] { self: Tag[_] =>

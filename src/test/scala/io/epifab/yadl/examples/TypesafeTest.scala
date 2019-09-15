@@ -9,7 +9,7 @@ import Implicits._
 import shapeless.{::, HNil}
 
 object SelectsQueries {
-  val examsWithCourse: Select[HNil, Column[String] with Tag["cname"] :: Column[Int] with Tag["score"] :: HNil, HNil, Table["exams", AS[Column[Int], "student_id"] :: AS[Column[Int], "course_id"] :: AS[Column[Int], "score"] :: HNil] with Tag["e"] :: Join[Table["courses", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["c"]] :: HNil] =
+  val examsWithCourse =
     Select
       .from(Exams.as["e"])
       .join($ => Courses.as["c"].on(_["id"].get === $["e", "course_id"].get))

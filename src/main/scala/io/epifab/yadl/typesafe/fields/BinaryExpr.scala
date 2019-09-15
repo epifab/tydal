@@ -11,9 +11,8 @@ object BinaryExpr {
   val empty: BinaryExpr = AlwaysTrue
 }
 
-case object AlwaysTrue extends BinaryExpr {
-  override def and(otherExpression: BinaryExpr): BinaryExpr = otherExpression
-}
+case object AlwaysTrue
+  extends BinaryExpr
 
 case class And(expr1: BinaryExpr, expr2: BinaryExpr)
   extends BinaryExpr
@@ -54,5 +53,8 @@ case class Overlaps[T, U](field1: Field[T], field2: Field[U])(implicit canOverla
 case class IsIncluded[T, U](field1: Field[T], field2: Field[U])(implicit canBeIncluded: CanBeIncluded[T, U])
   extends BinaryExpr
 
-case class IsDefined[T](field: Field[Option[T]]) extends BinaryExpr
-case class IsNotDefined[T](field: Field[Option[T]]) extends BinaryExpr
+case class IsDefined[T](field: Field[Option[T]])
+  extends BinaryExpr
+
+case class IsNotDefined[T](field: Field[Option[T]])
+  extends BinaryExpr
