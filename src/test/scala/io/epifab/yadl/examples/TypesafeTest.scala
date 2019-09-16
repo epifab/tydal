@@ -28,8 +28,7 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   "The source finder" should "get any source" in {
-    val select: SelectContext[HNil, HNil, Table["students", _] with Tag["s"] :: Join[Table["exams", _] with Tag["e"]] :: Join[Table["courses", _] with Tag["c"]] :: HNil] = new SelectContext[HNil, HNil, Table["students", _] with Tag["s"] :: Join[Table["exams", _] with Tag["e"]] :: Join[Table["courses", _] with Tag["c"]] :: HNil] {
-      override val placeholders: HNil = HNil
+    val select: SelectContext[HNil, Table["students", _] with Tag["s"] :: Join[Table["exams", _] with Tag["e"]] :: Join[Table["courses", _] with Tag["c"]] :: HNil] = new SelectContext[HNil, Table["students", _] with Tag["s"] :: Join[Table["exams", _] with Tag["e"]] :: Join[Table["courses", _] with Tag["c"]] :: HNil] {
       override val fields: HNil = HNil
       override val sources: Table["students", _] with Tag["s"] :: Join[Table["exams", _] with Tag["e"]] :: Join[Table["courses", _] with Tag["c"]] :: HNil =
         Students.as["s"] ::

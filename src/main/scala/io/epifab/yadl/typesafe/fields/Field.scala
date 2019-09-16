@@ -64,6 +64,15 @@ case class Placeholder[+T, -U](name: String)(implicit val decoder: FieldDecoder[
     }
 }
 
+object Placeholder {
+  def apply[NAME <: String, TYPE]
+    (implicit
+     name: ValueOf[NAME],
+     encoder: FieldEncoder[TYPE],
+     decoder: FieldDecoder[TYPE]
+    ): Placeholder[TYPE, TYPE] = new Placeholder(name.value)(decoder, encoder)
+}
+
 trait ColumnsBuilder[+X] {
   def build(ds: String): X
 }

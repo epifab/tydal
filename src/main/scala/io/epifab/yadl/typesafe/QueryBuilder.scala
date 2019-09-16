@@ -27,7 +27,7 @@ object QueryBuilder {
     (implicit
      fields: QueryBuilder[FIELDS, "fields"],
      groupBy: QueryBuilder[GROUPBY, "groupBy"],
-     from: QueryBuilder[SOURCES, "from"]): QueryBuilder[Select[_, FIELDS, GROUPBY, SOURCES], "query"] =
+     from: QueryBuilder[SOURCES, "from"]): QueryBuilder[Select[FIELDS, GROUPBY, SOURCES], "query"] =
     QueryBuilder.instance(select =>
       Some(
         "SELECT " +
@@ -63,7 +63,7 @@ object QueryBuilder {
   implicit def tableFrom: QueryBuilder[Table[_, _] with Tag[_], "from"] =
     QueryBuilder.instance(table => Some(table.tableName + " AS " + table.tagValue))
 
-  implicit def subQueryFrom[SUBQUERYFIELDS <: HList, S <: Select[_, _, _, _]]
+  implicit def subQueryFrom[SUBQUERYFIELDS <: HList, S <: Select[_, _, _]]
     (implicit query: QueryBuilder[S, "query"]): QueryBuilder[SubQuery[SUBQUERYFIELDS, S] with Tag[_], "from"] =
     QueryBuilder.instance(subQuery => query.build(subQuery.select).map(sql => "(" + sql + ") AS " + subQuery.tagValue))
 

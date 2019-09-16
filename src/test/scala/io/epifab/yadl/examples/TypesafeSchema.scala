@@ -40,8 +40,6 @@ object TypesafeSchema {
       HNil
   ]
 
-  val e = Students.as["e"]
-
   object Exams extends TableBuilder[
     "exams",
       (Column[Int] AS "student_id") ::
@@ -83,6 +81,5 @@ object TypesafeSchema {
         $["cc", "name"].get.as["cname"] ::
         HNil
       )
-      .withPlaceholder[Int, "student_id"]
-      .where($ => $["s", "id"].get === $["student_id"].get)
+      .where($ => $["s", "id"].get === Placeholder["student_id", Int])
 }
