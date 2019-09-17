@@ -15,8 +15,8 @@ trait FindContext[HAYSTACK] {
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, HAYSTACK]
 }
 
-class TableBuilder[NAME <: String, FIELDS <: HList] {
-  def as[ALIAS <: String](implicit name: ValueOf[NAME], alias: ValueOf[ALIAS], columnsBuilder: ColumnsBuilder[FIELDS]): Table[NAME, FIELDS] with Tag[ALIAS] =
+class TableBuilder[NAME <: String, FIELDS <: HList](implicit name: ValueOf[NAME], columnsBuilder: ColumnsBuilder[FIELDS]) {
+  def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): Table[NAME, FIELDS] with Tag[ALIAS] =
     Table(name.value, columnsBuilder.build(alias.value), alias.value)
 }
 

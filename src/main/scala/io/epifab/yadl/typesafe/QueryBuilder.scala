@@ -1,19 +1,47 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.typesafe.fields.{AlwaysTrue, And, Equals, GreaterThan, GreaterThanOrEqual, IsDefined, IsIncluded, IsNotDefined, IsSubset, IsSuperset, LessThan, LessThanOrEqual, Like, NotEquals, Or, Overlaps}
 import io.epifab.yadl.typesafe.fields._
-import shapeless.{::, HList, HNil, Lazy}
+import shapeless.{::, HList, HNil}
 
-sealed trait QueryBuilder[-X, TYPE] {
-  def build(x: X): Option[String]
+sealed trait QueryBuilder[-X] {
+  def build(x: X): String
 }
 
 object QueryBuilder {
-  def apply[X](x: X)(implicit queryBuilder: QueryBuilder[X, "query"]): Option[String] =
+  def apply[X](x: X)(implicit queryBuilder: QueryBuilder[X]): String =
     queryBuilder.build(x)
 
-  def instance[T, U <: String](f: T => Option[String]): QueryBuilder[T, U] =
-    new QueryBuilder[T, U] {
+  def instance[T](f: T => String): QueryBuilder[T] =
+    new QueryBuilder[T] {
+      override def build(x: T): String = f(x)
+    }
+
+  implicit def selectQuery[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
+    (implicit
+     fields: QueryFragmentBuilder[FIELDS, "fields"],
+     groupBy: QueryFragmentBuilder[GROUPBY, "groupBy"],
+     from: QueryFragmentBuilder[SOURCES, "from"]): QueryBuilder[Select[FIELDS, GROUPBY, SOURCES]] =
+    QueryBuilder.instance(select =>
+      "SELECT " +
+        Seq(
+          fields.build(select.fields).orElse(Some("1")),
+          from.build(select.sources).map("FROM " + _),
+          groupBy.build(select.groupByFields).map("GROUP BY " + _),
+          QueryFragmentBuilder.binaryExprFragment(select.filter).map("WHERE " + _)
+        ).flatten.mkString(" ")
+    )
+}
+
+sealed trait QueryFragmentBuilder[-X, TYPE] {
+  def build(x: X): Option[String]
+}
+
+object QueryFragmentBuilder {
+  def apply[X](x: X)(implicit queryFragmentBuilder: QueryFragmentBuilder[X, "query"]): Option[String] =
+    queryFragmentBuilder.build(x)
+
+  def instance[T, U <: String](f: T => Option[String]): QueryFragmentBuilder[T, U] =
+    new QueryFragmentBuilder[T, U] {
       override def build(x: T): Option[String] = f(x)
     }
 
@@ -23,36 +51,19 @@ object QueryBuilder {
       else Some(f(list))
   }
 
-  implicit def query[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
-    (implicit
-     fields: QueryBuilder[FIELDS, "fields"],
-     groupBy: QueryBuilder[GROUPBY, "groupBy"],
-     from: QueryBuilder[SOURCES, "from"]): QueryBuilder[Select[FIELDS, GROUPBY, SOURCES], "query"] =
-    QueryBuilder.instance(select =>
-      Some(
-        "SELECT " +
-          Seq(
-            fields.build(select.fields).orElse(Some("1")),
-            from.build(select.sources).map("FROM " + _),
-            groupBy.build(select.groupByFields).map("GROUP BY " + _),
-            binaryExprFragment(select.filter).map("WHERE " + _)
-          ).flatten.mkString(" ")
-      )
-    )
+  implicit def emptySourceFrom: QueryFragmentBuilder[HNil, "from"] =
+    QueryFragmentBuilder.instance(_ => None)
 
-  implicit def emptySourceFrom: QueryBuilder[HNil, "from"] =
-    QueryBuilder.instance(_ => None)
-
-  implicit def nonEmptySourceFrom[H, T <: HList](implicit head: QueryBuilder[H, "from"], tail: QueryBuilder[T, "from"]): QueryBuilder[H :: T, "from"] =
-    QueryBuilder.instance { sources =>
+  implicit def nonEmptySourceFrom[H, T <: HList](implicit head: QueryFragmentBuilder[H, "from"], tail: QueryFragmentBuilder[T, "from"]): QueryFragmentBuilder[H :: T, "from"] =
+    QueryFragmentBuilder.instance { sources =>
       Seq(
         head.build(sources.head),
         tail.build(sources.tail)
       ).flatten.reduceOption(_ + " " + _)
     }
 
-  implicit def joinFrom[DS <: DataSource[_] with Tag[_]](implicit src: QueryBuilder[DS, "from"]): QueryBuilder[Join[DS], "from"] =
-    QueryBuilder.instance(join => src.build(join.dataSource)
+  implicit def joinFrom[DS <: DataSource[_] with Tag[_]](implicit src: QueryFragmentBuilder[DS, "from"]): QueryFragmentBuilder[Join[DS], "from"] =
+    QueryFragmentBuilder.instance(join => src.build(join.dataSource)
       .map("INNER JOIN " + _)
       .map(joinQuery =>
         binaryExprFragment(join.filter)
@@ -60,43 +71,43 @@ object QueryBuilder {
           .getOrElse(joinQuery))
     )
 
-  implicit def tableFrom: QueryBuilder[Table[_, _] with Tag[_], "from"] =
-    QueryBuilder.instance(table => Some(table.tableName + " AS " + table.tagValue))
+  implicit def tableFrom: QueryFragmentBuilder[Table[_, _] with Tag[_], "from"] =
+    QueryFragmentBuilder.instance(table => Some(table.tableName + " AS " + table.tagValue))
 
   implicit def subQueryFrom[SUBQUERYFIELDS <: HList, S <: Select[_, _, _]]
-    (implicit query: QueryBuilder[S, "query"]): QueryBuilder[SubQuery[SUBQUERYFIELDS, S] with Tag[_], "from"] =
-    QueryBuilder.instance(subQuery => query.build(subQuery.select).map(sql => "(" + sql + ") AS " + subQuery.tagValue))
+    (implicit query: QueryBuilder[S]): QueryFragmentBuilder[SubQuery[SUBQUERYFIELDS, S] with Tag[_], "from"] =
+    QueryFragmentBuilder.instance(subQuery => Some("(" + query.build(subQuery.select) + ") AS " + subQuery.tagValue))
 
-  implicit def field: QueryBuilder[Field[_] with Tag[_], "fields"] =
-    QueryBuilder.instance(field => Some(fieldFragment(field) + " AS " + field.tagValue))
+  implicit def field: QueryFragmentBuilder[Field[_] with Tag[_], "fields"] =
+    QueryFragmentBuilder.instance(field => Some(fieldFragment(field) + " AS " + field.tagValue))
 
-  implicit def emptyFields: QueryBuilder[HNil, "fields"] =
-    QueryBuilder.instance(_ => None)
+  implicit def emptyFields: QueryFragmentBuilder[HNil, "fields"] =
+    QueryFragmentBuilder.instance(_ => None)
 
-  implicit def nonEmptyFields[H, T <: HList](implicit head: QueryBuilder[H, "fields"], tail: QueryBuilder[T, "fields"]): QueryBuilder[H :: T, "fields"] =
-    QueryBuilder.instance(fields =>
+  implicit def nonEmptyFields[H, T <: HList](implicit head: QueryFragmentBuilder[H, "fields"], tail: QueryFragmentBuilder[T, "fields"]): QueryFragmentBuilder[H :: T, "fields"] =
+    QueryFragmentBuilder.instance(fields =>
       Seq(
         head.build(fields.head),
         tail.build(fields.tail)
       ).flatten.reduceOption(_ + ", " + _)
     )
 
-  implicit def groupByField: QueryBuilder[Field[_], "groupBy"] = {
-    QueryBuilder.instance(field => Some(fieldFragment(field)))
+  implicit def groupByField: QueryFragmentBuilder[Field[_], "groupBy"] = {
+    QueryFragmentBuilder.instance(field => Some(fieldFragment(field)))
   }
 
-  implicit def emptyGroupByFields: QueryBuilder[HNil, "groupBy"] =
-    QueryBuilder.instance(_ => None)
+  implicit def emptyGroupByFields: QueryFragmentBuilder[HNil, "groupBy"] =
+    QueryFragmentBuilder.instance(_ => None)
 
-  implicit def nonEmptyGroupByFields[H, T <: HList](implicit head: QueryBuilder[H, "groupBy"], tail: QueryBuilder[T, "groupBy"]): QueryBuilder[H :: T, "groupBy"] =
-    QueryBuilder.instance(fields =>
+  implicit def nonEmptyGroupByFields[H, T <: HList](implicit head: QueryFragmentBuilder[H, "groupBy"], tail: QueryFragmentBuilder[T, "groupBy"]): QueryFragmentBuilder[H :: T, "groupBy"] =
+    QueryFragmentBuilder.instance(fields =>
       Seq(
         head.build(fields.head),
         tail.build(fields.tail)
       ).flatten.reduceOption(_ + ", " + _)
     )
 
-  private def fieldFragment(field: Field[_]): String = field match {
+  def fieldFragment(field: Field[_]): String = field match {
     case Column(name, srcAlias) => s"$srcAlias.$name"
     case cast@Cast(field) => fieldFragment(field) + "::" + cast.decoder.dbType.sqlName
     case Aggregation(field, dbFunction) => dbFunction.name + "(" + fieldFragment(field) + ")"
@@ -106,7 +117,7 @@ object QueryBuilder {
     case Placeholder(name) => s":$name"
   }
 
-  private def binaryExprFragment(binaryExpr: BinaryExpr): Option[String] = binaryExpr match {
+  def binaryExprFragment(binaryExpr: BinaryExpr): Option[String] = binaryExpr match {
     case AlwaysTrue => None
     case And(left, right) => (binaryExprFragment(left), binaryExprFragment(right)) match {
       case (Some(l), Some(r)) => Some(l + " AND " + r)
