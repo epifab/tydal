@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.utils.{Appender, FindByNestedTag, FindByTag}
+import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindNestedByTag}
 import shapeless.{::, HList, HNil}
 
 trait DataSource[FIELDS] { self: Tag[_] =>
@@ -66,11 +66,11 @@ trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIEL
   override def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, (FIELDS, SOURCES)] =
     new FindByTag((fields, sources))
 
-  def apply[TAG1 <: String, TAG2 <: String](implicit tag1: ValueOf[TAG1], tag2: ValueOf[TAG2]): FindByNestedTag[TAG1, TAG2, SOURCES] =
-    new FindByNestedTag(sources)
+  def apply[TAG1 <: String, TAG2 <: String](implicit tag1: ValueOf[TAG1], tag2: ValueOf[TAG2]): FindNestedByTag[TAG1, TAG2, SOURCES] =
+    new FindNestedByTag(sources)
 }
 
-sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends SelectContext[FIELDS, SOURCES] { select =>
+sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends Query with SelectContext[FIELDS, SOURCES] { select =>
   def fields: FIELDS
   def groupByFields: GROUPBY
   def sources: SOURCES
@@ -85,6 +85,9 @@ sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends
 
   def subQuery[REFINED <: HList](implicit refinedFields: SubQueryFields[FIELDS, REFINED]) =
     new SubQueryBuilder[REFINED]
+
+  def build(implicit queryBuilder: QueryBuilder[this.type]): String =
+    queryBuilder.build(this)
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil] {
@@ -105,12 +108,14 @@ class NonEmptySelect[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
     extends Select[FIELDS, GROUPBY, SOURCES] {
 
   def take[NEW_FIELDS <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_FIELDS):
+    (f: SelectContext[FIELDS, SOURCES] => NEW_FIELDS)
+    (implicit taggedFields: Tagged[Field[Any], NEW_FIELDS]):
     NonEmptySelect[NEW_FIELDS, GROUPBY, SOURCES] =
       new NonEmptySelect(f(this), groupByFields, sources, filter)
 
   def groupBy[NEW_GROUPBY <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY):
+    (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY)
+    (implicit taggedFields: Tagged[Field[Any], NEW_GROUPBY]):
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES] =
       new NonEmptySelect(fields, f(this), sources, filter)
 

@@ -48,7 +48,7 @@ class FindByTag[TAG <: String, HAYSTACK](haystack: HAYSTACK) {
     finder.find(haystack)
 }
 
-class FindByNestedTag[TAG1 <: String, TAG2 <: String, HAYSTACK1](haystack: HAYSTACK1)(implicit tag2: ValueOf[TAG2]) {
+class FindNestedByTag[TAG1 <: String, TAG2 <: String, HAYSTACK1](haystack: HAYSTACK1)(implicit tag2: ValueOf[TAG2]) {
   def get[HAYSTACK2, X2]
       (implicit
        finder1: TaggedFinder[TAG1, FindContext[HAYSTACK2], HAYSTACK1],

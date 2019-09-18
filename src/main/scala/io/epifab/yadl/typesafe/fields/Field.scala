@@ -58,9 +58,9 @@ case class FieldExpr3[+T1, +T2, +T3, +U](field1: Field[T1], field2: Field[T2], f
 
 case class Placeholder[+T, -U](name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
   extends Field[T] {
-  def as[TAG <: String](implicit alias: ValueOf[TAG]): Placeholder[T, U] with Tag[TAG] =
-    new Placeholder[T, U](name) with Tag[TAG] {
-      override def tagValue: String = alias.value
+  def as[TAG <: String](implicit newName: ValueOf[TAG]): Placeholder[T, U] with Tag[TAG] =
+    new Placeholder[T, U](newName.value) with Tag[TAG] {
+      override def tagValue: String = newName.value
     }
 }
 
@@ -70,7 +70,10 @@ object Placeholder {
      name: ValueOf[NAME],
      encoder: FieldEncoder[TYPE],
      decoder: FieldDecoder[TYPE]
-    ): Placeholder[TYPE, TYPE] = new Placeholder(name.value)(decoder, encoder)
+    ): Placeholder[TYPE, TYPE] with Tag[NAME] =
+    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] {
+      override def tagValue: String = name
+    }
 }
 
 trait ColumnsBuilder[+X] {
