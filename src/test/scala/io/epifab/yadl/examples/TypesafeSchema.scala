@@ -2,7 +2,6 @@ package io.epifab.yadl.examples
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import shapeless.{::, HNil}

@@ -2,7 +2,7 @@ package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindNestedByTag}
-import shapeless.{::, HList, HNil}
+import shapeless.{::, HList, HNil, the}
 
 trait DataSource[FIELDS] { self: Tag[_] =>
   def fields: FIELDS
@@ -70,7 +70,9 @@ trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIEL
     new FindNestedByTag(sources)
 }
 
-sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends Query with SelectContext[FIELDS, SOURCES] { select =>
+sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends SelectContext[FIELDS, SOURCES] { select =>
+  def queryBuilder: QueryBuilder[this.type]
+
   def fields: FIELDS
   def groupByFields: GROUPBY
   def sources: SOURCES
@@ -86,17 +88,19 @@ sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends
   def subQuery[REFINED <: HList](implicit refinedFields: SubQueryFields[FIELDS, REFINED]) =
     new SubQueryBuilder[REFINED]
 
-  def build(implicit queryBuilder: QueryBuilder[this.type]): String =
-    queryBuilder.build(this)
+  lazy val query: String = queryBuilder.build(this)
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil] {
+  override val queryBuilder: QueryBuilder[Select[HNil, HNil, HNil]] =
+    the[QueryBuilder[Select[HNil, HNil, HNil]]]
+
   override val fields: HNil = HNil
   override val groupByFields: HNil = HNil
   override val sources: HNil = HNil
   override val filter: BinaryExpr = AlwaysTrue
 
-  def from[T <: DataSource[_] with Tag[_]](source: T): NonEmptySelect[HNil, HNil, T :: HNil] =
+  def from[T <: DataSource[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil]]): NonEmptySelect[HNil, HNil, T :: HNil] =
     new NonEmptySelect(fields, groupByFields, source :: HNil, filter)
 }
 
@@ -105,23 +109,26 @@ class NonEmptySelect[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
      override val groupByFields: GROUPBY,
      override val sources: SOURCES,
      override val filter: BinaryExpr)
+    (implicit val queryBuilder: QueryBuilder[Select[FIELDS, GROUPBY, SOURCES]])
     extends Select[FIELDS, GROUPBY, SOURCES] {
 
   def take[NEW_FIELDS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => NEW_FIELDS)
-    (implicit taggedFields: Tagged[Field[Any], NEW_FIELDS]):
+    (implicit queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUPBY, SOURCES]]):
     NonEmptySelect[NEW_FIELDS, GROUPBY, SOURCES] =
       new NonEmptySelect(f(this), groupByFields, sources, filter)
 
   def groupBy[NEW_GROUPBY <: HList]
     (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY)
-    (implicit taggedFields: Tagged[Field[Any], NEW_GROUPBY]):
+    (implicit queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES]]):
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES] =
       new NonEmptySelect(fields, f(this), sources, filter)
 
   def join[NEW_SOURCE <: DataSource[_] with Tag[_], SOURCE_RESULTS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE])
-    (implicit appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS]):
+    (implicit
+     appender: Appender.Aux[SOURCES, Join[NEW_SOURCE], SOURCE_RESULTS],
+     queryBuilder: QueryBuilder[Select[FIELDS, GROUPBY, SOURCE_RESULTS]]):
     NonEmptySelect[FIELDS, GROUPBY, SOURCE_RESULTS] =
       new NonEmptySelect(fields, groupByFields, appender.append(sources, f(this)), filter)
 
