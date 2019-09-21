@@ -6,6 +6,7 @@ sealed trait Statement
 
 sealed trait SideEffect
 
+
 sealed trait Select[V] extends Statement {
   def dataSource: DataSource
   def terms: Terms[V]
