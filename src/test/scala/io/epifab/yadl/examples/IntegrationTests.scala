@@ -38,7 +38,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     _ <- repo.queryRunner.run(Delete(new Schema.ExamsTable))
     _ <- repo.queryRunner.run(Delete(new Schema.CoursesTable))
     _ <- repo.queryRunner.run(Delete(new Schema.StudentsTable))
-  } yield Unit
+  } yield ()
 
   def setUp(): Either[DALError, Unit] = for {
     _ <- repo.createStudent(student1)
@@ -49,15 +49,15 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     _ <- repo.createExam(exam1)
     _ <- repo.createExam(exam2)
     _ <- repo.createExam(exam3)
-  } yield Unit
+  } yield ()
 
   override def beforeAll(): Unit = {
-    tearDown() shouldBe 'Right
-    setUp() shouldBe 'Right
+    tearDown() shouldBe Symbol("Right")
+    setUp() shouldBe Symbol("Right")
   }
 
   override def afterAll(): Unit = {
-    tearDown() shouldBe 'Right
+    tearDown() shouldBe Symbol("Right")
   }
 
   "The query runner" should "retrieve a student by ID" in {

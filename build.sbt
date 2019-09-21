@@ -6,7 +6,7 @@ import sbt.Global
 Global / name := "yadl"
 Global / version := sys.env.getOrElse("BUILD_NUMBER", "LOCAL")
 Global / organization := "epifab.io"
-Global / scalaVersion := "2.12.8"
+Global / scalaVersion := "2.13.0"
 Global / exportJars := true
 Global / parallelExecution := false
 Global / scalacOptions ++= Seq(
@@ -17,17 +17,16 @@ Global / scalacOptions ++= Seq(
   "-language:existentials",
   "-language:higherKinds",
   // "-Xlint:_,-missing-interpolator",
-  "-Ypartial-unification"
 )
 
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % "1.0.1",
+  "org.typelevel" %% "cats-core" % "2.0.0-M4",
   "com.chuusai" %% "shapeless" % "2.3.3",
   "org.postgresql" % "postgresql" % "42.2.2",
-  "org.scalatest" %% "scalatest" % "3.0.1" % Test
+  "org.scalatest" %% "scalatest" % "3.0.8" % Test
 )
 
-val circeVersion = "0.12.1"
+val circeVersion = "0.12.0-M3"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
