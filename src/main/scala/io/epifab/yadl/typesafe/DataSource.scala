@@ -88,7 +88,7 @@ sealed trait Select[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList] extends
   def subQuery[REFINED <: HList](implicit refinedFields: SubQueryFields[FIELDS, REFINED]) =
     new SubQueryBuilder[REFINED]
 
-  lazy val query: String = queryBuilder.build(this)
+  lazy val query: Query = queryBuilder.build(this)
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil] {

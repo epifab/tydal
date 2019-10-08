@@ -67,11 +67,11 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   "The QueryBuilder" should "build the simplest query" in {
-    Select.query shouldBe "SELECT 1"
+    Select.query shouldBe Query("SELECT 1")
   }
 
   it should "build a simple query" in {
-    studentsQuery["ms"].get.select.query shouldBe (
+    studentsQuery["ms"].get.select.query shouldBe Query(
       "SELECT" +
         " e.student_id AS student_id," +
         " max(e.score) AS max_score," +
@@ -82,7 +82,7 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   it should "build a query with join" in {
-    examsWithCourseQuery.query shouldBe (
+    examsWithCourseQuery.query shouldBe Query(
       "SELECT" +
         " c.name AS cname," +
         " e.score AS score" +
@@ -99,7 +99,7 @@ class TypesafeTest extends FlatSpec with Matchers {
         " FROM exams AS e" +
         " GROUP BY e.student_id"
 
-    studentsQuery.query shouldBe (
+    studentsQuery.query shouldBe Query(
       "SELECT" +
         " s.id AS sid," +
         " s.name AS sname," +
@@ -108,7 +108,8 @@ class TypesafeTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " WHERE s.id = :student_id"
+        " WHERE s.id = ?",
+      Seq("student_id")
     )
   }
 }
