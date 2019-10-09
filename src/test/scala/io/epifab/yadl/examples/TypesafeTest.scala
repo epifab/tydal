@@ -4,7 +4,7 @@ import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students}
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.{::, HNil}
+import shapeless.HNil
 
 object SelectsQueries {
   import Implicits._
@@ -36,7 +36,8 @@ object SelectsQueries {
         $["cc", "name"].get.as["cname"] ::
         HNil
       )
-      .where($ => $["s", "id"].get === studentId)
+      .where($ => ($["s", "id"].get === studentId) and
+        ($["s", "id"].get !== studentId))
   }
 
   val examsWithCourseQuery =
@@ -108,8 +109,11 @@ class TypesafeTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " WHERE s.id = ?",
-      Seq("student_id")
+        " WHERE s.id = ? AND s.id != ?",
+      Seq(
+        Placeholder[Int, Int]("student_id"),
+        Placeholder[Int, Int]("student_id")
+      )
     )
   }
 }

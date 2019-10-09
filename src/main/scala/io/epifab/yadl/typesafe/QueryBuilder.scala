@@ -3,7 +3,7 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields._
 import shapeless.{::, HList, HNil}
 
-case class Query(sql: String, parameterNames: Seq[String]) {
+case class Query(sql: String, parameterNames: Seq[Placeholder[_, _]]) {
   def ++(other: Query): Query =
     Query(sql + other.sql, parameterNames ++ other.parameterNames)
 
@@ -72,7 +72,7 @@ object QueryFragment {
     QueryFragment(Some(new Query(sql, Seq.empty)))
 
   def apply(sql: String, placeholder: Placeholder[_, _]): QueryFragment =
-    QueryFragment(Some(new Query(sql, Seq(placeholder.name))))
+    QueryFragment(Some(new Query(sql, Seq(placeholder))))
 }
 
 sealed trait QueryBuilder[-X] {
@@ -190,7 +190,7 @@ object QueryFragmentBuilder {
     case FieldExpr3(field1, field2, field3, dbFunction) =>
       Query(dbFunction.name + "(") ++ fieldFragment(field1) ++ "," ++ fieldFragment(field2) ++ "," ++ fieldFragment(field3) ++ ")"
 
-    case Placeholder(name) => new Query("?", Seq(name))
+    case placeholder@ Placeholder(_) => new Query("?", Seq(placeholder))
   }
 
   def binaryExprFragment(binaryExpr: BinaryExpr): QueryFragment = binaryExpr match {
