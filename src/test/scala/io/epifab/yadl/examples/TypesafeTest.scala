@@ -18,8 +18,8 @@ object SelectsQueries {
         .groupBy(_["e", "student_id"].get :: HNil)
         .take($ =>
           $["e", "student_id"].get ::
-            Max($["e", "score"].get).as["max_score"] ::
-            Min($["e", "course_id"].get).as["course_id"] ::
+            Max[Int, Column[Int]]($["e", "score"].get).as["max_score"] ::
+            Min[Int, Column[Int]]($["e", "course_id"].get).as["course_id"] ::
             HNil
         )
         .subQuery

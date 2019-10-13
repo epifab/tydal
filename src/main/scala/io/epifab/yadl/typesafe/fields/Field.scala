@@ -5,7 +5,6 @@ import shapeless.{::, HList, HNil}
 
 sealed trait Field[+T] {
   def decoder: FieldDecoder[T]
-  def castTo[U](implicit adapter: FieldDecoder[U]): Cast[T, U] = Cast(this)
   def as[TAG <: String](implicit alias: ValueOf[TAG]): Field[T] with Tag[TAG]
 }
 
@@ -16,42 +15,34 @@ case class Column[+T](name: String, srcAlias: String)(implicit val decoder: Fiel
     }
 }
 
-case class Aggregation[+T, +U](field: Field[T], dbFunction: DbAggregationFunction[T, U])(implicit val decoder: FieldDecoder[U])
+case class Aggregation[+F <: Field[_], +U](field: F, dbFunction: DbAggregationFunction[F, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Aggregation[T, U] with Tag[TAG] =
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Aggregation[F, U] with Tag[TAG] =
     new Aggregation(field, dbFunction) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }
 
-case class Cast[+T, +U](field: Field[T])(implicit val decoder: FieldDecoder[U])
+case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Cast[T, U] with Tag[TAG] =
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Cast[F, U] with Tag[TAG] =
     new Cast(field) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }
 
-case class FieldExpr1[+T, +U](field: Field[T], dbFunction: DbFunction1[T, U])(implicit val decoder: FieldDecoder[U])
+case class FieldExpr1[+F <: Field[_], +U](field: F, dbFunction: DbFunction1[F, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr1[T, U] with Tag[TAG] =
-    new FieldExpr1[T, U](field, dbFunction) with Tag[TAG] {
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr1[F, U] with Tag[TAG] =
+    new FieldExpr1(field, dbFunction) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }
 
-case class FieldExpr2[+T1, +T2, +U](field1: Field[T1], field2: Field[T2], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
+case class FieldExpr2[+F1 <: Field[_], +F2 <: Field[_], +U](field1: F1, field2: F2, dbFunction: DbFunction2[F1, F2, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr2[T1, T2, U] with Tag[TAG] =
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr2[F1, F2, U] with Tag[TAG] =
     new FieldExpr2(field1, field2, dbFunction) with Tag[TAG] {
-      override def tagValue: String = alias.value
-    }
-}
-
-case class FieldExpr3[+T1, +T2, +T3, +U](field1: Field[T1], field2: Field[T2], field3: Field[T3], dbFunction: DbFunction2[T1, T2, U])(implicit val decoder: FieldDecoder[U])
-  extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr3[T1, T2, T3, U] with Tag[TAG] =
-    new FieldExpr3(field1, field2, field3, dbFunction) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }

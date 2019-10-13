@@ -3,58 +3,64 @@ package io.epifab.yadl.typesafe.fields
 import io.epifab.yadl.typesafe.fields
 
 sealed trait BinaryExpr {
-  def and(otherExpression: BinaryExpr): BinaryExpr = And(this, otherExpression)
-  def or(otherExpression: BinaryExpr): BinaryExpr = Or(this, otherExpression)
+  def and[E2 <: BinaryExpr](otherExpression: E2): And[this.type, E2] = And(this, otherExpression)
+  def or[E2 <: BinaryExpr](otherExpression: E2): Or[this.type, E2] = Or(this, otherExpression)
 }
 
-object BinaryExpr {
-  val empty: BinaryExpr = AlwaysTrue
+sealed trait BinaryExpr1[E] extends BinaryExpr {
+  def expr: E
 }
 
-case object AlwaysTrue
-  extends BinaryExpr
+sealed trait BinaryExpr2[E1, E2] extends BinaryExpr {
+  def expr1: E1
+  def expr2: E2
+}
 
-case class And(expr1: BinaryExpr, expr2: BinaryExpr)
-  extends BinaryExpr
+sealed trait AlwaysTrue
 
-case class Or(expr1: BinaryExpr, expr2: BinaryExpr)
-  extends BinaryExpr
+case object AlwaysTrue extends AlwaysTrue with BinaryExpr
 
-case class Equals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class And[E1 <: BinaryExpr, E2 <: BinaryExpr](expr1: E1, expr2: E2)
+  extends BinaryExpr2[E1, E2]
 
-case class NotEquals[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class Or[E1 <: BinaryExpr, E2 <: BinaryExpr](expr1: E1, expr2: E2)
+  extends BinaryExpr2[E1, E2]
 
-case class GreaterThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class Equals[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class LessThan[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class NotEquals[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class GreaterThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class GreaterThan[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class LessThanOrEqual[T, U](field1: Field[T], field2: Field[U])(implicit comparable: fields.Comparable[T, U])
-  extends BinaryExpr
+case class LessThan[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class Like[T, U](field1: Field[T], field2: Field[U])(implicit text1: IsText[T], text2: IsText[U])
-  extends BinaryExpr
+case class GreaterThanOrEqual[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class IsSubset[T, U](field1: Field[T], field2: Field[U])(implicit canBeContained: CanBeSubset[T, U])
-  extends BinaryExpr
+case class LessThanOrEqual[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit comparable: fields.Comparable[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class IsSuperset[T, U](field1: Field[T], field2: Field[U])(implicit canContain: CanBeSuperset[T, U])
-  extends BinaryExpr
+case class Like[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit text1: IsText[F1], text2: IsText[F2])
+  extends BinaryExpr2[F1, F2]
 
-case class Overlaps[T, U](field1: Field[T], field2: Field[U])(implicit canOverlap: CanOverlap[T, U])
-  extends BinaryExpr
+case class IsSubset[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit canBeContained: CanBeSubset[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class IsIncluded[T, U](field1: Field[T], field2: Field[U])(implicit canBeIncluded: CanBeIncluded[T, U])
-  extends BinaryExpr
+case class IsSuperset[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit canContain: CanBeSuperset[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class IsDefined[T](field: Field[Option[T]])
-  extends BinaryExpr
+case class Overlaps[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit canOverlap: CanOverlap[F1, F2])
+  extends BinaryExpr2[F1, F2]
 
-case class IsNotDefined[T](field: Field[Option[T]])
-  extends BinaryExpr
+case class IsIncluded[F1 <: Field[_], F2 <: Field[_]](expr1: F1, expr2: F2)(implicit canBeIncluded: CanBeIncluded[F1, F2])
+  extends BinaryExpr2[F1, F2]
+
+case class IsDefined[F <: Field[Option[_]]](expr: F)
+  extends BinaryExpr1[F]
+
+case class IsNotDefined[F <: Field[Option[_]]](expr: F)
+  extends BinaryExpr1[F]

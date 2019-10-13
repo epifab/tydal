@@ -6,43 +6,42 @@ abstract class DbFunction[+U](val name: String)
 
 abstract class DbFunction1[+T, +U](name: String) extends DbFunction[U](name)
 abstract class DbFunction2[+T1, +T2, +U](name: String) extends DbFunction[U](name)
-abstract class DbFunction3[+T1, +T2, +T3, +U](name: String) extends DbFunction[U](name)
 abstract class DbAggregationFunction[+T, +U](name: String) extends DbFunction[U](name)
 
 object Avg {
-  final private class Avg[+T] extends DbAggregationFunction[T, Option[Double]]("avg")
+  final private class Avg[+F <: Field[_]] extends DbAggregationFunction[F, Option[Double]]("avg")
 
-  def apply[T](field: Field[T])(implicit isNumeric: IsNumeric[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
-    fields.Aggregation(field, new Avg[T])(decoder)
+  def apply[F <: Field[_]](field: F)(implicit isNumeric: IsNumeric[F], decoder: FieldDecoder[Option[Double]]): Aggregation[F, Option[Double]] =
+    fields.Aggregation(field, new Avg[F])(decoder)
 }
 
 object Sum {
-  final private class Sum[+T, +U] extends DbAggregationFunction[T, Option[U]]("sum")
+  final private class Sum[+F <: Field[_], +U] extends DbAggregationFunction[F, Option[U]]("sum")
 
-  def apply[T](field: Field[T])(implicit isInteger: IsInteger[T], decoder: FieldDecoder[Option[Int]]): Aggregation[T, Option[Int]] =
-    fields.Aggregation(field, new Sum[T, Int])(decoder)
+  def apply[F <: Field[_]](field: F)(implicit isInteger: IsInteger[F], decoder: FieldDecoder[Option[Int]]): Aggregation[F, Option[Int]] =
+    fields.Aggregation(field, new Sum[F, Int])(decoder)
 
-  def apply[T](field: Field[T])(implicit isDouble: IsDouble[T], decoder: FieldDecoder[Option[Double]]): Aggregation[T, Option[Double]] =
-    fields.Aggregation(field, new Sum[T, Double])(decoder)
+  def apply[F <: Field[_]](field: F)(implicit isDouble: IsDouble[F], decoder: FieldDecoder[Option[Double]]): Aggregation[F, Option[Double]] =
+    fields.Aggregation(field, new Sum[F, Double])(decoder)
 }
 
 object Count {
-  final private class Count[+T]() extends DbAggregationFunction[T, Int]("count")
+  final private class Count[+F <: Field[_]]() extends DbAggregationFunction[F, Int]("count")
 
-  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Int]): Aggregation[T, Int] =
-    fields.Aggregation(field, new Count[T])
+  def apply[F <: Field[_]](field: F)(implicit decoder: FieldDecoder[Int]): Aggregation[F, Int] =
+    fields.Aggregation(field, new Count[F])
 }
 
 object Max {
-  final private class Max[+T] extends DbAggregationFunction[T, Option[T]]("max")
+  final private class Max[+F <: Field[_], T] extends DbAggregationFunction[F, Option[T]]("max")
 
-  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    fields.Aggregation(field, new Max[T])
+  def apply[T, F <: Field[T]](field: F)(implicit fieldDecoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
+    fields.Aggregation(field, new Max[F, T])
 }
 
 object Min {
-  final private class Min[+T] extends DbAggregationFunction[T, Option[T]]("min")
+  final private class Min[+F <: Field[_], +T] extends DbAggregationFunction[F, Option[T]]("min")
 
-  def apply[T](field: Field[T])(implicit decoder: FieldDecoder[Option[T]]): Aggregation[T, Option[T]] =
-    fields.Aggregation(field, new Min[T])
+  def apply[T, F <: Field[T]](field: F)(implicit decoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
+    fields.Aggregation(field, new Min[F, T])
 }

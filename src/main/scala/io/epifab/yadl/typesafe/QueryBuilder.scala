@@ -187,9 +187,6 @@ object QueryFragmentBuilder {
     case FieldExpr2(field1, field2, dbFunction) =>
       Query(dbFunction.name + "(") ++ fieldFragment(field1) ++ "," ++ fieldFragment(field2) ++ ")"
 
-    case FieldExpr3(field1, field2, field3, dbFunction) =>
-      Query(dbFunction.name + "(") ++ fieldFragment(field1) ++ "," ++ fieldFragment(field2) ++ "," ++ fieldFragment(field3) ++ ")"
-
     case placeholder@ Placeholder(_) => new Query("?", Seq(placeholder))
   }
 
