@@ -1,5 +1,6 @@
 package io.epifab.yadl.typesafe.utils
 
+import io.epifab.yadl.typesafe.fields.BinaryExpr
 import io.epifab.yadl.typesafe.{AS, DataSource, FindContext, Join}
 import shapeless.{::, HList}
 
@@ -39,8 +40,8 @@ object TaggedFinder {
   implicit def tailFinder[TAG <: String, X, H, T <: HList](implicit finder: TaggedFinder[TAG, X, T]): TaggedFinder[TAG, X, H :: T] =
     (u: H :: T) => finder.find(u.tail)
 
-  implicit def joinFinder[TAG <: String, X <: DataSource[_], T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG] :: T] =
-    (u: Join[X AS TAG] :: T) => u.head.dataSource
+  implicit def joinFinder[TAG <: String, X <: DataSource[_], E <: BinaryExpr, T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG, E] :: T] =
+    (u: Join[X AS TAG, E] :: T) => u.head.dataSource
 }
 
 class FindByTag[TAG <: String, HAYSTACK](haystack: HAYSTACK) {

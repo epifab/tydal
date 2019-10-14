@@ -88,17 +88,18 @@ object QueryBuilder {
       override def build(x: T): Query = f(x)
     }
 
-  implicit def selectQuery[FIELDS <: HList, GROUPBY <: HList, SOURCES <: HList]
+  implicit def selectQuery[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr]
     (implicit
      fields: QueryFragmentBuilder["fields", FIELDS],
-     groupBy: QueryFragmentBuilder["groupBy", GROUPBY],
-     from: QueryFragmentBuilder["from", SOURCES]): QueryBuilder[Select[FIELDS, GROUPBY, SOURCES]] =
+     groupBy: QueryFragmentBuilder["groupBy", GROUP_BY],
+     from: QueryFragmentBuilder["from", SOURCES],
+     where: QueryFragmentBuilder["where", WHERE]): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE]] =
     QueryBuilder.instance(select =>
       Query("SELECT ") ++
         (fields.build(select.fields) `+ +`
           from.build(select.sources).map("FROM " + _) `+ +`
           groupBy.build(select.groupByFields).map("GROUP BY " + _) `+ +`
-          QueryFragmentBuilder.binaryExprFragment(select.filter).map("WHERE " + _)
+          where.build(select.filter).map("WHERE " + _)
         ).getOrElse(Query("1"))
     )
 }
@@ -130,7 +131,7 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def joinFrom[DS <: DataSource[_] with Tag[_]](implicit src: QueryFragmentBuilder["from", DS]): QueryFragmentBuilder["from", Join[DS]] =
+  implicit def joinFrom[DS <: DataSource[_] with Tag[_], E <: BinaryExpr](implicit src: QueryFragmentBuilder["from", DS]): QueryFragmentBuilder["from", Join[DS, E]] =
     QueryFragmentBuilder.instance(join =>
       src.build(join.dataSource).map((q: String) => "INNER JOIN " + q) ++
         binaryExprFragment(join.filter).map(" ON " + _)
@@ -139,8 +140,8 @@ object QueryFragmentBuilder {
   implicit def tableFrom: QueryFragmentBuilder["from", Table[_, _] with Tag[_]] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def subQueryFrom[SUBQUERYFIELDS <: HList, S <: Select[_, _, _]]
-    (implicit query: QueryBuilder[S]): QueryFragmentBuilder["from", SubQuery[SUBQUERYFIELDS, S] with Tag[_]] =
+  implicit def subQueryFrom[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _]]
+    (implicit query: QueryBuilder[S]): QueryFragmentBuilder["from", SubQuery[SUBQUERY_FIELDS, S] with Tag[_]] =
     QueryFragmentBuilder.instance(subQuery =>
       QueryFragment(
         query.build(subQuery.select)
@@ -170,6 +171,9 @@ object QueryFragmentBuilder {
     QueryFragmentBuilder.instance(fields =>
       head.build(fields.head) `+,+` tail.build(fields.tail)
     )
+
+  implicit def where[E <: BinaryExpr]: QueryFragmentBuilder["where", E] =
+    QueryFragmentBuilder.instance((binaryExpr: E) => binaryExprFragment(binaryExpr))
 
   def fieldFragment(field: Field[_]): Query = field match {
     case Column(name, srcAlias) =>

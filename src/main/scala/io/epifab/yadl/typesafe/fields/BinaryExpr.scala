@@ -16,9 +16,9 @@ sealed trait BinaryExpr2[E1, E2] extends BinaryExpr {
   def expr2: E2
 }
 
-sealed trait AlwaysTrue
+sealed trait AlwaysTrue extends BinaryExpr
 
-case object AlwaysTrue extends AlwaysTrue with BinaryExpr
+case object AlwaysTrue extends AlwaysTrue
 
 case class And[E1 <: BinaryExpr, E2 <: BinaryExpr](expr1: E1, expr2: E2)
   extends BinaryExpr2[E1, E2]
