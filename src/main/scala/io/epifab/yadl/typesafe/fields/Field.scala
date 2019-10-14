@@ -47,12 +47,19 @@ case class FieldExpr2[+F1 <: Field[_], +F2 <: Field[_], +U](field1: F1, field2: 
     }
 }
 
-case class Placeholder[+T, -U](name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
-  extends Field[T] {
+case class Placeholder[+T, -U] private(name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
+  extends Field[T] { Self =>
+
   def as[TAG <: String](implicit newName: ValueOf[TAG]): Placeholder[T, U] with Tag[TAG] =
     new Placeholder[T, U](newName.value) with Tag[TAG] {
       override def tagValue: String = newName.value
     }
+}
+
+class PlaceholderValue[+X](val value: X)(implicit fieldEncoder: FieldEncoder[X])
+
+trait NamedPlaceholder[NAME <: String, X] {
+  def resolve(x: X): PlaceholderValue[X] with Tag[NAME]
 }
 
 object Placeholder {
@@ -60,9 +67,13 @@ object Placeholder {
     (implicit
      name: ValueOf[NAME],
      encoder: FieldEncoder[TYPE],
-     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] =
-    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] {
+     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] with NamedPlaceholder[NAME, TYPE] =
+    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] with NamedPlaceholder[NAME, TYPE] {
       override def tagValue: String = name
+      override def resolve(u: TYPE): PlaceholderValue[TYPE] with Tag[NAME] =
+        new PlaceholderValue(u) with Tag[NAME] {
+          override def tagValue: String = name
+        }
     }
 }
 
