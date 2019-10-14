@@ -3,21 +3,21 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields._
 import shapeless.{::, HList, HNil}
 
-case class Query(sql: String, parameterNames: Seq[Placeholder[_, _]]) {
+case class Query(sql: String, placeholders: Seq[Placeholder[_, _]]) {
   def ++(other: Query): Query =
-    Query(sql + other.sql, parameterNames ++ other.parameterNames)
+    Query(sql + other.sql, placeholders ++ other.placeholders)
 
   def ++(other: String): Query =
     append(other)
 
   def append(right: String): Query =
-    Query(sql + right, parameterNames)
+    Query(sql + right, placeholders)
 
   def prepend(left: String): Query =
-    Query(left + sql, parameterNames)
+    Query(left + sql, placeholders)
 
   def wrap(left: String, right: String): Query =
-    Query(left + sql + right, parameterNames)
+    Query(left + sql + right, placeholders)
 }
 
 object Query {
@@ -41,7 +41,7 @@ case class QueryFragment(query: Option[Query]) {
     concatenate(other, " OR ")
 
   def map(f: String => String): QueryFragment =
-    QueryFragment(query.map(q => Query(f(q.sql), q.parameterNames)))
+    QueryFragment(query.map(q => Query(f(q.sql), q.placeholders)))
 
   def flatMap(f: Query => QueryFragment): QueryFragment =
     query.map(f).getOrElse(this)
@@ -131,10 +131,12 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def joinFrom[DS <: DataSource[_] with Tag[_], E <: BinaryExpr](implicit src: QueryFragmentBuilder["from", DS]): QueryFragmentBuilder["from", Join[DS, E]] =
+  implicit def joinFrom[DS <: DataSource[_] with Tag[_], WHERE <: BinaryExpr]
+      (implicit src: QueryFragmentBuilder["from", DS],
+       where: QueryFragmentBuilder["where", WHERE]): QueryFragmentBuilder["from", Join[DS, WHERE]] =
     QueryFragmentBuilder.instance(join =>
       src.build(join.dataSource).map((q: String) => "INNER JOIN " + q) ++
-        binaryExprFragment(join.filter).map(" ON " + _)
+        where.build(join.filter).map(" ON " + _)
     )
 
   implicit def tableFrom: QueryFragmentBuilder["from", Table[_, _] with Tag[_]] =
