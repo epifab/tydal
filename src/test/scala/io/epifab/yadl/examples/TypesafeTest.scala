@@ -1,15 +1,17 @@
 package io.epifab.yadl.examples
 
+import java.time.{Instant, LocalDate}
+
 import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students}
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.HNil
+import shapeless.{::, HNil}
 
 object SelectsQueries {
   import Implicits._
 
-  val studentsQuery = {
+  val studentsQuery: Select[Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Column[Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil, HNil, Table["students", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: AS[Column[String], "email"] :: AS[Column[LocalDate], "date_of_birth"] :: AS[Column[Seq[TypesafeSchema.Interest]], "interests"] :: HNil] with Tag["s"] :: Join[SubQuery[Column[Int] with Tag["student_id"] :: Column[Option[Int]] with Tag["max_score"] :: Column[Option[Int]] with Tag["course_id"] :: HNil, Select[AS[Column[Int], "student_id"] :: Aggregation[Column[Int], Option[Int]] with Tag["max_score"] :: Aggregation[Column[Int], Option[Int]] with Tag["course_id"] :: HNil, AS[Column[Int], "student_id"] :: HNil, Table["exams", AS[Column[Int], "student_id"] :: AS[Column[Int], "course_id"] :: AS[Column[Int], "score"] :: AS[Column[Instant], "exam_timestamp"] :: AS[Column[Instant], "registration_timestamp"] :: HNil] with Tag["e"] :: HNil, AlwaysTrue]] with Tag["ms"], Equals[AS[Column[Int], "student_id"], AS[Column[Int], "id"]]] :: Join[Table["courses", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["cc"], Equals[AS[Column[Int], "id"], AS[Column[Option[Int]], "course_id"]]] :: HNil, And[Equals[AS[Column[Int], "id"], Placeholder[Int, Int] with Tag["student_id"]], NotEquals[AS[Column[Int], "id"], Placeholder[Int, Int] with Tag["student_id"]]]] = {
     val studentId = Placeholder["student_id", Int]
 
     val maxScoreSubQuery =
@@ -111,9 +113,11 @@ class TypesafeTest extends FlatSpec with Matchers {
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
         " WHERE s.id = ? AND s.id != ?",
       Seq(
-        Placeholder[Int, Int]("student_id"),
-        Placeholder[Int, Int]("student_id")
+        Placeholder["student_id", Int],
+        Placeholder["student_id", Int]
       )
     )
+
+    studentsQuery.placeholders shouldBe Placeholder["student_id", Int] :: Placeholder["student_id", Int] :: HNil
   }
 }

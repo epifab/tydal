@@ -89,6 +89,9 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
     new SubQueryBuilder[SUBQUERY_FIELDS]
 
   lazy val query: Query = queryBuilder.build(this)
+
+  def placeholders[PLACEHOLDERS <: HList](implicit placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS]): PLACEHOLDERS =
+    placeholderExtractor.extract(this)
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {

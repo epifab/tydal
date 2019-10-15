@@ -47,7 +47,7 @@ case class FieldExpr2[+F1 <: Field[_], +F2 <: Field[_], +U](field1: F1, field2: 
     }
 }
 
-case class Placeholder[+T, -U] private(name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
+class Placeholder[+T, -U] private(val name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[U])
   extends Field[T] { Self =>
 
   def as[TAG <: String](implicit newName: ValueOf[TAG]): Placeholder[T, U] with Tag[TAG] =

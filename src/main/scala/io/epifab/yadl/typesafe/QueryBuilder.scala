@@ -193,7 +193,7 @@ object QueryFragmentBuilder {
     case FieldExpr2(field1, field2, dbFunction) =>
       Query(dbFunction.name + "(") ++ fieldFragment(field1) ++ "," ++ fieldFragment(field2) ++ ")"
 
-    case placeholder@ Placeholder(_) => new Query("?", Seq(placeholder))
+    case placeholder: Placeholder[_, _] => new Query("?", Seq(placeholder))
   }
 
   def binaryExprFragment(binaryExpr: BinaryExpr): QueryFragment = binaryExpr match {
