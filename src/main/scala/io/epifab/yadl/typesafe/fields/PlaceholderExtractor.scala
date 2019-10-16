@@ -4,6 +4,52 @@ import io.epifab.yadl.typesafe.utils.Concat
 import io.epifab.yadl.typesafe._
 import shapeless.{::, HList, HNil, Lazy}
 
+sealed trait RemoveByTag[+TAG <: String, HAYSTACK, RESULTS <: HList] {
+  def remove(haystack: HAYSTACK): RESULTS
+}
+
+object RemoveByTag {
+  class RemoveByTagInstance[TAG <: String] {
+    def apply[B, RESULTS <: HList](b: B)(implicit removeByTag: RemoveByTag[TAG, B, RESULTS]): RESULTS =
+      removeByTag.remove(b)
+  }
+
+  def apply[TAG <: String]: RemoveByTagInstance[TAG] = new RemoveByTagInstance[TAG]
+
+  sealed trait HasTag[TAG <: String, +B]
+
+  object HasTag {
+    implicit def hasTag[TAG <: String]: HasTag[TAG, Tag[TAG]] = new HasTag[TAG, Tag[TAG]] {}
+  }
+
+  trait DoesNotHaveTag[TAG <: String, +B]
+
+  object DoesNotHaveTag {
+    implicit def hasTag[TAG <: String, B](implicit hasTag: HasTag[TAG, B]): DoesNotHaveTag[TAG, B] = new DoesNotHaveTag[TAG, B] {}
+    implicit def doesntHaveTag[TAG <: String, B]: DoesNotHaveTag[TAG, B] = new DoesNotHaveTag[TAG, B] {}
+  }
+
+  implicit def removed[TAG <: String, E <: Tag[_]](implicit hasTag: HasTag[TAG, E]): RemoveByTag[TAG, E, HNil] = new RemoveByTag[TAG, E, HNil] {
+    override def remove(haystack: E): HNil = HNil
+  }
+
+  implicit def notRemoved[TAG <: String, E <: Tag[_]](implicit notFound: DoesNotHaveTag[TAG, E]): RemoveByTag[TAG, E, E :: HNil] = new RemoveByTag[TAG, E, E :: HNil] {
+    override def remove(haystack: E): E :: HNil = haystack :: HNil
+  }
+
+  implicit def hNil[TAG <: String]: RemoveByTag[TAG, HNil, HNil] = new RemoveByTag[TAG, HNil, HNil] {
+    override def remove(haystack: HNil): HNil = HNil
+  }
+
+  implicit def hCons[TAG <: String, H, HX <: HList, T <: HList, TX <: HList, XX <: HList]
+    (implicit
+     headRemover: RemoveByTag[TAG, H, HX],
+     tailRemover: RemoveByTag[TAG, T, TX],
+     concat: Concat.Aux[HX, TX, XX]): RemoveByTag[TAG, H :: T, XX] = new RemoveByTag[TAG, H :: T, XX] {
+    override def remove(haystack: H :: T): XX =
+      concat.concat(headRemover.remove(haystack.head), tailRemover.remove(haystack.tail))
+  }
+}
 
 sealed trait PlaceholderExtractor[-HAYSTACK, PLACEHOLDERS <: HList] {
   def extract(haystack: HAYSTACK): PLACEHOLDERS
