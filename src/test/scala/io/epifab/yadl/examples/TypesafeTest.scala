@@ -11,7 +11,7 @@ import shapeless.{::, HNil}
 object SelectsQueries {
   import Implicits._
 
-  val studentsQuery: Select[Column[Int] with Tag["sid"] :: Column[String] with Tag["sname"] :: Column[Option[Int]] with Tag["score"] :: Column[String] with Tag["cname"] :: HNil, HNil, Table["students", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: AS[Column[String], "email"] :: AS[Column[LocalDate], "date_of_birth"] :: AS[Column[Seq[TypesafeSchema.Interest]], "interests"] :: HNil] with Tag["s"] :: Join[SubQuery[Column[Int] with Tag["student_id"] :: Column[Option[Int]] with Tag["max_score"] :: Column[Option[Int]] with Tag["course_id"] :: HNil, Select[AS[Column[Int], "student_id"] :: Aggregation[Column[Int], Option[Int]] with Tag["max_score"] :: Aggregation[Column[Int], Option[Int]] with Tag["course_id"] :: HNil, AS[Column[Int], "student_id"] :: HNil, Table["exams", AS[Column[Int], "student_id"] :: AS[Column[Int], "course_id"] :: AS[Column[Int], "score"] :: AS[Column[Instant], "exam_timestamp"] :: AS[Column[Instant], "registration_timestamp"] :: HNil] with Tag["e"] :: HNil, AlwaysTrue]] with Tag["ms"], Equals[AS[Column[Int], "student_id"], AS[Column[Int], "id"]]] :: Join[Table["courses", AS[Column[Int], "id"] :: AS[Column[String], "name"] :: HNil] with Tag["cc"], Equals[AS[Column[Int], "id"], AS[Column[Option[Int]], "course_id"]]] :: HNil, And[Equals[AS[Column[Int], "id"], Placeholder[Int, Int] with Tag["student_id"]], NotEquals[AS[Column[Int], "id"], Placeholder[Int, Int] with Tag["student_id"]]]] = {
+  val studentsQuery = {
     val studentId = Placeholder["student_id", Int]
 
     val maxScoreSubQuery =
@@ -20,8 +20,8 @@ object SelectsQueries {
         .groupBy(_["e", "student_id"].get :: HNil)
         .take($ =>
           $["e", "student_id"].get ::
-            Max[Int, Column[Int]]($["e", "score"].get).as["max_score"] ::
-            Min[Int, Column[Int]]($["e", "course_id"].get).as["course_id"] ::
+            Max($["e", "score"].get).as["max_score"] ::
+            Min($["e", "course_id"].get).as["course_id"] ::
             HNil
         )
         .subQuery

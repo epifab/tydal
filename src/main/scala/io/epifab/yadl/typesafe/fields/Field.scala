@@ -96,3 +96,9 @@ object ColumnsBuilder {
        tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] =
     (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
 }
+
+trait FieldT[-F <: Field[_], T]
+
+object FieldT {
+  implicit def pure[T]: FieldT[Field[T], T] = new FieldT[Field[T], T] { }
+}

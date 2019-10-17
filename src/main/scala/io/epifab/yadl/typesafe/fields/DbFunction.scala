@@ -2,11 +2,11 @@ package io.epifab.yadl.typesafe.fields
 
 import io.epifab.yadl.typesafe.fields
 
-abstract class DbFunction[+U](val name: String)
+abstract class DbFunction[+T](val name: String)
 
-abstract class DbFunction1[+T, +U](name: String) extends DbFunction[U](name)
-abstract class DbFunction2[+T1, +T2, +U](name: String) extends DbFunction[U](name)
-abstract class DbAggregationFunction[+T, +U](name: String) extends DbFunction[U](name)
+abstract class DbFunction1[+F, +T](name: String) extends DbFunction[T](name)
+abstract class DbFunction2[+F1, +F2, +T](name: String) extends DbFunction[T](name)
+abstract class DbAggregationFunction[+F, +T](name: String) extends DbFunction[T](name)
 
 object Avg {
   final private class Avg[+F <: Field[_]] extends DbAggregationFunction[F, Option[Double]]("avg")
@@ -35,13 +35,13 @@ object Count {
 object Max {
   final private class Max[+F <: Field[_], T] extends DbAggregationFunction[F, Option[T]]("max")
 
-  def apply[T, F <: Field[T]](field: F)(implicit fieldDecoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
+  def apply[F <: Field[_], T](field: F)(implicit fieldT: FieldT[F, T], fieldDecoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
     fields.Aggregation(field, new Max[F, T])
 }
 
 object Min {
   final private class Min[+F <: Field[_], +T] extends DbAggregationFunction[F, Option[T]]("min")
 
-  def apply[T, F <: Field[T]](field: F)(implicit decoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
+  def apply[F <: Field[_], T](field: F)(implicit fieldT: FieldT[F, T], fieldDecoder: FieldDecoder[Option[T]]): Aggregation[F, Option[T]] =
     fields.Aggregation(field, new Min[F, T])
 }
