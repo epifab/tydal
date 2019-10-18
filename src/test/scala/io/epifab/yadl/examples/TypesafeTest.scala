@@ -1,7 +1,5 @@
 package io.epifab.yadl.examples
 
-import java.time.{Instant, LocalDate}
-
 import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students}
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
@@ -118,6 +116,7 @@ class TypesafeTest extends FlatSpec with Matchers {
       )
     )
 
-    studentsQuery.placeholders shouldBe Placeholder["student_id", Int] :: Placeholder["student_id", Int] :: HNil
+    val placeholders: NamedPlaceholder["student_id", Int] :: HNil = studentsQuery.placeholders
+    // shouldBe Placeholder["student_id", Int] :: Placeholder["student_id", Int] :: HNil
   }
 }

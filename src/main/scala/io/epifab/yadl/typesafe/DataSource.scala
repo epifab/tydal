@@ -90,8 +90,11 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
 
   lazy val query: Query = queryBuilder.build(this)
 
-  def placeholders[PLACEHOLDERS <: HList](implicit placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS]): PLACEHOLDERS =
-    placeholderExtractor.extract(this)
+  def placeholders[PLACEHOLDERS <: HList, UNIQUE_PLACEHOLDERS <: HList]
+      (implicit
+       placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS],
+       hSet: HSet[PLACEHOLDERS, UNIQUE_PLACEHOLDERS]): UNIQUE_PLACEHOLDERS =
+    hSet.removeDuplicates(placeholderExtractor.extract(this))
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {

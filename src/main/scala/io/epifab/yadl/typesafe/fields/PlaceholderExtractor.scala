@@ -85,18 +85,6 @@ object HSet {
       list.head :: secondRemover.removeDuplicates(firstRemover.remove(list.tail)))
 }
 
-object TestingStuff {
-  val a: Placeholder[Int, Int] with Tag["a"] with NamedPlaceholder["a", Int] = Placeholder["a", Int]
-  val b: Placeholder[Int, Int] with Tag["b"] with NamedPlaceholder["b", Int] = Placeholder["b", Int]
-  val c: Placeholder[Int, Int] with Tag["c"] with NamedPlaceholder["c", Int] = Placeholder["c", Int]
-
-  val bc: Placeholder[Int, Int] with Tag["b"] with NamedPlaceholder["b", Int] :: Placeholder[Int, Int] with Tag["c"] with NamedPlaceholder["c", Int] :: HNil =
-    RemoveElement[Tag["a"]](b :: a :: c :: a :: HNil)
-
-  val result: Placeholder[Int, Int] with Tag["a"] :: Placeholder[Int, Int] with Tag["b"] :: Placeholder[Int, Int] with Tag["c"] :: HNil =
-    HSet(a :: b :: a :: b :: c :: a :: b :: HNil).get
-}
-
 
 sealed trait PlaceholderExtractor[-HAYSTACK, PLACEHOLDERS <: HList] {
   def extract(haystack: HAYSTACK): PLACEHOLDERS

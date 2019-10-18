@@ -54,6 +54,11 @@ class Placeholder[+T, -U] private(val name: String)(implicit val decoder: FieldD
     new Placeholder[T, U](newName.value) with Tag[TAG] {
       override def tagValue: String = newName.value
     }
+
+  override def equals(obj: Any): Boolean = obj match {
+    case p: Placeholder[_, _] => p.name == name && p.encoder == encoder && p.decoder == decoder
+    case _ => false
+  }
 }
 
 class PlaceholderValue[+X](val value: X)(implicit fieldEncoder: FieldEncoder[X])
