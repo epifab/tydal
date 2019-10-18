@@ -1,55 +1,102 @@
 package io.epifab.yadl.typesafe.fields
 
-import io.epifab.yadl.typesafe.utils.Concat
 import io.epifab.yadl.typesafe._
-import shapeless.{::, HList, HNil, Lazy}
+import io.epifab.yadl.typesafe.utils.Concat
+import shapeless.{::, HList, HNil}
 
-sealed trait RemoveByTag[+TAG <: String, HAYSTACK, RESULTS <: HList] {
+sealed trait RemoveElement[NEEDLE, HAYSTACK, RESULTS <: HList] {
   def remove(haystack: HAYSTACK): RESULTS
 }
 
-object RemoveByTag {
-  class RemoveByTagInstance[TAG <: String] {
-    def apply[B, RESULTS <: HList](b: B)(implicit removeByTag: RemoveByTag[TAG, B, RESULTS]): RESULTS =
+object RemoveElement {
+  class PartiallyAppliedRemoveElement[NEEDLE] {
+    def apply[HAYSTACK, RESULTS <: HList](b: HAYSTACK)(implicit removeByTag: RemoveElement[NEEDLE, HAYSTACK, RESULTS]): RESULTS =
       removeByTag.remove(b)
   }
 
-  def apply[TAG <: String]: RemoveByTagInstance[TAG] = new RemoveByTagInstance[TAG]
+  def apply[NEEDLE]: PartiallyAppliedRemoveElement[NEEDLE] = new PartiallyAppliedRemoveElement[NEEDLE]
 
-  sealed trait HasTag[TAG <: String, +B]
+  sealed trait SameElement[+A, -B]
 
-  object HasTag {
-    implicit def hasTag[TAG <: String]: HasTag[TAG, Tag[TAG]] = new HasTag[TAG, Tag[TAG]] {}
+  object SameElement {
+    def apply[A, B](implicit sameElement: SameElement[A, B]): Unit = {}
+
+    implicit def sameElement[A]: SameElement[A, A] =  new SameElement[A, A] {}
   }
 
-  trait DoesNotHaveTag[TAG <: String, +B]
+  trait DifferentElement[A, B]
 
-  object DoesNotHaveTag {
-    implicit def hasTag[TAG <: String, B](implicit hasTag: HasTag[TAG, B]): DoesNotHaveTag[TAG, B] = new DoesNotHaveTag[TAG, B] {}
-    implicit def doesntHaveTag[TAG <: String, B]: DoesNotHaveTag[TAG, B] = new DoesNotHaveTag[TAG, B] {}
+  object DifferentElement {
+    def apply[A, B](implicit differentElement: DifferentElement[A, B]): Unit = {}
+
+    implicit def actuallyTheSame[A, B](implicit sameElement: SameElement[A, B]): DifferentElement[A, B] =
+      new DifferentElement[A, B] {}
+
+    implicit def differentElement[A, B]: DifferentElement[A, B] =
+      new DifferentElement[A, B] {}
   }
 
-  implicit def removed[TAG <: String, E <: Tag[_]](implicit hasTag: HasTag[TAG, E]): RemoveByTag[TAG, E, HNil] = new RemoveByTag[TAG, E, HNil] {
-    override def remove(haystack: E): HNil = HNil
+  implicit def removed[A <: Tag[_], B <: Tag[_]](implicit sameElement: SameElement[A, B]): RemoveElement[A, B, HNil] = new RemoveElement[A, B, HNil] {
+    override def remove(haystack: B): HNil = HNil
   }
 
-  implicit def notRemoved[TAG <: String, E <: Tag[_]](implicit notFound: DoesNotHaveTag[TAG, E]): RemoveByTag[TAG, E, E :: HNil] = new RemoveByTag[TAG, E, E :: HNil] {
-    override def remove(haystack: E): E :: HNil = haystack :: HNil
+  implicit def notRemoved[A <: Tag[_], B <: Tag[_]](implicit differentElement: DifferentElement[A, B]): RemoveElement[A, B, B :: HNil] = new RemoveElement[A, B, B :: HNil] {
+    override def remove(haystack: B): B :: HNil = haystack :: HNil
   }
 
-  implicit def hNil[TAG <: String]: RemoveByTag[TAG, HNil, HNil] = new RemoveByTag[TAG, HNil, HNil] {
+  implicit def hNil[A]: RemoveElement[A, HNil, HNil] = new RemoveElement[A, HNil, HNil] {
     override def remove(haystack: HNil): HNil = HNil
   }
 
-  implicit def hCons[TAG <: String, H, HX <: HList, T <: HList, TX <: HList, XX <: HList]
+  implicit def hCons[A, H, HX <: HList, T <: HList, TX <: HList, XX <: HList]
     (implicit
-     headRemover: RemoveByTag[TAG, H, HX],
-     tailRemover: RemoveByTag[TAG, T, TX],
-     concat: Concat.Aux[HX, TX, XX]): RemoveByTag[TAG, H :: T, XX] = new RemoveByTag[TAG, H :: T, XX] {
+     headRemover: RemoveElement[A, H, HX],
+     tailRemover: RemoveElement[A, T, TX],
+     concat: Concat.Aux[HX, TX, XX]): RemoveElement[A, H :: T, XX] = new RemoveElement[A, H :: T, XX] {
     override def remove(haystack: H :: T): XX =
       concat.concat(headRemover.remove(haystack.head), tailRemover.remove(haystack.tail))
   }
 }
+
+sealed trait HSet[SRC <: HList, TARGET <: HList] {
+  def removeDuplicates(src: SRC): TARGET
+}
+
+object HSet {
+  class PartiallyAppliedHSet[SRC <: HList](src: SRC) {
+    def get[TARGET <: HList](implicit duplicateRemover: HSet[SRC, TARGET]): TARGET =
+      duplicateRemover.removeDuplicates(src)
+  }
+
+  def apply[SRC <: HList](src: SRC): PartiallyAppliedHSet[SRC] = new PartiallyAppliedHSet(src)
+
+  private def instance[A <: HList, B <: HList](f: A => B): HSet[A, B] = new HSet[A, B] {
+    override def removeDuplicates(src: A): B = f(src)
+  }
+
+  implicit def hNil: HSet[HNil, HNil] =
+    instance((_: HNil) => HNil)
+
+  implicit def hCons[H <: Tag[_], T <: HList, HX <: HList, XX <: HList]
+    (implicit
+     firstRemover: RemoveElement[H, T, HX],
+     secondRemover: HSet[HX, XX]): HSet[H :: T, H :: XX] =
+    instance((list: H :: T) =>
+      list.head :: secondRemover.removeDuplicates(firstRemover.remove(list.tail)))
+}
+
+object TestingStuff {
+  val a: Placeholder[Int, Int] with Tag["a"] with NamedPlaceholder["a", Int] = Placeholder["a", Int]
+  val b: Placeholder[Int, Int] with Tag["b"] with NamedPlaceholder["b", Int] = Placeholder["b", Int]
+  val c: Placeholder[Int, Int] with Tag["c"] with NamedPlaceholder["c", Int] = Placeholder["c", Int]
+
+  val bc: Placeholder[Int, Int] with Tag["b"] with NamedPlaceholder["b", Int] :: Placeholder[Int, Int] with Tag["c"] with NamedPlaceholder["c", Int] :: HNil =
+    RemoveElement[Tag["a"]](b :: a :: c :: a :: HNil)
+
+  val result: Placeholder[Int, Int] with Tag["a"] :: Placeholder[Int, Int] with Tag["b"] :: Placeholder[Int, Int] with Tag["c"] :: HNil =
+    HSet(a :: b :: a :: b :: c :: a :: b :: HNil).get
+}
+
 
 sealed trait PlaceholderExtractor[-HAYSTACK, PLACEHOLDERS <: HList] {
   def extract(haystack: HAYSTACK): PLACEHOLDERS
