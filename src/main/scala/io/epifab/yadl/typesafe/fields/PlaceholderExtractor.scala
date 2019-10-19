@@ -59,19 +59,19 @@ object RemoveElement {
 }
 
 sealed trait HSet[SRC <: HList, TARGET <: HList] {
-  def removeDuplicates(src: SRC): TARGET
+  def toSet(src: SRC): TARGET
 }
 
 object HSet {
   class PartiallyAppliedHSet[SRC <: HList](src: SRC) {
-    def get[TARGET <: HList](implicit duplicateRemover: HSet[SRC, TARGET]): TARGET =
-      duplicateRemover.removeDuplicates(src)
+    def get[TARGET <: HList](implicit hSet: HSet[SRC, TARGET]): TARGET =
+      hSet.toSet(src)
   }
 
   def apply[SRC <: HList](src: SRC): PartiallyAppliedHSet[SRC] = new PartiallyAppliedHSet(src)
 
   private def instance[A <: HList, B <: HList](f: A => B): HSet[A, B] = new HSet[A, B] {
-    override def removeDuplicates(src: A): B = f(src)
+    override def toSet(src: A): B = f(src)
   }
 
   implicit def hNil: HSet[HNil, HNil] =
@@ -79,10 +79,10 @@ object HSet {
 
   implicit def hCons[H <: Tag[_], T <: HList, HX <: HList, XX <: HList]
     (implicit
-     firstRemover: RemoveElement[H, T, HX],
-     secondRemover: HSet[HX, XX]): HSet[H :: T, H :: XX] =
+     removeHeadFromTail: RemoveElement[H, T, HX],
+     hSet2: HSet[HX, XX]): HSet[H :: T, H :: XX] =
     instance((list: H :: T) =>
-      list.head :: secondRemover.removeDuplicates(firstRemover.remove(list.tail)))
+      list.head :: hSet2.toSet(removeHeadFromTail.remove(list.tail)))
 }
 
 

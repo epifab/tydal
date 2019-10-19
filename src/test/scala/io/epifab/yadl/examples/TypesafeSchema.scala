@@ -2,9 +2,9 @@ package io.epifab.yadl.examples
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.typesafe._
+import io.epifab.yadl.examples.TypesafeSchema.Interest
 import io.epifab.yadl.typesafe.fields._
-import shapeless.{::, HNil}
+import io.epifab.yadl.typesafe._
 
 object TypesafeSchema {
   abstract sealed class Interest(val value: String)
@@ -23,36 +23,35 @@ object TypesafeSchema {
     }
   }
 
-  implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
-    FieldDecoder.enumDecoder("interest", Interest.apply)
+  object Codecs {
+    implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
+      FieldDecoder.enumDecoder("interest", Interest.apply)
 
-  implicit val interestEncoder: FieldEncoder.Aux[Interest, String] =
-    FieldEncoder.enumEncoder("interest", _.value)
+    implicit val interestEncoder: FieldEncoder.Aux[Interest, String] =
+      FieldEncoder.enumEncoder("interest", _.value)
+  }
 
-  object Students extends TableBuilder[
-    "students",
-      (Column[Int] AS "id") ::
-      (Column[String] AS "name") ::
-      (Column[String] AS "email") ::
-      (Column[LocalDate] AS "date_of_birth") ::
-      (Column[Seq[Interest]] AS "interests") ::
-      HNil
-  ]
+  case class StudentsSchema(
+    id: Column[Int] AS "id",
+    name: Column[String] AS "name",
+    email: Column[String] AS "email",
+    dateOfBirth: Column[LocalDate] AS "date_of_birth",
+    interests: Column[Seq[Interest]] AS "interests"
+  )
 
-  object Exams extends TableBuilder[
-    "exams",
-      (Column[Int] AS "student_id") ::
-      (Column[Int] AS "course_id") ::
-      (Column[Int] AS "score") ::
-      (Column[Instant] AS "exam_timestamp") ::
-      (Column[Instant] AS "registration_timestamp") ::
-      HNil
-  ]
+  case class ExamsSchema(
+    studentId: Column[Int] AS "student_id",
+    courseIdd: Column[Int] AS "course_id",
+    score: Column[Int] AS "score",
+    examTimestamp: Column[Instant] AS "exam_timestamp",
+    registrationTimestamp: Column[Instant] AS "registration_timestamp"
+  )
 
-  object Courses extends TableBuilder[
-    "courses",
-      (Column[Int] AS "id") ::
-      (Column[String] AS "name") ::
-      HNil
-  ]
+  case class CoursesSchema(id: Column[Int] AS "id", name: Column[String] AS "name")
+
+  object Students extends TableBuilder["students", StudentsSchema]
+
+  object Exams extends TableBuilder["exams", ExamsSchema]
+
+  object Courses extends TableBuilder["courses", CoursesSchema]
 }

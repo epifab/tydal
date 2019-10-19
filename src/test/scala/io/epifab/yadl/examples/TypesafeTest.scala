@@ -1,6 +1,7 @@
 package io.epifab.yadl.examples
 
-import io.epifab.yadl.examples.TypesafeSchema.{Courses, Exams, Students}
+import io.epifab.yadl.examples.TypesafeSchema.Codecs._
+import io.epifab.yadl.examples.TypesafeSchema._
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import org.scalatest.{FlatSpec, Matchers}
@@ -14,7 +15,7 @@ object SelectsQueries {
 
     val maxScoreSubQuery =
       Select
-        .from(Exams.as["e"])
+        .from(Exams as "e")
         .groupBy(_["e", "student_id"].get :: HNil)
         .take($ =>
           $["e", "student_id"].get ::
@@ -25,10 +26,10 @@ object SelectsQueries {
         .subQuery
 
     Select
-      .from(Students.as["s"])
+      .from(Students as "s")
       .join($ => maxScoreSubQuery.as["ms"]
         .on(_["student_id"].get === $["s", "id"].get))
-      .join($ => Courses.as["cc"].on(_["id"].get === $["ms", "course_id"].get))
+      .join($ => (Courses as "cc").on(_["id"].get === $["ms", "course_id"].get))
       .take($ =>
         $["s", "id"].get.as["sid"] ::
         $["s", "name"].get.as["sname"] ::
@@ -42,8 +43,8 @@ object SelectsQueries {
 
   val examsWithCourseQuery =
     Select
-      .from(Exams.as["e"])
-      .join($ => Courses.as["c"].on(_["id"].get === $["e", "course_id"].get))
+      .from(Exams as "e")
+      .join($ => (Courses as "c") on (_["id"].get === $["e", "course_id"].get))
       .take($ =>
         $["c", "name"].get.as["cname"] ::
         $["e", "score"].get.as["score"] ::

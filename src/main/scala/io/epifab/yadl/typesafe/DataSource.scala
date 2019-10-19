@@ -2,7 +2,7 @@ package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindNestedByTag}
-import shapeless.{::, HList, HNil, the}
+import shapeless.{::, Generic, HList, HNil, the}
 
 trait DataSource[FIELDS] { self: Tag[_] =>
   def fields: FIELDS
@@ -15,12 +15,12 @@ trait FindContext[HAYSTACK] {
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, HAYSTACK]
 }
 
-class TableBuilder[NAME <: String, FIELDS <: HList](implicit name: ValueOf[NAME], columnsBuilder: ColumnsBuilder[FIELDS]) {
-  def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): Table[NAME, FIELDS] with Tag[ALIAS] =
-    Table(name.value, columnsBuilder.build(alias.value), alias.value)
+class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
+  def as[ALIAS <: Singleton with String, REPR](alias: ALIAS)(implicit a: ValueOf[ALIAS], generic: Generic.Aux[SCHEMA, REPR], columnsBuilder: ColumnsBuilder[REPR]): Table[NAME, SCHEMA] with Tag[ALIAS] =
+    Table(name.value, generic.from(columnsBuilder.build(alias)), alias)
 }
 
-class Table[NAME <: String, FIELDS <: HList] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
+class Table[NAME <: String, FIELDS] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
   def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, FIELDS] =
     new FindByTag(fields)
 }
@@ -28,7 +28,7 @@ class Table[NAME <: String, FIELDS <: HList] private(val tableName: String, over
 object Table {
   def unapply(table: Table[_, _]): Option[String] = Some(table.tableName)
 
-  protected[typesafe] def apply[NAME <: String, FIELDS <: HList, ALIAS <: String](tableName: String, fields: FIELDS, tableAlias: String): Table[NAME, FIELDS] with Tag[ALIAS] = new Table[NAME, FIELDS](tableName, fields) with Tag[ALIAS] {
+  protected[typesafe] def apply[NAME <: String, FIELDS, ALIAS <: String](tableName: String, fields: FIELDS, tableAlias: String): Table[NAME, FIELDS] with Tag[ALIAS] = new Table[NAME, FIELDS](tableName, fields) with Tag[ALIAS] {
     override def tagValue: String = tableAlias
   }
 }
@@ -94,7 +94,7 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
       (implicit
        placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS],
        hSet: HSet[PLACEHOLDERS, UNIQUE_PLACEHOLDERS]): UNIQUE_PLACEHOLDERS =
-    hSet.removeDuplicates(placeholderExtractor.extract(this))
+    hSet.toSet(placeholderExtractor.extract(this))
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {

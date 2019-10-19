@@ -2,7 +2,7 @@ package io.epifab.yadl.typesafe.utils
 
 import io.epifab.yadl.typesafe.fields.BinaryExpr
 import io.epifab.yadl.typesafe.{AS, DataSource, FindContext, Join}
-import shapeless.{::, HList}
+import shapeless.{::, Generic, HList}
 
 trait TaggedFinder[TAG <: String, +X, HAYSTACK] {
   def find(u: HAYSTACK): X AS TAG
@@ -39,6 +39,11 @@ object TaggedFinder {
 
   implicit def tailFinder[TAG <: String, X, H, T <: HList](implicit finder: TaggedFinder[TAG, X, T]): TaggedFinder[TAG, X, H :: T] =
     (u: H :: T) => finder.find(u.tail)
+
+  implicit def caseClassFinder[TAG <: String, X, CC, REPR]
+      (implicit generic: Generic.Aux[CC, REPR],
+       finder: TaggedFinder[TAG, X, REPR]): TaggedFinder[TAG, X, CC] =
+    (cc: CC) => finder.find(generic.to(cc))
 
   implicit def joinFinder[TAG <: String, X <: DataSource[_], E <: BinaryExpr, T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG, E] :: T] =
     (u: Join[X AS TAG, E] :: T) => u.head.dataSource

@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe.fields
 
 import io.epifab.yadl.typesafe._
-import shapeless.{::, HList, HNil}
+import shapeless._
 
 sealed trait Field[+T] {
   def decoder: FieldDecoder[T]
@@ -100,6 +100,12 @@ object ColumnsBuilder {
        headTerm: ColumnsBuilder[H],
        tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] =
     (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
+
+//  implicit def caseClass[CC, REPR <: HList]
+//      (implicit
+//       columnsBuilder: ColumnsBuilder[REPR],
+//       generic: Generic.Aux[CC, REPR]): ColumnsBuilder[CC] =
+//    (ds: String) => generic.from(columnsBuilder.build(ds))
 }
 
 trait FieldT[-F <: Field[_], T]

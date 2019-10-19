@@ -22,6 +22,8 @@ import scala.language.reflectiveCalls
 //  val empty: TaggedList[HNil] = new TaggedList(HNil)
 //}
 
+class Statement[PLACEHOLDERS <: HList](query: String, placeholders: PLACEHOLDERS)
+
 trait QueryRunner[F[+_, +_], -INPUT, +ERROR, +OUTPUT] {
   def run(input: INPUT): F[ERROR, Iterable[OUTPUT]]
 }
