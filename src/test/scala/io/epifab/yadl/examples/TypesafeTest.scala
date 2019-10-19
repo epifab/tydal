@@ -16,11 +16,11 @@ object SelectsQueries {
     val maxScoreSubQuery =
       Select
         .from(Exams as "e")
-        .groupBy(_["e", "student_id"].get :: HNil)
+        .groupBy(_("e", "student_id") :: HNil)
         .take($ =>
-          $["e", "student_id"].get ::
-            Max($["e", "score"].get).as["max_score"] ::
-            Min($["e", "course_id"].get).as["course_id"] ::
+          $("e", "student_id") ::
+            Max($("e", "score")).as["max_score"] ::
+            Min($("e", "course_id")).as["course_id"] ::
             HNil
         )
         .subQuery
@@ -28,26 +28,26 @@ object SelectsQueries {
     Select
       .from(Students as "s")
       .join($ => maxScoreSubQuery.as["ms"]
-        .on(_["student_id"].get === $["s", "id"].get))
-      .join($ => (Courses as "cc").on(_["id"].get === $["ms", "course_id"].get))
+        .on(_("student_id") === $("s", "id")))
+      .join($ => (Courses as "cc").on(_("id") === $("ms", "course_id")))
       .take($ =>
-        $["s", "id"].get.as["sid"] ::
-        $["s", "name"].get.as["sname"] ::
-        $["ms", "max_score"].get.as["score"] ::
-        $["cc", "name"].get.as["cname"] ::
+        $("s", "id").as["sid"] ::
+        $("s", "name").as["sname"] ::
+        $("ms", "max_score").as["score"] ::
+        $("cc", "name").as["cname"] ::
         HNil
       )
-      .where($ => ($["s", "id"].get === studentId) and
-        ($["s", "id"].get !== studentId))
+      .where($ => ($("s", "id") === studentId) and
+        ($("s", "id") !== studentId))
   }
 
   val examsWithCourseQuery =
     Select
       .from(Exams as "e")
-      .join($ => (Courses as "c") on (_["id"].get === $["e", "course_id"].get))
+      .join($ => (Courses as "c") on (_("id") === $("e", "course_id")))
       .take($ =>
-        $["c", "name"].get.as["cname"] ::
-        $["e", "score"].get.as["score"] ::
+        $("c", "name").as["cname"] ::
+        $("e", "score").as["score"] ::
         HNil)
 }
 
@@ -62,10 +62,10 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   "The source finder" should "get any source" in {
-    examsWithCourseQuery["cname"].get shouldBe a[Field[String] with Tag["cname"]]
-    examsWithCourseQuery["score"].get shouldBe a[Field[Int] with Tag["score"]]
-    examsWithCourseQuery["e"].get shouldBe a[Table["exams", _] with Tag["e"]]
-    examsWithCourseQuery["c"].get shouldBe a[Table["courses", _] with Tag["c"]]
+    examsWithCourseQuery("cname") shouldBe a[Field[String] with Tag["cname"]]
+    examsWithCourseQuery("score") shouldBe a[Field[Int] with Tag["score"]]
+    examsWithCourseQuery("e") shouldBe a[Table["exams", _] with Tag["e"]]
+    examsWithCourseQuery("c") shouldBe a[Table["courses", _] with Tag["c"]]
   }
 
   "The QueryBuilder" should "build the simplest query" in {
@@ -73,7 +73,7 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   it should "build a simple query" in {
-    studentsQuery["ms"].get.select.query shouldBe Query(
+    studentsQuery("ms").select.query shouldBe Query(
       "SELECT" +
         " e.student_id AS student_id," +
         " max(e.score) AS max_score," +

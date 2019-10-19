@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.utils.{Appender, FindByTag, FindNestedByTag}
+import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.{::, Generic, HList, HNil, the}
 
 trait DataSource[FIELDS] { self: Tag[_] =>
@@ -12,7 +12,7 @@ trait DataSource[FIELDS] { self: Tag[_] =>
 }
 
 trait FindContext[HAYSTACK] {
-  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, HAYSTACK]
+  def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, HAYSTACK]): X with Tag[TAG]
 }
 
 class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
@@ -21,8 +21,8 @@ class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
 }
 
 class Table[NAME <: String, FIELDS] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
-  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, FIELDS] =
-    new FindByTag(fields)
+  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
+    finder.find(fields)
 }
 
 object Table {
@@ -36,8 +36,8 @@ object Table {
 class SubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _]]
     (val select: S, override val fields: SUBQUERY_FIELDS)
     extends DataSource[SUBQUERY_FIELDS] with FindContext[SUBQUERY_FIELDS] { self: Tag[_] =>
-  def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, SUBQUERY_FIELDS] =
-    new FindByTag(fields)
+  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, SUBQUERY_FIELDS]): X with Tag[TAG] =
+    finder.find(fields)
 }
 
 trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
@@ -63,11 +63,15 @@ trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIEL
   def fields: FIELDS
   def sources: SOURCES
 
-  override def apply[TAG <: String](implicit tag: ValueOf[TAG]): FindByTag[TAG, (FIELDS, SOURCES)] =
-    new FindByTag((fields, sources))
+  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, (FIELDS, SOURCES)]): X with Tag[TAG] =
+    finder.find((fields, sources))
 
-  def apply[TAG1 <: String, TAG2 <: String](implicit tag1: ValueOf[TAG1], tag2: ValueOf[TAG2]): FindNestedByTag[TAG1, TAG2, SOURCES] =
-    new FindNestedByTag(sources)
+  def apply[TAG1 <: String with Singleton, TAG2 <: String with Singleton, X2, HAYSTACK2]
+      (tag1: TAG1, tag2: TAG2)
+      (implicit
+       finder1: TaggedFinder[TAG1, FindContext[HAYSTACK2], SOURCES],
+       finder2: TaggedFinder[TAG2, X2, HAYSTACK2]): X2 AS TAG2 =
+    finder1.find(sources).apply[TAG2, X2](tag2)
 }
 
 sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr] extends SelectContext[FIELDS, SOURCES] { select =>
