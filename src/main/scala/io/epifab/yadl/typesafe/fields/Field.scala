@@ -64,15 +64,26 @@ class Placeholder[+T, -U] private(val name: String)(implicit val decoder: FieldD
     }
 
   override def equals(obj: Any): Boolean = obj match {
-    case p: Placeholder[_, _] => p.name == name && p.encoder == encoder && p.decoder == decoder
+    case p: Placeholder[T, U] => p.name == name
     case _ => false
   }
+
+  override def toString: String = s"Placeholder($name)"
 }
 
-class PlaceholderValue[+X](val value: X)(implicit fieldEncoder: FieldEncoder[X])
+class Value[X](val value: X)(implicit val encoder: FieldEncoder[X]) {
+  def dbValue: encoder.DBTYPE = encoder.encode(value)
+}
+
+object Value {
+  def apply[TAG <: String with Singleton, VALUE](tag: TAG, value: VALUE)(implicit fieldEncoder: FieldEncoder[VALUE]): Value[VALUE] with Tag[TAG] =
+    new Value(value) with Tag[TAG] {
+      override def tagValue: String = tag
+    }
+}
 
 trait NamedPlaceholder[NAME <: String, X] {
-  def resolve(x: X): PlaceholderValue[X] with Tag[NAME]
+  def resolve(x: X): Value[X] with Tag[NAME]
 }
 
 object Placeholder {
@@ -83,8 +94,8 @@ object Placeholder {
      decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] with NamedPlaceholder[NAME, TYPE] =
     new Placeholder(name.value)(decoder, encoder) with Tag[NAME] with NamedPlaceholder[NAME, TYPE] {
       override def tagValue: String = name
-      override def resolve(u: TYPE): PlaceholderValue[TYPE] with Tag[NAME] =
-        new PlaceholderValue(u) with Tag[NAME] {
+      override def resolve(u: TYPE): Value[TYPE] with Tag[NAME] =
+        new Value(u) with Tag[NAME] {
           override def tagValue: String = name
         }
     }
@@ -110,10 +121,18 @@ object ColumnsBuilder {
     (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
 }
 
-trait FieldT[-F <: Field[_], +T] {
+trait FieldT[-F <: Field[_], T] {
   def get(f: F): Field[T]
 }
 
 object FieldT {
   implicit def pure[T]: FieldT[Field[T], T] = (field: Field[T]) => field
+}
+
+trait ValueT[-F <: Value[_], T] {
+  def get(f: F): Value[T]
+}
+
+object ValueT {
+  implicit def pure[T]: ValueT[Value[T], T] = (value: Value[T]) => value
 }

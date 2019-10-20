@@ -16,7 +16,7 @@ object EnsurePlaceholderValues {
 
   def apply[PS, VS](ps: PS, vs: VS)(implicit r: EnsurePlaceholderValues[PS, VS]): Unit = { }
 
-  implicit def singleResolved[X, NAME <: String, VS](implicit finder: Finder[PlaceholderValue[X] with Tag[NAME], VS]):
+  implicit def singleResolved[X, NAME <: String, VS](implicit finder: Finder[Value[X] with Tag[NAME], VS]):
     EnsurePlaceholderValues[Placeholder[X, X] with Tag[NAME], VS] = instance
 
   implicit def hNil[VS]:

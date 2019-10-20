@@ -34,13 +34,13 @@ object FieldEncoder {
 
   implicit val instantEncoder: FieldEncoder.Aux[Instant, String] = new FieldEncoder[Instant] {
     override type DBTYPE = String
-    override def dbType: FieldType[String] = TypeString
+    override def dbType: FieldType[String] = TypeDateTime
     override def encode(value: Instant): String = LocalDateTime.ofInstant(value, ZoneOffset.UTC).format(SqlDateTime.formatter)
   }
 
   implicit val dateEncoder: FieldEncoder.Aux[LocalDate, String] = new FieldEncoder[LocalDate] {
     override type DBTYPE = String
-    override def dbType: FieldType[String] = TypeString
+    override def dbType: FieldType[String] = TypeDate
     override def encode(value: LocalDate): String = value.format(SqlDateTime.formatter)
   }
 

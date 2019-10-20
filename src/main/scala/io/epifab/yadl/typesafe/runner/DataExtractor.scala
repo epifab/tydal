@@ -28,13 +28,13 @@ object DataExtractor {
 
   implicit def jdbcField[F <: Field[_] with Tag[_], T](implicit fieldT: FieldT[F, T]): DataExtractor[ResultSet, F, T] =
     new DataExtractor[ResultSet, F, T] {
-      def getSeq[U](dbType: FieldType[U], fieldName: String, resultSet: ResultSet): Seq[U] =
+      def getSeq[U](resultSet: ResultSet, dbType: FieldType[Any], fieldName: String): Seq[Any] =
         resultSet
           .getArray(fieldName)
           .asInstanceOf[Array[U]]
           .toSeq
 
-      def get[U](dbType: FieldType[U], fieldName: String, resultSet: ResultSet): U = {
+      def get[U](resultSet: ResultSet, dbType: FieldType[Any], fieldName: String): Any = {
         dbType match {
           case TypeString | TypeDate | TypeDateTime | TypeJson | TypeEnum(_) | TypeGeography | TypeGeometry =>
             resultSet.getObject(fieldName).toString
@@ -46,17 +46,17 @@ object DataExtractor {
             resultSet.getDouble(fieldName)
 
           case TypeSeq(innerType) =>
-            getSeq(innerType, fieldName, resultSet)
+            getSeq(resultSet, innerType, fieldName)
 
           case TypeOption(innerDbType) =>
             Option(resultSet.getObject(fieldName))
-              .map(_ => get(innerDbType, fieldName, resultSet))
+              .map(_ => get(resultSet, innerDbType, fieldName))
         }
       }
 
       override def extract(resultSet: ResultSet, field: F): Either[DecoderError, T] = {
         val decoder: FieldDecoder[T] = fieldT.get(field).decoder
-        decoder.decode(get(decoder.dbType, field.tagValue, resultSet))
+        decoder.decode(get(resultSet, decoder.dbType, field.tagValue).asInstanceOf[decoder.DBTYPE])
       }
     }
 

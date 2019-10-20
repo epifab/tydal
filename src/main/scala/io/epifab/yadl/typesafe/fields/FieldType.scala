@@ -1,6 +1,6 @@
 package io.epifab.yadl.typesafe.fields
 
-sealed abstract class FieldType[T](val sqlName: String) {
+sealed abstract class FieldType[+T](val sqlName: String) {
   def toSeq: FieldType[Seq[T]] = TypeSeq(this)
   def toOption: FieldType[Option[T]] = TypeOption(this)
 }

@@ -39,7 +39,7 @@ object FieldDecoder {
 
   implicit val instantDecoder: FieldDecoder.Aux[Instant, String] = new FieldDecoder[Instant] {
     override type DBTYPE = String
-    override def dbType: FieldType[String] = TypeString
+    override def dbType: FieldType[String] = TypeDateTime
     override def decode(value: String): Either[DecoderError, Instant] =
       Try(LocalDateTime.parse(value, SqlDateTime.parser))
         .toEither

@@ -98,8 +98,8 @@ object QueryBuilder {
       Query("SELECT ") ++
         (fields.build(select.fields) `+ +`
           from.build(select.sources).map("FROM " + _) `+ +`
-          groupBy.build(select.groupByFields).map("GROUP BY " + _) `+ +`
-          where.build(select.filter).map("WHERE " + _)
+          where.build(select.filter).map("WHERE " + _) `+ +`
+          groupBy.build(select.groupByFields).map("GROUP BY " + _)
         ).getOrElse(Query("1"))
     )
 }
@@ -196,7 +196,8 @@ object QueryFragmentBuilder {
     case FieldExpr2(field1, field2, dbFunction) =>
       Query(dbFunction.name + "(") ++ fieldFragment(field1) ++ "," ++ fieldFragment(field2) ++ ")"
 
-    case placeholder: Placeholder[_, _] => new Query("?", Seq(placeholder))
+    case placeholder: Placeholder[_, _] =>
+      Query(s"?::${placeholder.encoder.dbType.sqlName}", Seq(placeholder))
   }
 
   def binaryExprFragment(binaryExpr: BinaryExpr): QueryFragment = binaryExpr match {

@@ -1,13 +1,14 @@
 package io.epifab.yadl.examples
 
-import java.sql.ResultSet
+import java.time.Instant
 
+import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import io.epifab.yadl.examples.TypesafeSchema.Codecs._
 import io.epifab.yadl.examples.TypesafeSchema._
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.{::, HNil}
+import shapeless.HNil
 
 object SelectsQueries {
   import Implicits._
@@ -19,6 +20,7 @@ object SelectsQueries {
       Select
         .from(Exams as "e")
         .groupBy(_("e", "student_id") :: HNil)
+        .where(_("e", "registration_timestamp") < Placeholder["min_date", Instant])
         .take($ =>
           $("e", "student_id") ::
             Max($("e", "score")).as["max_score"] ::
@@ -39,8 +41,7 @@ object SelectsQueries {
         Nullable($("cc", "name")).as["cname"] ::
         HNil
       )
-      .where($ => ($("s", "id") === studentId) and
-        ($("s", "id") !== studentId))
+      .where(_("s", "id") === Placeholder["student_id", Int])
   }
 
   val examsWithCourseQuery =
@@ -58,7 +59,7 @@ class TypesafeTest extends FlatSpec with Matchers {
 
   "The TagMap typeclass" should "bind fields to their alias" in {
     val fields: Map[String, Field[Any]] =
-      Tagged(studentsQuery.fields)
+      TagMap(studentsQuery.fields)
 
     fields.keys.toSet shouldBe Set("sid", "sname", "score", "cname")
   }
@@ -81,7 +82,9 @@ class TypesafeTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " GROUP BY e.student_id"
+        " WHERE e.registration_timestamp < ?::timestamp" +
+        " GROUP BY e.student_id",
+      Seq(Placeholder["min_date", Instant])
     )
   }
 
@@ -101,6 +104,7 @@ class TypesafeTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
+        " WHERE e.registration_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
 
     studentsQuery.query shouldBe Query(
@@ -112,26 +116,25 @@ class TypesafeTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " WHERE s.id = ? AND s.id != ?",
+        " WHERE s.id = ?::int",
       Seq(
-        Placeholder["student_id", Int],
+        Placeholder["min_date", Int],
         Placeholder["student_id", Int]
       )
     )
+  }
 
+  it should "run a query successfully" in {
     case class Student(id: Int, name: String, bestScore: Option[Int], bestCourse: Option[String])
 
-    val compiled: CompiledSelect[
-      ResultSet,
-      Column[Int] with Tag["sid"] ::
-        Column[String] with Tag["sname"] ::
-        Column[Option[Int]] with Tag["score"] ::
-        Nullable[AS[Column[String], "name"], String] with Tag["cname"] ::
-        HNil,
-      Placeholder[Int, Int] with Tag["student_id"] with NamedPlaceholder["student_id", Int] :: HNil,
-      Student] = studentsQuery.compile.mapTo[Student]
+    val students: Either[DecoderError, Seq[Student]] =
+      studentsQuery.compile
+        .mapTo[Student]
+        .runSync(
+          PostgresConnection(PostgresConfig.fromEnv()),
+          Value("min_date", Instant.now) :: Value("student_id", 3) :: HNil
+        )
 
-    val placeholders: NamedPlaceholder["student_id", Int] :: HNil = studentsQuery.placeholders
-    // shouldBe Placeholder["student_id", Int] :: Placeholder["student_id", Int] :: HNil
+    students shouldBe Symbol("Right")
   }
 }
