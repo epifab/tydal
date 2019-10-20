@@ -184,6 +184,9 @@ object QueryFragmentBuilder {
     case cast@Cast(field) =>
       fieldFragment(field).append("::" + cast.decoder.dbType.sqlName)
 
+    case Nullable(field) =>
+      fieldFragment(field)
+
     case Aggregation(field, dbFunction) =>
       fieldFragment(field).wrap(dbFunction.name + "(", ")")
 

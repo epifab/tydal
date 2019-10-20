@@ -2,9 +2,8 @@ package io.epifab.yadl.examples
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.examples.TypesafeSchema.Interest
-import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe._
+import io.epifab.yadl.typesafe.fields._
 
 object TypesafeSchema {
   abstract sealed class Interest(val value: String)

@@ -1,6 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.typesafe.runner.DataExtractor
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.{::, Generic, HList, HNil, the}
 
@@ -99,6 +100,13 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
        placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS],
        hSet: HSet[PLACEHOLDERS, UNIQUE_PLACEHOLDERS]): UNIQUE_PLACEHOLDERS =
     hSet.toSet(placeholderExtractor.extract(this))
+
+  def compile[RS, OUTPUT <: HList, PLACEHOLDERS <: HList, INPUT <: HList]
+    (implicit
+     dataExtractor: DataExtractor[RS, FIELDS, OUTPUT],
+     placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS],
+     hSet: HSet[PLACEHOLDERS, INPUT]
+    ): CompiledSelect[RS, FIELDS, INPUT, OUTPUT] = new CompiledSelect(query)
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {
@@ -128,6 +136,14 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
       new NonEmptySelect(f(this), groupByFields, sources, filter)
 
+  def take1[FIELD, NEW_FIELDS <: HList]
+    (f: SelectContext[FIELDS, SOURCES] => FIELD)
+    (implicit
+     appender: Appender.Aux[FIELDS, FIELD, NEW_FIELDS],
+     queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE]]):
+    NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
+      new NonEmptySelect(appender.append(fields, f(this)), groupByFields, sources, filter)
+
   def groupBy[NEW_GROUPBY <: HList]
     (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY)
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE]]):
@@ -149,3 +165,8 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
 }
 
 object Select extends EmptySelect
+
+class CompiledSelect[RS, FIELDS, INPUT, OUTPUT](val query: Query)(implicit dataExtractor: DataExtractor[RS, FIELDS, OUTPUT]) {
+  def mapTo[TARGET](implicit dataExtractor: DataExtractor[RS, FIELDS, TARGET]): CompiledSelect[RS, FIELDS, INPUT, TARGET] =
+    new CompiledSelect(query)
+}

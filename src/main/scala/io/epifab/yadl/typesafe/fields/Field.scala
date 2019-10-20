@@ -31,6 +31,14 @@ case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder
     }
 }
 
+case class Nullable[+F <: Field[_], +T](field: F)(implicit fieldT: FieldT[F, T], val decoder: FieldDecoder[Option[T]])
+  extends Field[Option[T]] {
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Nullable[F, T] with Tag[TAG] =
+    new Nullable[F, T](field) with Tag[TAG] {
+      override def tagValue: String = alias.value
+    }
+}
+
 case class FieldExpr1[+F <: Field[_], +U](field: F, dbFunction: DbFunction1[F, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
   override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr1[F, U] with Tag[TAG] =
@@ -100,16 +108,12 @@ object ColumnsBuilder {
        headTerm: ColumnsBuilder[H],
        tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] =
     (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
-
-//  implicit def caseClass[CC, REPR <: HList]
-//      (implicit
-//       columnsBuilder: ColumnsBuilder[REPR],
-//       generic: Generic.Aux[CC, REPR]): ColumnsBuilder[CC] =
-//    (ds: String) => generic.from(columnsBuilder.build(ds))
 }
 
-trait FieldT[-F <: Field[_], T]
+trait FieldT[-F <: Field[_], +T] {
+  def get(f: F): Field[T]
+}
 
 object FieldT {
-  implicit def pure[T]: FieldT[Field[T], T] = new FieldT[Field[T], T] { }
+  implicit def pure[T]: FieldT[Field[T], T] = (field: Field[T]) => field
 }

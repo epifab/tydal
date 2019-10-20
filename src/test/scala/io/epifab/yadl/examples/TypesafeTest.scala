@@ -1,5 +1,7 @@
 package io.epifab.yadl.examples
 
+import java.sql.ResultSet
+
 import io.epifab.yadl.examples.TypesafeSchema.Codecs._
 import io.epifab.yadl.examples.TypesafeSchema._
 import io.epifab.yadl.typesafe._
@@ -34,7 +36,7 @@ object SelectsQueries {
         $("s", "id").as["sid"] ::
         $("s", "name").as["sname"] ::
         $("ms", "max_score").as["score"] ::
-        $("cc", "name").as["cname"] ::
+        Nullable($("cc", "name")).as["cname"] ::
         HNil
       )
       .where($ => ($("s", "id") === studentId) and
@@ -116,6 +118,18 @@ class TypesafeTest extends FlatSpec with Matchers {
         Placeholder["student_id", Int]
       )
     )
+
+    case class Student(id: Int, name: String, bestScore: Option[Int], bestCourse: Option[String])
+
+    val compiled: CompiledSelect[
+      ResultSet,
+      Column[Int] with Tag["sid"] ::
+        Column[String] with Tag["sname"] ::
+        Column[Option[Int]] with Tag["score"] ::
+        Nullable[AS[Column[String], "name"], String] with Tag["cname"] ::
+        HNil,
+      Placeholder[Int, Int] with Tag["student_id"] with NamedPlaceholder["student_id", Int] :: HNil,
+      Student] = studentsQuery.compile.mapTo[Student]
 
     val placeholders: NamedPlaceholder["student_id", Int] :: HNil = studentsQuery.placeholders
     // shouldBe Placeholder["student_id", Int] :: Placeholder["student_id", Int] :: HNil

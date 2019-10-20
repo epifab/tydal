@@ -2,11 +2,11 @@ package io.epifab.yadl.examples
 
 import io.epifab.yadl.examples.SelectsQueries.studentsQuery
 import io.epifab.yadl.typesafe.Tag
-import io.epifab.yadl.typesafe.fields.{Column, Placeholder, PlaceholderExtractor, PlaceholderValue}
+import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.Finder
 import shapeless.{::, HList, HNil}
 
-import scala.annotation.{implicitAmbiguous, implicitNotFound}
+import scala.annotation.implicitNotFound
 
 @implicitNotFound("Not all the placeholders have been resolved")
 trait EnsurePlaceholderValues[-PLACEHOLDERS, VALUES]
@@ -39,7 +39,7 @@ object TestingPlaceholder {
   val x: Column[Int] with Tag["sid"] ::
     Column[String] with Tag["sname"] ::
     Column[Option[Int]] with Tag["score"] ::
-    Column[String] with Tag["cname"] ::
+    Nullable[Column[String], String] with Tag["cname"] ::
     HNil = studentsQuery.fields
 
   PlaceholderExtractor(studentsQuery)
