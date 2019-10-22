@@ -14,19 +14,19 @@ import shapeless.{::, HList, HNil}
  * @tparam PLACEHOLDER_VALUE Placeholder value
  */
 trait StatementBuilder[CONNECTION, STATEMENT, PLACEHOLDER_VALUE] {
-  def build(connection: CONNECTION, statement: STATEMENT, query: Query, input: PLACEHOLDER_VALUE): Unit
+  def build(connection: CONNECTION, statement: STATEMENT, query: Query[_, _], input: PLACEHOLDER_VALUE): Unit
 }
 
 object StatementBuilder {
   implicit def jdbc[V <: Value[_] with Tag[_], A <: String, T]
       (implicit tagged: Tagged[V, A], valueT: ValueT[V, T]): StatementBuilder[Connection, PreparedStatement, V] =
     new StatementBuilder[Connection, PreparedStatement, V] {
-      override def build(connection: Connection, statement: PreparedStatement, query: Query, input: V): Unit = {
-        query.placeholders.zipWithIndex.foreach {
-          case (placeholder, index) if placeholder.name == input.tagValue =>
-            set(connection, statement, index + 1, placeholder.encoder.dbType, input.dbValue)
-          case _ =>
-        }
+      override def build(connection: Connection, statement: PreparedStatement, query: Query[_, _], input: V): Unit = {
+//        query.placeholders.zipWithIndex.foreach {
+//          case (placeholder, index) if placeholder.name == input.tagValue =>
+//            set(connection, statement, index + 1, placeholder.encoder.dbType, input.dbValue)
+//          case _ =>
+//        }
       }
 
       def setSeq[U](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: Seq[U]): Unit = {
@@ -62,10 +62,10 @@ object StatementBuilder {
     }
 
   implicit def hNil[C, S]: StatementBuilder[C, S, HNil] =
-    (connection: C, statement: S, query: Query, input: HNil) => { }
+    (connection: C, statement: S, query: Query[_, _], input: HNil) => { }
 
   implicit def hCons[C, S, H, T <: HList](implicit head: StatementBuilder[C, S, H], tail: StatementBuilder[C, S, T]): StatementBuilder[C, S, H :: T] =
-    (connection: C, statement: S, query: Query, input: H :: T) => {
+    (connection: C, statement: S, query: Query[_, _], input: H :: T) => {
       head.build(connection, statement, query, input.head)
       tail.build(connection, statement, query, input.tail)
     }

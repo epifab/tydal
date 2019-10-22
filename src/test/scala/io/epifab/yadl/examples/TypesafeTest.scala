@@ -2,20 +2,18 @@ package io.epifab.yadl.examples
 
 import java.time.Instant
 
-import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import io.epifab.yadl.examples.TypesafeSchema.Codecs._
 import io.epifab.yadl.examples.TypesafeSchema._
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.HNil
+import shapeless.{HNil, ::}
 
 object SelectsQueries {
   import Implicits._
 
   val studentsQuery = {
-    val studentId = Placeholder["student_id", Int]
-
     val maxScoreSubQuery =
       Select
         .from(Exams as "e")
@@ -72,7 +70,7 @@ class TypesafeTest extends FlatSpec with Matchers {
   }
 
   "The QueryBuilder" should "build the simplest query" in {
-    Select.query shouldBe Query("SELECT 1")
+    Select.query shouldBe Query("SELECT 1", HNil, HNil)
   }
 
   it should "build a simple query" in {
@@ -84,7 +82,8 @@ class TypesafeTest extends FlatSpec with Matchers {
         " FROM exams AS e" +
         " WHERE e.registration_timestamp < ?::timestamp" +
         " GROUP BY e.student_id",
-      Seq(Placeholder["min_date", Instant])
+      Placeholder["min_date", Instant] :: HNil,
+      studentsQuery("ms").select.fields
     )
   }
 
@@ -94,7 +93,9 @@ class TypesafeTest extends FlatSpec with Matchers {
         " c.name AS cname," +
         " e.score AS score" +
         " FROM exams AS e" +
-        " INNER JOIN courses AS c ON c.id = e.course_id"
+        " INNER JOIN courses AS c ON c.id = e.course_id",
+      HNil,
+      examsWithCourseQuery.fields
     )
   }
 
@@ -117,10 +118,8 @@ class TypesafeTest extends FlatSpec with Matchers {
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
         " WHERE s.id = ?::int",
-      Seq(
-        Placeholder["min_date", Int],
-        Placeholder["student_id", Int]
-      )
+      Placeholder["min_date", Int] :: Placeholder["student_id", Int] :: HNil,
+      studentsQuery.fields
     )
   }
 
@@ -128,12 +127,10 @@ class TypesafeTest extends FlatSpec with Matchers {
     case class Student(id: Int, name: String, bestScore: Option[Int], bestCourse: Option[String])
 
     val students: Either[DecoderError, Seq[Student]] =
-      studentsQuery.compile
-        .mapTo[Student]
-        .runSync(
-          PostgresConnection(PostgresConfig.fromEnv()),
-          Value("min_date", Instant.now) :: Value("student_id", 3) :: HNil
-        )
+      studentsQuery
+        .compile
+        .withValues(Value("min_date", Instant.now) :: Value("student_id", 3) :: HNil)
+        .runSync[Student](PostgresConnection(PostgresConfig.fromEnv()))
 
     students shouldBe Symbol("Right")
   }

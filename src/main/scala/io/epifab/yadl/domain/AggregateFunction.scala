@@ -2,6 +2,8 @@ package io.epifab.yadl.domain
 
 sealed trait AggregateFunction[T, U] {
   def name: String
+
+  override def toString: String = s"AggregateFunction(${name})"
 }
 
 object Avg {

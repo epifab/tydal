@@ -1,11 +1,8 @@
 package io.epifab.yadl.typesafe
 
-import java.sql.{Connection, PreparedStatement, ResultSet}
-
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.runner.{DataExtractor, JdbcCompiledQuery, StatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
-import shapeless.{::, Generic, HList, HNil, the}
+import shapeless.{::, Generic, HList, HNil}
 
 trait DataSource[FIELDS] { self: Tag[_] =>
   def fields: FIELDS
@@ -78,8 +75,6 @@ trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIEL
 }
 
 sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr] extends SelectContext[FIELDS, SOURCES] { select =>
-  def queryBuilder: QueryBuilder[this.type]
-
   def fields: FIELDS
   def groupByFields: GROUP_BY
   def sources: SOURCES
@@ -95,28 +90,23 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def subQuery[SUBQUERY_FIELDS <: HList](implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]) =
     new SubQueryBuilder[SUBQUERY_FIELDS]
 
-  lazy val query: Query = queryBuilder.build(this)
+  def query[PLACEHOLDERS <: HList](implicit queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS]): Query[PLACEHOLDERS, FIELDS] =
+    queryBuilder.build(this)
 
-  def compile[OUTPUT <: HList, PLACEHOLDERS <: HList, UNIQUE_PLACEHOLDERS <: HList, INPUT <: HList]
+  def compile[PLACEHOLDERS <: HList, INPUT <: HList]
     (implicit
-     dataExtractor: DataExtractor[ResultSet, FIELDS, OUTPUT],
-     placeholderExtractor: PlaceholderExtractor[Select[FIELDS, GROUP_BY, SOURCES, WHERE], PLACEHOLDERS],
-     hSet: HSet[PLACEHOLDERS, UNIQUE_PLACEHOLDERS],
-     input: FieldValues[UNIQUE_PLACEHOLDERS, INPUT],
-     statementBuilder: StatementBuilder[Connection, PreparedStatement, INPUT]
-    ): JdbcCompiledQuery[FIELDS, INPUT, OUTPUT] = new JdbcCompiledQuery(query, fields)
+     queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
+     statementBuilder: StatementBuilder[PLACEHOLDERS, INPUT, FIELDS]): CompiledStatement[INPUT, FIELDS] =
+    statementBuilder.build(queryBuilder.build(this))
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {
-  override val queryBuilder: QueryBuilder[Select[HNil, HNil, HNil, AlwaysTrue]] =
-    the[QueryBuilder[Select[HNil, HNil, HNil, AlwaysTrue]]]
-
   override val fields: HNil = HNil
   override val groupByFields: HNil = HNil
   override val sources: HNil = HNil
   override val filter: AlwaysTrue = AlwaysTrue
 
-  def from[T <: DataSource[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue]]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue] =
+  def from[T <: DataSource[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue] =
     new NonEmptySelect(fields, groupByFields, source :: HNil, filter)
 }
 
@@ -125,12 +115,12 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
      override val groupByFields: GROUP_BY,
      override val sources: SOURCES,
      override val filter: WHERE)
-    (implicit val queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE]])
+    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE], _, FIELDS])
     extends Select[FIELDS, GROUP_BY, SOURCES, WHERE] {
 
   def take[NEW_FIELDS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => NEW_FIELDS)
-    (implicit queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE]]):
+    (implicit queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE], _, NEW_FIELDS]):
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
       new NonEmptySelect(f(this), groupByFields, sources, filter)
 
@@ -138,13 +128,13 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (f: SelectContext[FIELDS, SOURCES] => FIELD)
     (implicit
      appender: Appender.Aux[FIELDS, FIELD, NEW_FIELDS],
-     queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE]]):
+     queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE], _, NEW_FIELDS]):
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
       new NonEmptySelect(appender.append(fields, f(this)), groupByFields, sources, filter)
 
   def groupBy[NEW_GROUPBY <: HList]
     (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE]]):
+    (implicit queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE], _, FIELDS]):
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES, WHERE] =
       new NonEmptySelect(fields, f(this), sources, filter)
 
@@ -152,13 +142,13 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])
     (implicit
      appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
-     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE]]):
+     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE], _, FIELDS]):
     NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE] =
       new NonEmptySelect(fields, groupByFields, appender.append(sources, f(this)), filter)
 
   def where[NEW_WHERE <: BinaryExpr]
     (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, NEW_WHERE]]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, NEW_WHERE] =
+    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, NEW_WHERE], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, NEW_WHERE] =
     new NonEmptySelect(fields, groupByFields, sources, f(this))
 }
 
