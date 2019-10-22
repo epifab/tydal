@@ -3,11 +3,11 @@ package io.epifab.yadl.examples
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
-import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
-import io.epifab.yadl.examples.SelectsQueries.studentExams
 import io.epifab.yadl.typesafe.DataError
+import io.epifab.yadl.typesafe.SelectQueries._
 import io.epifab.yadl.typesafe.fields.Value
+import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import shapeless._

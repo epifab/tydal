@@ -118,25 +118,35 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE], _, FIELDS])
     extends Select[FIELDS, GROUP_BY, SOURCES, WHERE] {
 
-  def take[NEW_FIELDS <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_FIELDS)
-    (implicit queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE], _, NEW_FIELDS]):
-    NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
-      new NonEmptySelect(f(this), groupByFields, sources, filter)
-
-  def take1[FIELD, NEW_FIELDS <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => FIELD)
+  def take[P, NEW_FIELDS <: HList]
+    (f: SelectContext[FIELDS, SOURCES] => P)
     (implicit
-     appender: Appender.Aux[FIELDS, FIELD, NEW_FIELDS],
+     generic: Generic.Aux[P, NEW_FIELDS],
      queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE], _, NEW_FIELDS]):
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE] =
-      new NonEmptySelect(appender.append(fields, f(this)), groupByFields, sources, filter)
+      new NonEmptySelect(generic.to(f(this)), groupByFields, sources, filter)
 
-  def groupBy[NEW_GROUPBY <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_GROUPBY)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE], _, FIELDS]):
+  def take1[F <: Field[_]]
+    (f: SelectContext[FIELDS, SOURCES] => F)
+    (implicit
+     queryBuilder: QueryBuilder[Select[F :: HNil, GROUP_BY, SOURCES, WHERE], _, F :: HNil]):
+    NonEmptySelect[F :: HNil, GROUP_BY, SOURCES, WHERE] =
+      new NonEmptySelect(f(this) :: HNil, groupByFields, sources, filter)
+
+  def groupBy[P, NEW_GROUPBY <: HList]
+    (f: SelectContext[FIELDS, SOURCES] => P)
+    (implicit
+     generic: Generic.Aux[P, NEW_GROUPBY],
+     queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE], _, FIELDS]):
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES, WHERE] =
-      new NonEmptySelect(fields, f(this), sources, filter)
+      new NonEmptySelect(fields, generic.to(f(this)), sources, filter)
+
+  def groupBy1[F <: Field[_]]
+    (f: SelectContext[FIELDS, SOURCES] => F)
+    (implicit
+     queryBuilder: QueryBuilder[Select[FIELDS, F :: HNil, SOURCES, WHERE], _, FIELDS]):
+    NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE] =
+      new NonEmptySelect(fields, f(this) :: HNil, sources, filter)
 
   def join[NEW_SOURCE <: DataSource[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])

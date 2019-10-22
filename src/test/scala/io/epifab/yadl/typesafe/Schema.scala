@@ -1,11 +1,10 @@
-package io.epifab.yadl.examples
+package io.epifab.yadl.typesafe
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.typesafe._
-import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.typesafe.fields.{Column, FieldDecoder, FieldEncoder}
 
-object TypesafeSchema {
+object Schema {
   abstract sealed class Interest(val value: String)
   case object Music extends Interest("music")
   case object Art extends Interest("art")
@@ -22,13 +21,11 @@ object TypesafeSchema {
     }
   }
 
-  object Codecs {
-    implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
-      FieldDecoder.enumDecoder("interest", Interest.apply)
+  implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
+    FieldDecoder.enumDecoder("interest", Interest.apply)
 
-    implicit val interestEncoder: FieldEncoder.Aux[Interest, String] =
-      FieldEncoder.enumEncoder("interest", _.value)
-  }
+  implicit val interestEncoder: FieldEncoder.Aux[Interest, String] =
+    FieldEncoder.enumEncoder("interest", _.value)
 
   case class StudentsSchema(
     id: Column[Int] AS "id",
