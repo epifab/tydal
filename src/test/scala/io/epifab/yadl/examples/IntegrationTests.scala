@@ -1,9 +1,13 @@
 package io.epifab.yadl.examples
 
-import java.time.{LocalDate, LocalDateTime, ZoneOffset}
+import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
+import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
+import io.epifab.yadl.examples.SelectsQueries.studentExams
+import io.epifab.yadl.typesafe.DataError
+import io.epifab.yadl.typesafe.fields.Value
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import shapeless._
@@ -149,6 +153,20 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   it should "find distinct courses" in {
     val results = repo.findCourseIdsByStudentExams(student1, student2, student3)
     results.map(_.map(_.id)) shouldBe Right(Seq(1, 2))
+  }
+
+  it should "run a query successfully" in {
+    case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
+
+    val students: Either[DataError, Seq[StudentExam]] =
+      studentExams
+        .withValues(Value("sid", 2) :: HNil)
+        .runSync[StudentExam](PostgresConnection(PostgresConfig.fromEnv()))
+
+    students.map(_.toSet) shouldBe Right(Set(
+      StudentExam(2, "Jane Doe", 29, exam2.dateTime.toInstant(ZoneOffset.UTC), "Math"),
+      StudentExam(2, "Jane Doe", 30, exam3.dateTime.toInstant(ZoneOffset.UTC), "Astronomy")
+    ))
   }
 }
 

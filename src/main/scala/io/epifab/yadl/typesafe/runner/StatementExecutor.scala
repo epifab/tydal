@@ -9,34 +9,49 @@ import shapeless.HList
 import scala.util.Try
 import scala.util.control.NonFatal
 
-trait StatementExecutor[F[+_, +_], CONN, OUTPUT_REPR <: HList, OUTPUT] {
-  def run(connection: CONN, statement: Statement[OUTPUT_REPR]): F[DataError, Seq[OUTPUT]]
+trait StatementExecutor[F[+_, +_], CONN, FIELDS <: HList, OUTPUT] {
+  def run(connection: CONN, statement: Statement[FIELDS]): F[DataError, Seq[OUTPUT]]
 }
 
 object StatementExecutor {
-  implicit def syncJDBC[OUTPUT_REPR <: HList, OUTPUT]
-    (implicit dataExtractor: DataExtractor[ResultSet, OUTPUT_REPR, OUTPUT]): StatementExecutor[Either, Connection, OUTPUT_REPR, OUTPUT] =
+  implicit def syncJDBC[FIELDS <: HList, OUTPUT]
+    (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, OUTPUT]): StatementExecutor[Either, Connection, FIELDS, OUTPUT] =
 
-  new StatementExecutor[Either, Connection, OUTPUT_REPR, OUTPUT] {
-    override def run(connection: Connection, statement: Statement[OUTPUT_REPR]): Either[DataError, Seq[OUTPUT]] = {
-      val preparedStatement = connection.prepareStatement(statement.sql)
+  new StatementExecutor[Either, Connection, FIELDS, OUTPUT] {
+    override def run(connection: Connection, statement: Statement[FIELDS]): Either[DataError, Seq[OUTPUT]] = {
+      for {
+        preparedStatement <- initStatement(connection, statement.sql, statement.input)
+        results <- runStatement(preparedStatement, statement.fields)
+      } yield results
+    }
 
-      statement.input.zipWithIndex.foreach {
-        case (value, index) => setPlaceholder(
-          connection,
-          preparedStatement,
-          index + 1,
-          value.encoder.dbType,
-          value.dbValue
-        )
+    private def initStatement(connection: Connection, sql: String, placeholderValues: Seq[Value[_]]): Either[DriverError, PreparedStatement] =
+      Try(connection.prepareStatement(sql)).toEither match {
+        case Right(preparedStatement) =>
+          placeholderValues.zipWithIndex.foreach {
+            case (value, index) => setPlaceholder(
+              connection,
+              preparedStatement,
+              index + 1,
+              value.encoder.dbType,
+              value.dbValue
+            )
+          }
+          Right(preparedStatement)
+
+        case Left(NonFatal(e)) =>
+          Left(DriverError(e.getMessage))
+
+        case Left(fatalError) =>
+          throw fatalError
       }
 
+    private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Seq[OUTPUT]] =
       Try(preparedStatement.executeQuery()).toEither match {
-        case Right(resultSet) => extract(statement, resultSet)
+        case Right(resultSet) => extract(fields, resultSet)
         case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
         case Left(fatalError) => throw fatalError
       }
-    }
 
     private def setPlaceholderSeq[U](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: Seq[U]): Unit = {
       val array: java.sql.Array = connection.createArrayOf(
@@ -69,12 +84,12 @@ object StatementExecutor {
       }
     }
 
-    private def extract(statement: Statement[OUTPUT_REPR], resultSet: ResultSet): Either[DecoderError, Seq[OUTPUT]] = {
+    private def extract(fields: FIELDS, resultSet: ResultSet): Either[DecoderError, Seq[OUTPUT]] = {
       import io.epifab.yadl.utils.MonadicOps._
 
       val iterator = new Iterator[Either[DecoderError, OUTPUT]] {
         override def hasNext: Boolean = resultSet.next()
-        override def next(): Either[DecoderError, OUTPUT] = dataExtractor.extract(resultSet, statement.outputRepr)
+        override def next(): Either[DecoderError, OUTPUT] = dataExtractor.extract(resultSet, fields)
       }
 
       iterator.toList.getOrFirstError

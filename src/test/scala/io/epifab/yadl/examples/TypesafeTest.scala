@@ -6,12 +6,23 @@ import io.epifab.yadl.examples.TypesafeSchema.Codecs._
 import io.epifab.yadl.examples.TypesafeSchema._
 import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.HNil
+import shapeless.{::, HNil}
 
 object SelectsQueries {
   import Implicits._
+
+  val studentExams =
+    Select.from(Students as "s")
+      .join($ => (Exams as "e").on(_("student_id") === $("s", "id")))
+      .join($ => (Courses as "c").on(_("id") === $("e", "course_id")))
+      .take1(_("s", "id").as["sid"])
+      .take1(_("s", "name").as["sname"])
+      .take1(_("e", "score").as["rate"])
+      .take1(_("e", "exam_timestamp").as["etime"])
+      .take1(_("c", "name").as["cname"])
+      .where(_("s", "id") === Placeholder["sid", Int])
+      .compile
 
   val studentsQuery = {
     val maxScoreSubQuery =
@@ -121,17 +132,5 @@ class TypesafeTest extends FlatSpec with Matchers {
       Placeholder["min_date", Int] :: Placeholder["student_id", Int] :: HNil,
       studentsQuery.fields
     )
-  }
-
-  it should "run a query successfully" in {
-    case class Student(id: Int, name: String, bestScore: Option[Int], bestCourse: Option[String])
-
-    val students: Either[DataError, Seq[Student]] =
-      studentsQuery
-        .compile
-        .withValues(Value("min_date", Instant.now) :: Value("student_id", 3) :: HNil)
-        .runSync[Student](PostgresConnection(PostgresConfig.fromEnv()))
-
-    students shouldBe Symbol("Right")
   }
 }

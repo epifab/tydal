@@ -4,7 +4,7 @@ import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.Concat
 import shapeless.{::, HList, HNil}
 
-case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, outputRepr: FIELDS)
+case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, fields: FIELDS)
 
 case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
   def `++`(s: String): QueryFragment[P] =
