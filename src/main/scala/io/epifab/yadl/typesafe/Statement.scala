@@ -2,14 +2,14 @@ package io.epifab.yadl.typesafe
 
 import java.sql.Connection
 
-import io.epifab.yadl.typesafe.fields.{DecoderError, FieldT, Placeholder, Value}
+import io.epifab.yadl.typesafe.fields.{FieldT, Placeholder, Value}
 import io.epifab.yadl.typesafe.runner.StatementExecutor
 import shapeless.{::, HList, HNil}
 
 class CompiledStatement[INPUT <: HList, OUTPUT <: HList](val withValues: INPUT => Statement[OUTPUT])
 
 case class Statement[OUTPUT_REPR <: HList](sql: String, input: Seq[Value[_]], outputRepr: OUTPUT_REPR) {
-  def runSync[OUTPUT](connection: Connection)(implicit statementExecutor: StatementExecutor[Either, Connection, OUTPUT_REPR, OUTPUT]): Either[DecoderError, Seq[OUTPUT]] =
+  def runSync[OUTPUT](connection: Connection)(implicit statementExecutor: StatementExecutor[Either, Connection, OUTPUT_REPR, OUTPUT]): Either[DataError, Seq[OUTPUT]] =
     statementExecutor.run(connection, this)
 }
 

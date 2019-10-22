@@ -3,12 +3,11 @@ package io.epifab.yadl.typesafe.fields
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import io.circe.{Decoder => JsonDecoder}
+import io.epifab.yadl.typesafe.DecoderError
 import io.epifab.yadl.typesafe.utils.SqlDateTime
 import io.epifab.yadl.utils.EitherSupport
 
 import scala.util.Try
-
-case class DecoderError(reason: String)
 
 trait FieldDecoder[+T] {
   type DBTYPE

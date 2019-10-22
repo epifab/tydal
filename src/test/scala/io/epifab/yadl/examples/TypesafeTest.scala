@@ -8,7 +8,7 @@ import io.epifab.yadl.typesafe._
 import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.{HNil, ::}
+import shapeless.HNil
 
 object SelectsQueries {
   import Implicits._
@@ -126,7 +126,7 @@ class TypesafeTest extends FlatSpec with Matchers {
   it should "run a query successfully" in {
     case class Student(id: Int, name: String, bestScore: Option[Int], bestCourse: Option[String])
 
-    val students: Either[DecoderError, Seq[Student]] =
+    val students: Either[DataError, Seq[Student]] =
       studentsQuery
         .compile
         .withValues(Value("min_date", Instant.now) :: Value("student_id", 3) :: HNil)

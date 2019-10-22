@@ -2,7 +2,7 @@ package io.epifab.yadl.typesafe.runner
 
 import java.sql.ResultSet
 
-import io.epifab.yadl.typesafe.{Query, Tag}
+import io.epifab.yadl.typesafe.{DecoderError, Query, Tag}
 import io.epifab.yadl.typesafe.fields._
 import shapeless.{::, Generic, HList, HNil}
 
