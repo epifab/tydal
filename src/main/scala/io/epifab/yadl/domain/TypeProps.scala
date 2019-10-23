@@ -2,6 +2,8 @@ package io.epifab.yadl.domain
 
 import java.time.{LocalDate, LocalDateTime}
 
+import scala.annotation.implicitNotFound
+
 sealed trait TypeProps
 
 sealed trait IsNumeric[T] extends TypeProps
@@ -56,6 +58,7 @@ object Sortable {
   implicit def dateTime[T](implicit isDateTime: IsDateTime[T]): Sortable[T] = new Sortable[T] {}
 }
 
+@implicitNotFound("${T} and ${U} are not comparable")
 sealed trait Comparable[T, U] extends TypeProps
 
 object Comparable {

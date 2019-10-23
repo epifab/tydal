@@ -1,116 +1,120 @@
 package io.epifab.yadl.typesafe.fields
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate}
 
 sealed trait TypeProps
 
-sealed trait IsNumeric[+T] extends TypeProps
-sealed trait IsInteger[+T] extends TypeProps
-sealed trait IsDouble[+T] extends TypeProps
-sealed trait IsText[+T] extends TypeProps
-sealed trait IsDate[+T] extends TypeProps
-sealed trait IsDateTime[+T] extends TypeProps
-sealed trait IsNullable[+T] extends TypeProps
+trait IsNumeric[T] extends TypeProps
+trait IsInteger[T] extends TypeProps
+trait IsDouble[T] extends TypeProps
+trait IsText[T] extends TypeProps
+trait IsDate[T] extends TypeProps
+trait IsDateTime[T] extends TypeProps
 
 object IsNumeric {
   implicit def int[T](implicit isInteger: IsInteger[T]): IsNumeric[T] = new IsNumeric[T] {}
   implicit def double[T](implicit isDouble: IsDouble[T]): IsNumeric[T] = new IsNumeric[T] {}
-  implicit def field[T](implicit isNumeric: IsNumeric[T]): IsNumeric[Field[T]] = new IsNumeric[Field[T]] {}
 }
 
 object IsInteger {
-  implicit val pure: IsInteger[Int] = new IsInteger[Int] {}
-  implicit def optional[T](implicit isNumeric: IsInteger[T]): IsInteger[Option[T]] = new IsInteger[Option[T]] {}
-  implicit def field[T](implicit isInteger: IsInteger[T]): IsInteger[Field[T]] = new IsInteger[Field[T]] {}
+  implicit val int: IsInteger[Int] = new IsInteger[Int] {}
+  implicit def optional[T](implicit isInteger: IsInteger[T]): IsInteger[Option[T]] = new IsInteger[Option[T]] {}
+
+  implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isInteger: IsInteger[T]): IsInteger[F] = new IsInteger[F] {}
 }
 
 object IsDouble {
-  implicit val pure: IsDouble[Double] = new IsDouble[Double] {}
-  implicit def optional[T](implicit isNumeric: IsDouble[T]): IsDouble[Option[T]] = new IsDouble[Option[T]] {}
-  implicit def field[T](implicit isDouble: IsDouble[T]): IsDouble[Field[T]] = new IsDouble[Field[T]] {}
+  implicit val double: IsDouble[Double] = new IsDouble[Double] {}
+  implicit def optional[T](implicit isDouble: IsDouble[T]): IsDouble[Option[T]] = new IsDouble[Option[T]] {}
+
+  implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDouble: IsDouble[T]): IsDouble[F] = new IsDouble[F] {}
 }
 
 object IsText {
-  implicit val pure: IsText[String] = new IsText[String] {}
-  implicit def optional[T](implicit textLike: IsText[T]): IsText[Option[T]] = new IsText[Option[T]] {}
-  implicit def field[T](implicit isText: IsText[T]): IsText[Field[T]] = new IsText[Field[T]] {}
+  implicit val string: IsText[String] = new IsText[String] {}
+  implicit def optional[T](implicit isText: IsText[T]): IsText[Option[T]] = new IsText[Option[T]] {}
+
+  implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isText: IsText[T]): IsText[F] = new IsText[F] {}
 }
 
 object IsDate {
-  implicit val pure: IsDate[LocalDate] = new IsDate[LocalDate] {}
-  implicit def optional[T](implicit textLike: IsDate[T]): IsDate[Option[T]] = new IsDate[Option[T]] {}
-  implicit def field[T](implicit isDate: IsDate[T]): IsDate[Field[T]] = new IsDate[Field[T]] {}
+  implicit val localDate: IsDate[LocalDate] = new IsDate[LocalDate] {}
+  implicit def optional[T](implicit isDate: IsDate[T]): IsDate[Option[T]] = new IsDate[Option[T]] {}
+
+  implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDate: IsDate[T]): IsDate[F] = new IsDate[F] {}
 }
 
 object IsDateTime {
-  implicit val pure: IsDateTime[LocalDateTime] = new IsDateTime[LocalDateTime] {}
-  implicit def optional[T](implicit textLike: IsDateTime[T]): IsDateTime[Option[T]] = new IsDateTime[Option[T]] {}
-  implicit def field[T](implicit isDateTime: IsDateTime[T]): IsDateTime[Field[T]] = new IsDateTime[Field[T]] {}
+  implicit val instant: IsDateTime[Instant] = new IsDateTime[Instant] {}
+  implicit def optional[T](implicit isDateTime: IsDateTime[T]): IsDateTime[Option[T]] = new IsDateTime[Option[T]] {}
+
+  implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDateTime: IsDateTime[T]): IsDateTime[F] = new IsDateTime[F] {}
 }
 
-object IsNullable {
-  implicit def pure[T]: IsNullable[Option[T]] = new IsNullable[Option[T]] {}
-  implicit def field[T](implicit isNullable: IsNullable[T]): IsNullable[Field[T]] = new IsNullable[Field[T]] {}
+sealed trait AreComparable[T, U] extends TypeProps
+
+object AreComparable {
+  implicit def numeric[T, U](implicit tIsNumeric: IsNumeric[T], uIsNumeric: IsNumeric[U]): AreComparable[T, U] =
+    new AreComparable[T, U] {}
+
+  implicit def text[T, U](implicit tIsText: IsText[T], uIsText: IsText[U]): AreComparable[T, U] =
+    new AreComparable[T, U] {}
+
+  implicit def date[T, U](implicit tIsDate: IsDate[T], uIsDate: IsDate[U]): AreComparable[T, U] =
+    new AreComparable[T, U] {}
+
+  implicit def dateTime[T, U](implicit tIsDateTime: IsDateTime[T], uIsDateTime: IsDateTime[U]): AreComparable[T, U] =
+    new AreComparable[T, U] {}
 }
 
-sealed trait Sortable[+T] extends TypeProps
-
-object Sortable {
-  implicit def number[T](implicit isNumeric: IsNumeric[T]): Sortable[T] = new Sortable[T] {}
-  implicit def text[T](implicit isText: IsText[T]): Sortable[T] = new Sortable[T] {}
-  implicit def date[T](implicit isDate: IsDate[T]): Sortable[T] = new Sortable[T] {}
-  implicit def dateTime[T](implicit isDateTime: IsDateTime[T]): Sortable[T] = new Sortable[T] {}
-  implicit def field[T](implicit isSortable: Sortable[T]): Sortable[Field[T]] = new Sortable[Field[T]] {}
-}
-
-sealed trait Comparable[+T, +U] extends TypeProps
-
-object Comparable {
-  implicit def pure[T]: Comparable[T, T] = new Comparable[T, T] {}
-
-  implicit def optionalRight[T, U](implicit comparable: Comparable[T, U]): Comparable[T, Option[U]] =
-    new Comparable[T, Option[U]] {}
-
-  implicit def optionalLeft[T, U](implicit comparable: Comparable[T, U]): Comparable[Option[T], U] =
-    new Comparable[Option[T], U] {}
-
-  implicit def numbers[T, U](implicit tIsNumeric: IsNumeric[T], uIsNumberic: IsNumeric[U]): Comparable[T, U] =
-    new Comparable[T, U] {}
-
-  implicit def field[T, U](implicit comparable: Comparable[T, U]): Comparable[Field[T], Field[U]] =
-    new Comparable[Field[T], Field[U]] {}
-}
-
-sealed trait CanBeSuperset[+T, +U] extends TypeProps
-sealed trait CanBeSubset[+T, +U] extends TypeProps
-sealed trait CanOverlap[+T, +U] extends TypeProps
-sealed trait CanBeIncluded[+T, +U] extends TypeProps
+sealed trait CanBeSuperset[T, U] extends TypeProps
+sealed trait CanBeSubset[T, U] extends TypeProps
+sealed trait CanOverlap[T, U] extends TypeProps
+sealed trait CanBeIncluded[T, U] extends TypeProps
 
 object CanBeSuperset {
   implicit def pure[T]: CanBeSuperset[Seq[T], Seq[T]] = new CanBeSuperset[Seq[T], Seq[T]] {}
 
-  implicit def field[T, U](implicit canBeSuperset: CanBeSuperset[T, U]): CanBeSuperset[Field[T], Field[U]] =
-    new CanBeSuperset[Field[T], Field[U]] {}
+  implicit def field[F <: Field[_], G <: Field[_], T, U]
+      (implicit
+       ft: FieldT[F, T],
+       gt: FieldT[G, U],
+       canBeSuperset: CanBeSuperset[T, U]): CanBeSuperset[F, G] =
+    new CanBeSuperset[F, G] {}
 }
 
 object CanBeSubset {
   implicit def pure[T]: CanBeSubset[Seq[T], Seq[T]] = new CanBeSubset[Seq[T], Seq[T]] {}
 
-  implicit def field[T, U](implicit canBeSubset: CanBeSubset[T, U]): CanBeSubset[Field[T], Field[U]] =
-    new CanBeSubset[Field[T], Field[U]] {}
+  implicit def field[F <: Field[_], G <: Field[_], T, U]
+      (implicit
+       ft: FieldT[F, T],
+       gt: FieldT[G, U],
+       canBeSubset: CanBeSubset[T, U]): CanBeSubset[F, G] =
+    new CanBeSubset[F, G] {}
 }
 
 object CanOverlap {
   implicit def pure[T]: CanOverlap[Seq[T], Seq[T]] = new CanOverlap[Seq[T], Seq[T]] {}
 
-  implicit def field[T, U](implicit canOverlap: CanOverlap[T, U]): CanOverlap[Field[T], Field[U]] =
-    new CanOverlap[Field[T], Field[U]] {}
+  implicit def field[F <: Field[_], G <: Field[_], T, U]
+      (implicit
+       ft: FieldT[F, T],
+       gt: FieldT[G, U],
+       canOverlap: CanOverlap[T, U]): CanOverlap[F, G] =
+    new CanOverlap[F, G] {}
 }
 
 object CanBeIncluded {
   implicit def pure[T]: CanBeIncluded[T, Seq[T]] = new CanBeIncluded[T, Seq[T]] {}
-  implicit def optional[T]: CanBeIncluded[Option[T], Seq[T]] = new CanBeIncluded[Option[T], Seq[T]] {}
+  implicit def optionLeft[T]: CanBeIncluded[Option[T], Seq[T]] = new CanBeIncluded[Option[T], Seq[T]] {}
+  implicit def optionRight[T]: CanBeIncluded[T, Option[Seq[T]]] = new CanBeIncluded[T, Option[Seq[T]]] {}
+  implicit def option[T]: CanBeIncluded[Option[T], Option[Seq[T]]] = new CanBeIncluded[Option[T], Option[Seq[T]]] {}
 
-  implicit def field[T, U](implicit CanBeIncluded: CanBeIncluded[T, U]): CanBeIncluded[Field[T], Field[U]] =
-    new CanBeIncluded[Field[T], Field[U]] {}
+  implicit def field[F <: Field[_], G <: Field[_], T, U]
+      (implicit
+       ft: FieldT[F, T],
+       gt: FieldT[G, U],
+       canOverlap: CanBeIncluded[T, U]): CanBeIncluded[F, G] =
+    new CanBeIncluded[F, G] {}
 }

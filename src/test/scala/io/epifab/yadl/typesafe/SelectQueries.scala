@@ -4,7 +4,7 @@ import java.time.Instant
 
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
-import io.epifab.yadl.typesafe.fields.{Max, Min, Nullable, Placeholder}
+import io.epifab.yadl.typesafe.fields._
 
 object SelectQueries {
   val studentExams =
