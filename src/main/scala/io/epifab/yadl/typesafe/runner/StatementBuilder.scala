@@ -1,72 +1,46 @@
 package io.epifab.yadl.typesafe.runner
 
-import java.sql.{Connection, PreparedStatement}
+import java.sql.Connection
 
-import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.{Query, Tag, Tagged}
-import shapeless.{::, HList, HNil}
+import io.epifab.yadl.typesafe.fields.{FieldT, Placeholder, Value}
+import io.epifab.yadl.typesafe.{DataError, Query, Tag, Tagged}
+import shapeless.{::, Generic, HList, HNil}
 
-/**
- * Type class to create a prepared statement
- *
- * @tparam CONNECTION Connection
- * @tparam STATEMENT Statement
- * @tparam PLACEHOLDER_VALUE Placeholder value
- */
-trait StatementBuilder[CONNECTION, STATEMENT, PLACEHOLDER_VALUE] {
-  def build(connection: CONNECTION, statement: STATEMENT, query: Query[_, _], input: PLACEHOLDER_VALUE): Unit
+class CompiledStatement[INPUT <: HList, OUTPUT <: HList](val rawWithValues: INPUT => Statement[OUTPUT]) {
+  def withValues[P](values: P)(implicit generic: Generic.Aux[P, INPUT]): Statement[OUTPUT] =
+    rawWithValues(generic.to(values))
+}
+
+case class Statement[FIELDS <: HList](sql: String, input: Seq[Value[_]], fields: FIELDS) {
+  def runSync[OUTPUT](connection: Connection)(implicit statementExecutor: StatementExecutor[Either, Connection, FIELDS, OUTPUT]): Either[DataError, Seq[OUTPUT]] =
+    statementExecutor.run(connection, this)
+
+  def run[F[+_, +_], CONN](connection: CONN)(implicit statementExecutor: StatementExecutor[F, CONN, FIELDS, FIELDS]): F[DataError, Seq[FIELDS]] =
+    statementExecutor.run(connection, this)
+}
+
+trait StatementBuilder[PLACEHOLDERS <: HList, INPUT <: HList, OUTPUT <: HList] {
+  def build(query: Query[PLACEHOLDERS, OUTPUT]): CompiledStatement[INPUT, OUTPUT]
 }
 
 object StatementBuilder {
-  implicit def jdbc[V <: Value[_] with Tag[_], A <: String, T]
-      (implicit tagged: Tagged[V, A], valueT: ValueT[V, T]): StatementBuilder[Connection, PreparedStatement, V] =
-    new StatementBuilder[Connection, PreparedStatement, V] {
-      override def build(connection: Connection, statement: PreparedStatement, query: Query[_, _], input: V): Unit = {
-//        query.placeholders.zipWithIndex.foreach {
-//          case (placeholder, index) if placeholder.name == input.tagValue =>
-//            set(connection, statement, index + 1, placeholder.encoder.dbType, input.dbValue)
-//          case _ =>
-//        }
-      }
+  implicit def noPlaceholders[OUTPUT <: HList]: StatementBuilder[HNil, HNil, OUTPUT] =
+    (query: Query[HNil, OUTPUT]) =>
+      new CompiledStatement(_ => Statement(query.sql, Seq.empty, query.fields))
 
-      def setSeq[U](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: Seq[U]): Unit = {
-        val array: java.sql.Array = connection.createArrayOf(
-          dbType.sqlName,
-          value.toArray
+  implicit def placeholders[P <: Placeholder[_, _] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList]
+      (implicit
+       tagged: Tagged[P, PTAG],
+       fieldT: FieldT[P, PTYPE],
+       tail: StatementBuilder[TAIL, TAIL_INPUT, OUTPUT]): StatementBuilder[P :: TAIL, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, OUTPUT] =
+    (query: Query[P :: TAIL, OUTPUT]) =>
+      new CompiledStatement(values => Statement(
+          query.sql,
+          tail
+            .build(Query(query.sql, query.placeholders.tail, query.fields))
+            .rawWithValues(values.tail)
+            .input prepended values.head,
+          query.fields
         )
-        statement.setArray(index, array)
-      }
-
-      @scala.annotation.tailrec
-      def set[U, X](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: X): Unit = {
-        dbType match {
-          case TypeString | TypeDate | TypeDateTime | TypeJson | TypeEnum(_) | TypeGeography | TypeGeometry =>
-            statement.setObject(index, value)
-
-          case TypeInt =>
-            statement.setInt(index, value.asInstanceOf[Int])
-
-          case TypeDouble =>
-            statement.setDouble(index, value.asInstanceOf[Double])
-
-          case TypeSeq(innerType) =>
-            setSeq(connection, statement, index, innerType, value.asInstanceOf[Seq[_]])
-
-          case TypeOption(innerDbType) =>
-            value match {
-              case Some(v) => set(connection, statement, index, innerDbType, v)
-              case None => statement.setObject(index, null)
-            }
-        }
-      }
-    }
-
-  implicit def hNil[C, S]: StatementBuilder[C, S, HNil] =
-    (connection: C, statement: S, query: Query[_, _], input: HNil) => { }
-
-  implicit def hCons[C, S, H, T <: HList](implicit head: StatementBuilder[C, S, H], tail: StatementBuilder[C, S, T]): StatementBuilder[C, S, H :: T] =
-    (connection: C, statement: S, query: Query[_, _], input: H :: T) => {
-      head.build(connection, statement, query, input.head)
-      tail.build(connection, statement, query, input.tail)
-    }
+      )
 }

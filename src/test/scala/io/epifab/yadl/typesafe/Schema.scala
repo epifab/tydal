@@ -30,7 +30,7 @@ object Schema {
   case class StudentsSchema(
     id: Column[Int] AS "id",
     name: Column[String] AS "name",
-    email: Column[String] AS "email",
+    email: Column[Option[String]] AS "email",
     dateOfBirth: Column[LocalDate] AS "date_of_birth",
     interests: Column[Seq[Interest]] AS "interests"
   )

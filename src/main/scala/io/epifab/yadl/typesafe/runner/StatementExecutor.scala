@@ -3,7 +3,7 @@ package io.epifab.yadl.typesafe.runner
 import java.sql.{Connection, PreparedStatement, ResultSet}
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.{DataError, DecoderError, DriverError, Statement}
+import io.epifab.yadl.typesafe.{DataError, DecoderError, DriverError}
 import shapeless.HList
 
 import scala.util.Try

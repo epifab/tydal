@@ -160,7 +160,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
     val students: Either[DataError, Seq[StudentExam]] =
       studentExams
-        .withValues(Value("sid", 2) :: HNil)
+        .withValues(Tuple1(Value("sid", 2)))
         .runSync[StudentExam](PostgresConnection(PostgresConfig.fromEnv()))
 
     students.map(_.toSet) shouldBe Right(Set(

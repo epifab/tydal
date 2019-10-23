@@ -1,6 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.typesafe.runner.{CompiledStatement, StatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.{::, Generic, HList, HNil}
 
@@ -23,6 +24,8 @@ class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
 class Table[NAME <: String, FIELDS] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
   override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
     finder.find(fields)
+
+  def `*`: FIELDS = fields
 }
 
 object Table {
@@ -98,6 +101,15 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
      queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
      statementBuilder: StatementBuilder[PLACEHOLDERS, INPUT, FIELDS]): CompiledStatement[INPUT, FIELDS] =
     statementBuilder.build(queryBuilder.build(this))
+
+  type Statement[F[+_, +_], Connection, Input, Output] = (Connection, Input) => F[DataError, Seq[Output]]
+
+//  def compile[RS, PLACEHOLDERS <: HList, INPUT <: HList]
+//    (implicit
+//     queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
+//     statementBuilder: StatementBuilder[PLACEHOLDERS, INPUT, FIELDS],
+//     dataExtractor: DataExtractor[RS, FIELDS, FIELDS]): CompiledStatement[INPUT, FIELDS] =
+//    statementBuilder.build(queryBuilder.build(this))
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {

@@ -4,6 +4,9 @@ import io.epifab.yadl.typesafe.fields.BinaryExpr
 import io.epifab.yadl.typesafe.{AS, DataSource, FindContext, Join}
 import shapeless.{::, Generic, HList}
 
+import scala.annotation.implicitNotFound
+
+@implicitNotFound("Field or relation ${TAG} could not be found")
 trait TaggedFinder[TAG <: String, +X, HAYSTACK] {
   def find(u: HAYSTACK): X AS TAG
 }

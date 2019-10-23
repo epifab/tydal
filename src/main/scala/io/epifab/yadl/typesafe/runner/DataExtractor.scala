@@ -7,7 +7,7 @@ import io.epifab.yadl.typesafe.fields._
 import shapeless.{::, Generic, HList, HNil}
 
 /**
- * Type class to extract data from a result set
+ * Type class to extract data from a generic result set
  *
  * @tparam RS Result set
  * @tparam FIELDS Fields definitions
