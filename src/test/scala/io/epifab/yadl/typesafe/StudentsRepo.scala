@@ -38,8 +38,10 @@ class StudentsRepo {
 
   def findStudentById(connection: Connection, id: Int): IO[Either[DataError, Option[Student]]] = {
     studentByIdQuery
-      .withValues(Tuple1(Value("student_id", id)))
-      .run[Student](connection)
-      .map(_.map(_.headOption))
+      .run(connection) {
+        Tuple1(Value("student_id", id))
+      }
+      .takeFirst
+      .mapTo[Student]
   }
 }

@@ -12,7 +12,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 trait StatementExecutor[F[+_, +_], CONN, FIELDS <: HList, OUTPUT] {
-  def run(connection: CONN, statement: Statement[FIELDS]): F[DataError, Seq[OUTPUT]]
+  def run(connection: CONN, statement: RunnableStatement[FIELDS]): F[DataError, Seq[OUTPUT]]
 }
 
 object StatementExecutor {
@@ -20,7 +20,7 @@ object StatementExecutor {
     (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, OUTPUT]): StatementExecutor[IOEither, Connection, FIELDS, OUTPUT] =
 
     new StatementExecutor[IOEither, Connection, FIELDS, OUTPUT] {
-      override def run(connection: Connection, statement: Statement[FIELDS]): IO[Either[DataError, Seq[OUTPUT]]] = {
+      override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Seq[OUTPUT]]] = {
         (for {
           preparedStatement <- EitherT(IO(initStatement(connection, statement.sql, statement.input)))
           results <- EitherT(IO(runStatement(preparedStatement, statement.fields)))

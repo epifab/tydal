@@ -3,11 +3,10 @@ package io.epifab.yadl.examples
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
-import cats.effect.IO
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
-import io.epifab.yadl.typesafe.DataError
 import io.epifab.yadl.typesafe.SelectQueries._
 import io.epifab.yadl.typesafe.fields.Value
+import io.epifab.yadl.typesafe.{DataError, IOEither}
 import io.epifab.yadl.{PostgresConfig, PostgresConnection}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
@@ -159,10 +158,12 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   it should "run a query successfully" in {
     case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
 
-    val students: IO[Either[DataError, Seq[StudentExam]]] =
+    val students: IOEither[DataError, Seq[StudentExam]] =
       studentExams
-        .withValues(Tuple1(Value("sid", 2)))
-        .run[StudentExam](PostgresConnection(PostgresConfig.fromEnv()))
+        .run(PostgresConnection(PostgresConfig.fromEnv())) {
+          Tuple1(Value("sid", 2))
+        }
+        .mapTo[StudentExam]
 
     students.unsafeRunSync().map(_.toSet) shouldBe Right(Set(
       StudentExam(2, "Jane Doe", 29, exam2.dateTime.toInstant(ZoneOffset.UTC), "Math"),

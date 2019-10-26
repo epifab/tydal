@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.runner.{CompiledStatement, StatementBuilder}
+import io.epifab.yadl.typesafe.runner.{Statement, StatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
@@ -47,17 +47,8 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
      queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
      statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
      tupler: Tupler.Aux[RAW_INPUT, INPUT]
-    ): CompiledStatement[RAW_INPUT, INPUT, FIELDS] =
+    ): Statement[RAW_INPUT, INPUT, FIELDS] =
     statementBuilder.build(queryBuilder.build(this))
-
-  type Statement[F[+_, +_], Connection, Input, Output] = (Connection, Input) => F[DataError, Seq[Output]]
-
-//  def compile[RS, PLACEHOLDERS <: HList, INPUT <: HList]
-//    (implicit
-//     queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
-//     statementBuilder: StatementBuilder[PLACEHOLDERS, INPUT, FIELDS],
-//     dataExtractor: DataExtractor[RS, FIELDS, FIELDS]): CompiledStatement[INPUT, FIELDS] =
-//    statementBuilder.build(queryBuilder.build(this))
 }
 
 trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {
