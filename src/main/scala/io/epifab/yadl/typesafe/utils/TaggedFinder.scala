@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe.utils
 
 import io.epifab.yadl.typesafe.fields.BinaryExpr
-import io.epifab.yadl.typesafe.{AS, DataSource, FindContext, Join}
+import io.epifab.yadl.typesafe.{AS, Selectable, FindContext, Join}
 import shapeless.{::, Generic, HList}
 
 import scala.annotation.implicitNotFound
@@ -48,6 +48,6 @@ object TaggedFinder {
        finder: TaggedFinder[TAG, X, REPR]): TaggedFinder[TAG, X, CC] =
     (cc: CC) => finder.find(generic.to(cc))
 
-  implicit def joinFinder[TAG <: String, X <: DataSource[_], E <: BinaryExpr, T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG, E] :: T] =
-    (u: Join[X AS TAG, E] :: T) => u.head.dataSource
+  implicit def joinFinder[TAG <: String, X <: Selectable[_], E <: BinaryExpr, T <: HList]: TaggedFinder[TAG, X, Join[X AS TAG, E] :: T] =
+    (u: Join[X AS TAG, E] :: T) => u.head.selectable
 }

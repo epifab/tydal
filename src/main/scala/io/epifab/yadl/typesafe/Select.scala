@@ -5,62 +5,7 @@ import io.epifab.yadl.typesafe.runner.{CompiledStatement, StatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.{::, Generic, HList, HNil}
 
-trait DataSource[FIELDS] { self: Tag[_] =>
-  def fields: FIELDS
-
-  def on[E <: BinaryExpr](clause: this.type => E): Join[this.type, E] =
-    new Join(this, clause(this))
-}
-
-trait FindContext[HAYSTACK] {
-  def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, HAYSTACK]): X with Tag[TAG]
-}
-
-class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
-  def as[ALIAS <: Singleton with String, REPR](alias: ALIAS)(implicit a: ValueOf[ALIAS], generic: Generic.Aux[SCHEMA, REPR], columnsBuilder: ColumnsBuilder[REPR]): Table[NAME, SCHEMA] with Tag[ALIAS] =
-    Table(name.value, generic.from(columnsBuilder.build(alias)), alias)
-}
-
-class Table[NAME <: String, FIELDS] private(val tableName: String, override val fields: FIELDS) extends DataSource[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
-  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
-    finder.find(fields)
-
-  def `*`: FIELDS = fields
-}
-
-object Table {
-  def unapply(table: Table[_, _]): Option[String] = Some(table.tableName)
-
-  protected[typesafe] def apply[NAME <: String, FIELDS, ALIAS <: String](tableName: String, fields: FIELDS, tableAlias: String): Table[NAME, FIELDS] with Tag[ALIAS] = new Table[NAME, FIELDS](tableName, fields) with Tag[ALIAS] {
-    override def tagValue: String = tableAlias
-  }
-}
-
-class SubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _]]
-    (val select: S, override val fields: SUBQUERY_FIELDS)
-    extends DataSource[SUBQUERY_FIELDS] with FindContext[SUBQUERY_FIELDS] { self: Tag[_] =>
-  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, SUBQUERY_FIELDS]): X with Tag[TAG] =
-    finder.find(fields)
-}
-
-trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
-  def build(srcAlias: String, fields: FIELDS): SUBQUERY_FIELDS
-}
-
-object SubQueryFields {
-  implicit def singleField[T, ALIAS <: String]: SubQueryFields[Field[T] with Tag[ALIAS], Column[T] with Tag[ALIAS]] =
-    (srcAlias: String, field: Field[T] with Tag[ALIAS]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tag[ALIAS] {
-      override def tagValue: String = field.tagValue
-    }
-
-  implicit def hNil: SubQueryFields[HNil, HNil] =
-    (_: String, _: HNil) => HNil
-
-  implicit def hCons[H, RH, T <: HList, RT <: HList](implicit headField: SubQueryFields[H, RH], tailFields: SubQueryFields[T, RT]): SubQueryFields[H :: T, RH :: RT] =
-    (srcAlias: String, list: H :: T) => headField.build(srcAlias, list.head) :: tailFields.build(srcAlias, list.tail)
-}
-
-class Join[+DS <: DataSource[_], +E <: BinaryExpr](val dataSource: DS, val filter: E)
+class Join[+S <: Selectable[_], +E <: BinaryExpr](val selectable: S, val filter: E)
 
 trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIELDS, SOURCES)] {
   def fields: FIELDS
@@ -84,8 +29,8 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def filter: WHERE
 
   class SubQueryBuilder[SUBQUERY_FIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]) {
-    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE]] with Tag[ALIAS] =
-      new SubQuery(select, refinedFields.build(alias.value, select.fields)) with Tag[ALIAS] {
+    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE]] with Tag[ALIAS] =
+      new SelectSubQuery(select, refinedFields.build(alias.value, select.fields)) with Tag[ALIAS] {
         override def tagValue: String = alias.value
       }
   }
@@ -118,7 +63,7 @@ trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue] {
   override val sources: HNil = HNil
   override val filter: AlwaysTrue = AlwaysTrue
 
-  def from[T <: DataSource[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue] =
+  def from[T <: Selectable[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue] =
     new NonEmptySelect(fields, groupByFields, source :: HNil, filter)
 }
 
@@ -160,7 +105,7 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE] =
       new NonEmptySelect(fields, f(this) :: HNil, sources, filter)
 
-  def join[NEW_SOURCE <: DataSource[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
+  def join[NEW_SOURCE <: Selectable[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])
     (implicit
      appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],

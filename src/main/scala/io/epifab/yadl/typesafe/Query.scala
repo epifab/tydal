@@ -109,13 +109,13 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def joinFrom[DS <: DataSource[_] with Tag[_], WHERE <: BinaryExpr, P <: HList, Q <: HList, R <: HList]
+  implicit def joinFrom[S <: Selectable[_] with Tag[_], WHERE <: BinaryExpr, P <: HList, Q <: HList, R <: HList]
       (implicit
-       src: QueryFragmentBuilder["from", DS, P],
+       src: QueryFragmentBuilder["from", S, P],
        where: QueryFragmentBuilder["where", WHERE, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["from", Join[DS, WHERE], R] =
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["from", Join[S, WHERE], R] =
     instance(join =>
-      src.build(join.dataSource).prepend("INNER JOIN ") ++
+      src.build(join.selectable).prepend("INNER JOIN ") ++
         where.build(join.filter).prepend(" ON ")
     )
 
@@ -123,7 +123,7 @@ object QueryFragmentBuilder {
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
   implicit def subQueryFrom[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _], P <: HList]
-      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder["from", SubQuery[SUBQUERY_FIELDS, S] with Tag[_], P] =
+      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder["from", SelectSubQuery[SUBQUERY_FIELDS, S] with Tag[_], P] =
     instance(subQuery =>
       QueryFragment(query.build(subQuery.select))
         .wrap("(", ") AS " + subQuery.tagValue)
