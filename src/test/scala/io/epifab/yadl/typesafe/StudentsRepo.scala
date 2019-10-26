@@ -3,6 +3,7 @@ package io.epifab.yadl.typesafe
 import java.sql.Connection
 import java.time.LocalDate
 
+import cats.effect.IO
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
 import io.epifab.yadl.typesafe.fields.{Placeholder, Value}
@@ -35,10 +36,10 @@ class StudentsRepo {
       .where(_("s", "id") === Placeholder["student_id", Int])
       .compile
 
-  def findStudentById(connection: Connection, id: Int): Either[DataError, Option[Student]] = {
+  def findStudentById(connection: Connection, id: Int): IO[Either[DataError, Option[Student]]] = {
     studentByIdQuery
       .withValues(Tuple1(Value("student_id", id)))
-      .runSync[Student](connection)
-      .map(_.headOption)
+      .run[Student](connection)
+      .map(_.map(_.headOption))
   }
 }

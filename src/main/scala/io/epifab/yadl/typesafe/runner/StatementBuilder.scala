@@ -2,8 +2,9 @@ package io.epifab.yadl.typesafe.runner
 
 import java.sql.Connection
 
+import cats.effect.IO
 import io.epifab.yadl.typesafe.fields.{FieldT, Placeholder, Value}
-import io.epifab.yadl.typesafe.{DataError, Query, Tag, Tagged}
+import io.epifab.yadl.typesafe.{DataError, IOEither, Query, Tag, Tagged}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil, the}
 
@@ -13,10 +14,7 @@ class CompiledStatement[RAW_INPUT <: HList, INPUT, OUTPUT <: HList](val rawWithV
 }
 
 case class Statement[FIELDS <: HList](sql: String, input: Seq[Value[_]], fields: FIELDS) {
-  def runSync[OUTPUT](connection: Connection)(implicit statementExecutor: StatementExecutor[Either, Connection, FIELDS, OUTPUT]): Either[DataError, Seq[OUTPUT]] =
-    statementExecutor.run(connection, this)
-
-  def run[F[+_, +_], CONN](connection: CONN)(implicit statementExecutor: StatementExecutor[F, CONN, FIELDS, FIELDS]): F[DataError, Seq[FIELDS]] =
+  def run[OUTPUT](connection: Connection)(implicit statementExecutor: StatementExecutor[IOEither, Connection, FIELDS, OUTPUT]): IO[Either[DataError, Seq[OUTPUT]]] =
     statementExecutor.run(connection, this)
 }
 
