@@ -3,6 +3,8 @@ package io.epifab.yadl.typesafe.fields
 import io.epifab.yadl.typesafe._
 import shapeless._
 
+import scala.annotation.implicitNotFound
+
 sealed trait Field[+T] {
   def decoder: FieldDecoder[T]
   def as[TAG <: String](implicit alias: ValueOf[TAG]): Field[T] with Tag[TAG]
@@ -101,6 +103,12 @@ object Placeholder {
     }
 }
 
+@implicitNotFound("Could not build a schema for this table.\n" +
+  " Possible reasons:\n" +
+  " - your schema is invalid: ensure that all properties in your schema are of type Column[T] with Tag[A]" +
+  " for concrete T and A;\n" +
+  " - a FieldEncoder could not be found for one or more columns in your schema." +
+  " Ensure that a FieldEncoder[T] is in scope for every Column[T] in your schema.")
 trait ColumnsBuilder[+X] {
   def build(ds: String): X
 }

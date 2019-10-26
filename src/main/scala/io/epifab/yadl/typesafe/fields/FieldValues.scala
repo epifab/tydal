@@ -6,8 +6,6 @@ import shapeless.{::, Generic, HList, HNil}
 trait FieldValues[FIELDS, VALUES] { }
 
 object FieldValues {
-  def apply[F, V](f: F)(implicit fieldValues: FieldValues[F, V]): V = ???
-
   implicit def field[F <: Field[_] with Tag[_], T, A <: String]
       (implicit
        fieldT: FieldT[F, T],

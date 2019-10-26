@@ -3,6 +3,7 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.runner.{CompiledStatement, StatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
+import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
 class Join[+S <: Selectable[_], +E <: BinaryExpr](val selectable: S, val filter: E)
@@ -41,10 +42,12 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def query[PLACEHOLDERS <: HList](implicit queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS]): Query[PLACEHOLDERS, FIELDS] =
     queryBuilder.build(this)
 
-  def compile[PLACEHOLDERS <: HList, INPUT <: HList]
+  def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
     (implicit
      queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
-     statementBuilder: StatementBuilder[PLACEHOLDERS, INPUT, FIELDS]): CompiledStatement[INPUT, FIELDS] =
+     statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
+     tupler: Tupler.Aux[RAW_INPUT, INPUT]
+    ): CompiledStatement[RAW_INPUT, INPUT, FIELDS] =
     statementBuilder.build(queryBuilder.build(this))
 
   type Statement[F[+_, +_], Connection, Input, Output] = (Connection, Input) => F[DataError, Seq[Output]]
