@@ -2,9 +2,9 @@ package io.epifab.yadl.typesafe.runner
 
 import java.sql.ResultSet
 
-import io.epifab.yadl.typesafe.{DecoderError, Query, Tag}
 import io.epifab.yadl.typesafe.fields._
-import shapeless.{::, Generic, HList, HNil}
+import io.epifab.yadl.typesafe.{DecoderError, Tag}
+import shapeless.{::, HList, HNil}
 
 /**
  * Type class to extract data from a generic result set
@@ -72,10 +72,4 @@ object DataExtractor {
       h <- head.extract(resultSet, fields.head)
       t <- tail.extract(resultSet, fields.tail)
     } yield h :: t
-
-  implicit def caseClass[RS, FIELDS, CC, REPR]
-      (implicit
-       generic: Generic.Aux[CC, REPR],
-       dataExtractor: DataExtractor[RS, FIELDS, REPR]): DataExtractor[RS, FIELDS, CC] =
-    (resultSet: RS, fields: FIELDS) => dataExtractor.extract(resultSet, fields).map(generic.from)
 }
