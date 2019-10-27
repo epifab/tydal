@@ -2,7 +2,7 @@ package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
 import io.epifab.yadl.typesafe.utils.Concat
-import shapeless.{::, HList, HNil}
+import shapeless.{::, Generic, HList, HNil}
 
 case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, fields: FIELDS)
 
@@ -41,6 +41,9 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
 
   def getOrElse[FIELDS <: HList](default: String, fields: FIELDS): Query[P, FIELDS] =
     Query(sql.getOrElse(default), placeholders, fields)
+
+  def get[FIELDS <: HList](fields: FIELDS): Query[P, FIELDS] =
+    Query(sql.get, placeholders, fields)
 }
 
 object QueryFragment {
@@ -85,6 +88,19 @@ object QueryBuilder {
         groupBy.build(select.groupByFields).map("GROUP BY " + _)
       ).prepend("SELECT ").getOrElse("SELECT 1", select.fields)
     )
+
+  implicit def insertQuery[NAME <: String, SCHEMA, COLUMNS <: HList, PLACEHOLDERS <: HList]
+      (implicit
+       generic: Generic.Aux[SCHEMA, COLUMNS],
+       names: QueryFragmentBuilder["name", COLUMNS, HNil],
+       placeholders: QueryFragmentBuilder["placeholder", COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, SCHEMA], PLACEHOLDERS, HNil] =
+    QueryBuilder.instance(insert => {
+      val columns = generic.to(insert.table.schema)
+      (names.build(columns).wrap("(", ")") ++
+        " VALUES " ++
+        placeholders.build(columns).wrap("(", ")")
+      ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
+    })
 }
 
 sealed trait QueryFragmentBuilder[TYPE, -X, P <: HList] {
@@ -195,6 +211,46 @@ object QueryFragmentBuilder {
 
   implicit def placeholder[P <: Placeholder[_, _]]: QueryFragmentBuilder["src", P, P :: HNil] =
     instance((f: P) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
+
+  // ------------------------------
+  // Column name and placeholder
+  // ------------------------------
+
+  implicit val columnName: QueryFragmentBuilder["name", Column[_], HNil] =
+    instance((f: Column[_]) => QueryFragment(f.name))
+
+  implicit def emptyColumnNames: QueryFragmentBuilder["name", HNil, HNil] =
+    QueryFragmentBuilder.instance(_ => QueryFragment.empty)
+
+  implicit def nonEmptyColumnNames[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+      (implicit
+       head: QueryFragmentBuilder["name", H, P],
+       tail: QueryFragmentBuilder["name", T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["name", H :: T, R] =
+    instance { sources =>
+      head.build(sources.head) `+,+` tail.build(sources.tail)
+    }
+
+  implicit def columnPlaceholder[A <: String, T, PL <: HList]
+      (implicit
+       tag: ValueOf[A],
+       fieldDecoder: FieldDecoder[T],
+       fieldEncoder: FieldEncoder[T],
+       queryFragmentBuilder: QueryFragmentBuilder["src", Placeholder[T, T] with Tag[A], PL]
+      ): QueryFragmentBuilder["placeholder", Column[T] with Tag[A], PL] =
+    instance((_: Column[T] with Tag[A]) => queryFragmentBuilder.build(Placeholder[T, A]))
+
+  implicit def emptyColumnPlaceholders: QueryFragmentBuilder["placeholder", HNil, HNil] =
+    QueryFragmentBuilder.instance(_ => QueryFragment.empty)
+
+  implicit def nonEmptyColumnPlaceholders[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+      (implicit
+       head: QueryFragmentBuilder["placeholder", H, P],
+       tail: QueryFragmentBuilder["placeholder", T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["placeholder", H :: T, R] =
+    instance { sources =>
+      head.build(sources.head) `+,+` tail.build(sources.tail)
+    }
 
   // ------------------------------
   // Binary expressions

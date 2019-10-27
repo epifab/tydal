@@ -31,6 +31,7 @@ object DataExtractor {
       def getSeq[U](resultSet: ResultSet, dbType: FieldType[Any], fieldName: String): Seq[Any] =
         resultSet
           .getArray(fieldName)
+          .getArray
           .asInstanceOf[Array[U]]
           .toSeq
 

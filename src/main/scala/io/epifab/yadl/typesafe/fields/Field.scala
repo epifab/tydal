@@ -84,17 +84,17 @@ object Value {
     }
 }
 
-trait NamedPlaceholder[NAME <: String, X] {
+trait NamedPlaceholder[X, NAME <: String] {
   def resolve(x: X): Value[X] with Tag[NAME]
 }
 
 object Placeholder {
-  def apply[NAME <: String, TYPE]
+  def apply[TYPE, NAME <: String]
     (implicit
      name: ValueOf[NAME],
      encoder: FieldEncoder[TYPE],
-     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] with NamedPlaceholder[NAME, TYPE] =
-    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] with NamedPlaceholder[NAME, TYPE] {
+     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] with NamedPlaceholder[TYPE, NAME] =
+    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] with NamedPlaceholder[TYPE, NAME] {
       override def tagValue: String = name
       override def resolve(u: TYPE): Value[TYPE] with Tag[NAME] =
         new Value(u) with Tag[NAME] {

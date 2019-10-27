@@ -3,7 +3,7 @@ package io.epifab.yadl.typesafe.fields
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import io.circe.{Encoder => JsonEncoder}
-import io.epifab.yadl.typesafe.utils.SqlDateTime
+import io.epifab.yadl.typesafe.runner.{SqlDate, SqlDateTime}
 
 trait FieldEncoder[-T] {
   type DBTYPE
@@ -41,12 +41,12 @@ object FieldEncoder {
   implicit val dateEncoder: FieldEncoder.Aux[LocalDate, String] = new FieldEncoder[LocalDate] {
     override type DBTYPE = String
     override def dbType: FieldType[String] = TypeDate
-    override def encode(value: LocalDate): String = value.format(SqlDateTime.formatter)
+    override def encode(value: LocalDate): String = value.format(SqlDate.formatter)
   }
 
   def jsonEncoder[A](implicit jsonEncoder: JsonEncoder[A]): FieldEncoder.Aux[A, String] = new FieldEncoder[A] {
     override type DBTYPE = String
-    override def dbType: FieldType[String] = TypeString
+    override def dbType: FieldType[String] = TypeJson
     override def encode(value: A): String = jsonEncoder(value).noSpaces
   }
 

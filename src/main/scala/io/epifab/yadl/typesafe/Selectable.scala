@@ -9,7 +9,7 @@ trait FindContext[HAYSTACK] {
 }
 
 trait Selectable[FIELDS] extends FindContext[FIELDS] { self: Tag[_] =>
-  def fields: FIELDS
+  def schema: FIELDS
 
   def on[E <: BinaryExpr](clause: this.type => E): Join[this.type, E] =
     new Join(this, clause(this))

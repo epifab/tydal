@@ -5,8 +5,8 @@ import io.epifab.yadl.typesafe.fields.{FieldT, Placeholder, Value}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
-class Statement[RAW_INPUT <: HList, INPUT, FIELDS <: HList](val toRunnable: RAW_INPUT => RunnableStatement[FIELDS])(implicit tupler: Tupler.Aux[RAW_INPUT, INPUT], generic: Generic.Aux[INPUT, RAW_INPUT]) {
-  def run[CONN, RAW_OUTPUT <: HList](connection: CONN)(values: INPUT)(implicit statementExecutor: StatementExecutor[IOEither, CONN, FIELDS, RAW_OUTPUT]): SeqOfResult[RAW_OUTPUT] =
+class QueryStatement[RAW_INPUT <: HList, INPUT, FIELDS <: HList](val toRunnable: RAW_INPUT => RunnableQueryStatement[FIELDS])(implicit tupler: Tupler.Aux[RAW_INPUT, INPUT], generic: Generic.Aux[INPUT, RAW_INPUT]) {
+  def run[CONN, RAW_OUTPUT <: HList](connection: CONN)(values: INPUT)(implicit statementExecutor: QueryStatementExecutor[IOEither, CONN, FIELDS, Seq[RAW_OUTPUT]]): SeqOfResult[RAW_OUTPUT] =
     new SeqOfResult(statementExecutor.run(connection, toRunnable(generic.to(values))))
 }
 
@@ -22,27 +22,28 @@ class OptionalResult[RAW_OUTPUT <: HList](results: IOEither[DataError, Option[RA
     results.map(_.map(_.map(generic.from)))
 }
 
-case class RunnableStatement[FIELDS <: HList](sql: String, input: Seq[Value[_]], fields: FIELDS)
+case class RunnableQueryStatement[FIELDS <: HList](sql: String, input: Seq[Value[_]], fields: FIELDS)
+  extends RunnableStatement
 
-trait StatementBuilder[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT, OUTPUT <: HList] {
-  def build(query: Query[PLACEHOLDERS, OUTPUT]): Statement[RAW_INPUT, INPUT, OUTPUT]
+trait QueryStatementBuilder[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT, OUTPUT <: HList] {
+  def build(query: Query[PLACEHOLDERS, OUTPUT]): QueryStatement[RAW_INPUT, INPUT, OUTPUT]
 }
 
-object StatementBuilder {
-  implicit def noPlaceholders[OUTPUT <: HList]: StatementBuilder[HNil, HNil, Unit, OUTPUT] =
+object QueryStatementBuilder {
+  implicit def noPlaceholders[OUTPUT <: HList]: QueryStatementBuilder[HNil, HNil, Unit, OUTPUT] =
     (query: Query[HNil, OUTPUT]) =>
-      new Statement(_ => RunnableStatement(query.sql, Seq.empty, query.fields))
+      new QueryStatement(_ => RunnableQueryStatement(query.sql, Seq.empty, query.fields))
 
   implicit def placeholders[P <: Placeholder[_, _] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        tagged: Tagged[P, PTAG],
        fieldT: FieldT[P, PTYPE],
-       tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
+       tail: QueryStatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
        tupler: Tupler.Aux[Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE],
        generic: Generic.Aux[INPUT_TUPLE, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT]
-      ): StatementBuilder[P :: TAIL, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
+      ): QueryStatementBuilder[P :: TAIL, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
     (query: Query[P :: TAIL, OUTPUT]) =>
-      new Statement(values => RunnableStatement(
+      new QueryStatement(values => RunnableQueryStatement(
           query.sql,
           tail
             .build(Query(query.sql, query.placeholders.tail, query.fields))

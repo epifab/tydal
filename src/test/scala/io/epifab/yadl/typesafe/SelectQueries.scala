@@ -18,7 +18,7 @@ object SelectQueries {
         $("e", "exam_timestamp").as["etime"],
         $("c", "name").as["cname"]
       ))
-      .where(_("s", "id") === Placeholder["sid", Int])
+      .where(_("s", "id") === Placeholder[Int, "sid"])
       .compile
 
   val studentsQuery = {
@@ -26,7 +26,7 @@ object SelectQueries {
       Select
         .from(Exams as "e")
         .groupBy1(_("e", "student_id"))
-        .where(_("e", "registration_timestamp") < Placeholder["min_date", Instant])
+        .where(_("e", "registration_timestamp") < Placeholder[Instant, "min_date"])
         .take($ => (
           $("e", "student_id"),
           Max($("e", "score")).as["max_score"],
@@ -45,7 +45,7 @@ object SelectQueries {
         $("ms", "max_score").as["score"],
         Nullable($("cc", "name")).as["cname"]
       ))
-      .where(_("s", "id") === Placeholder["student_id", Int])
+      .where(_("s", "id") === Placeholder[Int, "student_id"])
   }
 
   val examsWithCourseQuery =

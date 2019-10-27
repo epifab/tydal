@@ -1,7 +1,7 @@
 package io.epifab.yadl.typesafe
 
 import io.epifab.yadl.typesafe.fields._
-import io.epifab.yadl.typesafe.runner.{Statement, StatementBuilder}
+import io.epifab.yadl.typesafe.runner.{QueryStatement, QueryStatementBuilder}
 import io.epifab.yadl.typesafe.utils.{Appender, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
@@ -45,9 +45,9 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
     (implicit
      queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
-     statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
+     statementBuilder: QueryStatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
      tupler: Tupler.Aux[RAW_INPUT, INPUT]
-    ): Statement[RAW_INPUT, INPUT, FIELDS] =
+    ): QueryStatement[RAW_INPUT, INPUT, FIELDS] =
     statementBuilder.build(queryBuilder.build(this))
 }
 

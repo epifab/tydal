@@ -62,4 +62,13 @@ object Schema {
   object Exams extends TableBuilder["exams", ExamsSchema]
 
   object Courses extends TableBuilder["courses", CoursesSchema]
+
+  case class Student(
+    id: Int,
+    name: String,
+    email: Option[String],
+    dateOfBirth: LocalDate,
+    address: Option[Address],
+    interests: Seq[Interest]
+  )
 }

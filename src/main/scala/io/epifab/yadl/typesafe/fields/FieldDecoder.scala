@@ -4,7 +4,7 @@ import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import io.circe.{Decoder => JsonDecoder}
 import io.epifab.yadl.typesafe.DecoderError
-import io.epifab.yadl.typesafe.utils.SqlDateTime
+import io.epifab.yadl.typesafe.runner.{SqlDate, SqlDateTime}
 import io.epifab.yadl.utils.EitherSupport
 
 import scala.util.Try
@@ -50,7 +50,7 @@ object FieldDecoder {
     override type DBTYPE = String
     override def dbType: FieldType[String] = TypeDate
     override def decode(value: String): Either[DecoderError, LocalDate] =
-      Try(LocalDate.parse(value.take(10), SqlDateTime.formatter))
+      Try(LocalDate.parse(value.take(10), SqlDate.formatter))
         .toEither
         .left.map(error => DecoderError(s"Could not parse date: ${error.getMessage}"))
   }
@@ -58,7 +58,7 @@ object FieldDecoder {
   def jsonDecoder[A](implicit jsonDecoder: JsonDecoder[A]): FieldDecoder.Aux[A, String] = new FieldDecoder[A] {
     import io.circe.parser.{decode => decodeJson}
     override type DBTYPE = String
-    override def dbType: FieldType[String] = TypeString
+    override def dbType: FieldType[String] = TypeJson
     override def decode(value: String): Either[DecoderError, A] = decodeJson(value).left.map(circeError => DecoderError(circeError.getMessage))
   }
 

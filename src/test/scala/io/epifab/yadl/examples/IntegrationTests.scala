@@ -3,11 +3,13 @@ package io.epifab.yadl.examples
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
+import cats.data.EitherT
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
+import io.epifab.yadl.typesafe.Schema.Art
 import io.epifab.yadl.typesafe.SelectQueries._
 import io.epifab.yadl.typesafe.fields.Value
-import io.epifab.yadl.typesafe.{DataError, IOEither}
-import io.epifab.yadl.{PostgresConfig, PostgresConnection}
+import io.epifab.yadl.typesafe.{DataError, IOEither, StudentsRepo}
+import io.epifab.yadl.{PostgresConfig, PostgresConnection, typesafe}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import shapeless._
@@ -160,7 +162,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
     val students: IOEither[DataError, Seq[StudentExam]] =
       studentExams
-        .run(PostgresConnection(PostgresConfig.fromEnv())) {
+        .run(QueryRunnerFactories.connection) {
           Tuple1(Value("sid", 2))
         }
         .mapTo[StudentExam]
@@ -170,5 +172,22 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       StudentExam(2, "Jane Doe", 30, exam3.dateTime.toInstant(ZoneOffset.UTC), "Astronomy")
     ))
   }
-}
 
+  it should "create and get a student" in {
+    val john = typesafe.Schema.Student(
+      199,
+      "John",
+      Some("john@yadl.com"),
+      LocalDate.of(1986, 3, 8),
+      Some(typesafe.Schema.Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
+      Seq(Art)
+    )
+
+    val actualStudent = (for {
+      _ <- EitherT(StudentsRepo.insert(QueryRunnerFactories.connection, john))
+      results <- EitherT(StudentsRepo.findStudentById(QueryRunnerFactories.connection, john.id))
+    } yield results).value.unsafeRunSync()
+
+    actualStudent shouldBe Right(Some(john))
+  }
+}

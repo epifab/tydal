@@ -9,11 +9,11 @@ class TableBuilder[NAME <: String, SCHEMA](implicit name: ValueOf[NAME]) {
     Table(name.value, generic.from(columnsBuilder.build(alias)), alias)
 }
 
-class Table[NAME <: String, FIELDS] private(val tableName: String, override val fields: FIELDS) extends Selectable[FIELDS] with FindContext[FIELDS] { self: Tag[_] =>
-  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
-    finder.find(fields)
+class Table[NAME <: String, SCHEMA] private(val tableName: String, override val schema: SCHEMA) extends Selectable[SCHEMA] with FindContext[SCHEMA] { self: Tag[_] =>
+  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, SCHEMA]): X with Tag[TAG] =
+    finder.find(schema)
 
-  def `*`: FIELDS = fields
+  def `*`: SCHEMA = schema
 }
 
 object Table {
