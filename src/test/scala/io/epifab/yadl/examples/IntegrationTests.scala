@@ -1,5 +1,6 @@
 package io.epifab.yadl.examples
 
+import java.sql.Connection
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
@@ -157,12 +158,15 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     results.map(_.map(_.id)) shouldBe Right(Seq(1, 2))
   }
 
+  private val connection: Connection = QueryRunnerFactories.connection
+
   it should "run a query successfully" in {
     case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
 
     val students: IOEither[DataError, Seq[StudentExam]] =
       studentExams
-        .run(QueryRunnerFactories.connection) {
+        .compile
+        .run(connection) {
           Tuple1(Value("sid", 2))
         }
         .mapTo[StudentExam]
@@ -173,7 +177,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     ))
   }
 
-  it should "create and get a student" in {
+  it should "create, update and get a student" in {
     val john = typesafe.Schema.Student(
       199,
       "John",
@@ -183,11 +187,15 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       Seq(Art)
     )
 
-    val actualStudent = (for {
-      _ <- EitherT(StudentsRepo.insert(QueryRunnerFactories.connection, john))
-      results <- EitherT(StudentsRepo.findStudentById(QueryRunnerFactories.connection, john.id))
-    } yield results).value.unsafeRunSync()
+    val jim = john.copy(name = "Jim", email = Some("jim@yadl.com"))
 
-    actualStudent shouldBe Right(Some(john))
+    val actualStudents = (for {
+      _ <- EitherT(StudentsRepo.insert(connection, john))
+      maybeJohn <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+      _ <- EitherT(StudentsRepo.updateNameAndEmail(connection, john.id, jim.name, jim.email))
+      maybeJim <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+    } yield (maybeJohn, maybeJim)).value.unsafeRunSync()
+
+    actualStudents shouldBe Right((Some(john), Some(jim)))
   }
 }

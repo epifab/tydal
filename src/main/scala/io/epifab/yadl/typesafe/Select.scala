@@ -39,9 +39,6 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def subQuery[SUBQUERY_FIELDS <: HList](implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]) =
     new SubQueryBuilder[SUBQUERY_FIELDS]
 
-  def query[PLACEHOLDERS <: HList](implicit queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS]): Query[PLACEHOLDERS, FIELDS] =
-    queryBuilder.build(this)
-
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
     (implicit
      queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],

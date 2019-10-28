@@ -35,4 +35,17 @@ object StudentsRepo {
         )
       }
   }
+
+  def updateNameAndEmail(connection: Connection, id: Int, name: String, email: Option[String]): IOEither[DataError, Int] =
+    Update(Students)
+      .fields(s => (s.name, s.email))
+      .where(_.id === Placeholder[Int, "id"])
+      .compile
+      .run(connection) {
+        (
+          Value("name", name),
+          Value("email", email),
+          Value("id", id)
+        )
+      }
 }

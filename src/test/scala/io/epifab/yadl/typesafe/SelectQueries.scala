@@ -19,7 +19,6 @@ object SelectQueries {
         $("c", "name").as["cname"]
       ))
       .where(_("s", "id") === Placeholder[Int, "sid"])
-      .compile
 
   val studentsQuery = {
     val maxScoreSubQuery =
@@ -56,4 +55,8 @@ object SelectQueries {
         $("c", "name").as["cname"],
         $("e", "score").as["score"]
       ))
+
+  val updateStudentQuery = Update(Students)
+    .fields(s => (s.name, s.email))
+    .where(_.id === Placeholder[Int, "id"])
 }

@@ -6,15 +6,12 @@ import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
 class Insert[NAME <: String, SCHEMA](val table: Table[NAME, SCHEMA]) {
-  def query[PLACEHOLDERS <: HList](implicit queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil]): Query[PLACEHOLDERS, HNil] =
-    queryBuilder.build(this)
-
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
-    (implicit
-     queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
-     statementBuilder: UpdateStatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT],
-     tupler: Tupler.Aux[RAW_INPUT, INPUT]
-    ): UpdateStatement[RAW_INPUT, INPUT] =
+      (implicit
+       queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
+       statementBuilder: UpdateStatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT],
+       tupler: Tupler.Aux[RAW_INPUT, INPUT]
+      ): UpdateStatement[RAW_INPUT, INPUT] =
     statementBuilder.build(queryBuilder.build(this))
 }
 

@@ -16,7 +16,7 @@ object Finder {
 
 trait Concat[T, U] {
   type Out
-  def concat(t: T, u: U): Out
+  def apply(t: T, u: U): Out
 }
 
 object Concat {
@@ -24,24 +24,24 @@ object Concat {
 
   implicit def concatHNil[L <: HList]: Concat.Aux[HNil, L, L] = new Concat[HNil, L] {
     override type Out = L
-    override def concat(h: HNil, l: L): Out = l
+    override def apply(h: HNil, l: L): Out = l
   }
 
   implicit def concatHCons[H, T <: HList, L <: HList, O <: HList](implicit tailConcat: Concat.Aux[T, L, O]): Concat.Aux[H :: T, L, H :: O] = new Concat[H :: T, L] {
     override type Out = H :: O
-    override def concat(t: H :: T, u: L): Out = t.head :: tailConcat.concat(t.tail, u)
+    override def apply(t: H :: T, u: L): Out = t.head :: tailConcat.apply(t.tail, u)
   }
 
   def apply[A, B, AB](a: A, b: B)
        (implicit
         concat: Concat.Aux[A, B, AB]): AB =
-    concat.concat(a, b)
+    concat(a, b)
 
   def apply[A, B, C, AB, ABC](a: A, b: B, c: C)
        (implicit
         concat1: Concat.Aux[A, B, AB],
         concat2: Concat.Aux[AB, C, ABC]): ABC =
-    concat2.concat(concat1.concat(a, b), c)
+    concat2(concat1(a, b), c)
 }
 
 trait ReverseAppender[T, U] {
@@ -92,5 +92,5 @@ object HListOps {
     appender.append(l, x)
 
   def concat[L1 <: HList, L2 <: HList, O <: HList](l1: L1, l2: L2)(implicit concat: Concat.Aux[L1, L2, O]): O =
-    concat.concat(l1, l2)
+    concat(l1, l2)
 }

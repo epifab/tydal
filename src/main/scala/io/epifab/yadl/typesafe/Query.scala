@@ -36,7 +36,7 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
       Seq(sql, other.sql)
         .flatten
         .reduceOption(_ ++ separator ++ _),
-      concat.concat(placeholders, other.placeholders)
+      concat(placeholders, other.placeholders)
     )
 
   def getOrElse[FIELDS <: HList](default: String, fields: FIELDS): Query[P, FIELDS] =
@@ -100,6 +100,17 @@ object QueryBuilder {
         " VALUES " ++
         placeholders.build(columns).wrap("(", ")")
       ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
+    })
+
+  implicit def updateQuery[NAME <: String, SCHEMA, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, WHERE <: BinaryExpr]
+      (implicit
+       placeholders: QueryFragmentBuilder["name=placeholder", COLUMNS, P],
+       where: QueryFragmentBuilder["where", WHERE, Q],
+       concat: Concat.Aux[P, Q, R]
+      ): QueryBuilder[Update[NAME, SCHEMA, COLUMNS, WHERE], R, HNil] =
+    QueryBuilder.instance(update => {
+      (placeholders.build(update.fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
+        where.build(update.where).prepend(" WHERE ")).get(HNil)
     })
 }
 
@@ -248,6 +259,29 @@ object QueryFragmentBuilder {
        head: QueryFragmentBuilder["placeholder", H, P],
        tail: QueryFragmentBuilder["placeholder", T, Q],
        concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["placeholder", H :: T, R] =
+    instance { sources =>
+      head.build(sources.head) `+,+` tail.build(sources.tail)
+    }
+
+  implicit def columnNameAndPlaceholder[A <: String, T, PL <: HList]
+      (implicit
+       tag: ValueOf[A],
+       fieldDecoder: FieldDecoder[T],
+       fieldEncoder: FieldEncoder[T],
+       queryFragmentBuilder: QueryFragmentBuilder["src", Placeholder[T, T] with Tag[A], PL]
+      ): QueryFragmentBuilder["name=placeholder", Column[T] with Tag[A], PL] =
+    instance((_: Column[T] with Tag[A]) =>
+      queryFragmentBuilder.build(Placeholder[T, A])
+        .prepend(tag.value + " = "))
+
+  implicit def emptyColumnNameAndPlaceholders: QueryFragmentBuilder["name=placeholder", HNil, HNil] =
+    QueryFragmentBuilder.instance(_ => QueryFragment.empty)
+
+  implicit def nonEmptyColumnNameAndPlaceholders[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+      (implicit
+       head: QueryFragmentBuilder["name=placeholder", H, P],
+       tail: QueryFragmentBuilder["name=placeholder", T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["name=placeholder", H :: T, R] =
     instance { sources =>
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }

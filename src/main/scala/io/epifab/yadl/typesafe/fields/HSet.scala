@@ -60,7 +60,7 @@ object HSet {
      tailRemover: RemoveElement[A, T, TX],
      concat: Concat.Aux[HX, TX, XX]): RemoveElement[A, H :: T, XX] = new RemoveElement[A, H :: T, XX] {
       override def remove(haystack: H :: T): XX =
-        concat.concat(headRemover.remove(haystack.head), tailRemover.remove(haystack.tail))
+        concat(headRemover.remove(haystack.head), tailRemover.remove(haystack.tail))
     }
   }
 

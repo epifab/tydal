@@ -5,7 +5,7 @@ import io.epifab.yadl.typesafe.fields.{FieldT, Placeholder, Value}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
-class QueryStatement[RAW_INPUT <: HList, INPUT, FIELDS <: HList](val toRunnable: RAW_INPUT => RunnableQueryStatement[FIELDS])(implicit tupler: Tupler.Aux[RAW_INPUT, INPUT], generic: Generic.Aux[INPUT, RAW_INPUT]) {
+class QueryStatement[RAW_INPUT <: HList, INPUT, FIELDS <: HList](val query: String, private[typesafe] val toRunnable: RAW_INPUT => RunnableQueryStatement[FIELDS])(implicit tupler: Tupler.Aux[RAW_INPUT, INPUT], generic: Generic.Aux[INPUT, RAW_INPUT]) {
   def run[CONN, RAW_OUTPUT <: HList](connection: CONN)(values: INPUT)(implicit statementExecutor: QueryStatementExecutor[IOEither, CONN, FIELDS, Seq[RAW_OUTPUT]]): SeqOfResult[RAW_OUTPUT] =
     new SeqOfResult(statementExecutor.run(connection, toRunnable(generic.to(values))))
 }
@@ -32,7 +32,7 @@ trait QueryStatementBuilder[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT, OU
 object QueryStatementBuilder {
   implicit def noPlaceholders[OUTPUT <: HList]: QueryStatementBuilder[HNil, HNil, Unit, OUTPUT] =
     (query: Query[HNil, OUTPUT]) =>
-      new QueryStatement(_ => RunnableQueryStatement(query.sql, Seq.empty, query.fields))
+      new QueryStatement(query.sql, _ => RunnableQueryStatement(query.sql, Seq.empty, query.fields))
 
   implicit def placeholders[P <: Placeholder[_, _] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
@@ -43,7 +43,7 @@ object QueryStatementBuilder {
        generic: Generic.Aux[INPUT_TUPLE, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT]
       ): QueryStatementBuilder[P :: TAIL, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
     (query: Query[P :: TAIL, OUTPUT]) =>
-      new QueryStatement(values => RunnableQueryStatement(
+      new QueryStatement(query.sql, values => RunnableQueryStatement(
           query.sql,
           tail
             .build(Query(query.sql, query.placeholders.tail, query.fields))
