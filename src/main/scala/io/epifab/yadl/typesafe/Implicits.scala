@@ -3,7 +3,21 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields._
 
 object Implicits {
+  implicit class ExtendedTag[A <: String with Singleton](tag: A) {
+    def ~> [T](value: T)(implicit fieldEncoder: FieldEncoder[T]): Value[T] with Tag[A] = Value(tag, value)
+  }
+
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {
+    def ===[NAME <: String with Singleton, T]
+        (placeholderName: NAME)
+        (implicit
+         valueOf: ValueOf[NAME],
+         fieldT: FieldT[F1, T],
+         fieldDecoder: FieldDecoder[T],
+         fieldEncoder: FieldEncoder[T],
+         areComparable: AreComparable[F1, Placeholder[T, T] with Tag[NAME]]): Equals[F1, Placeholder[T, T] with Tag[NAME]] =
+      Equals(field1, Placeholder[T, NAME])
+
     def ===[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): Equals[F1, F2] =
       Equals(field1, field2)
 
