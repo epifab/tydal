@@ -189,13 +189,15 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
     val jim = john.copy(name = "Jim", email = Some("jim@yadl.com"))
 
+    val findStudent = StudentsRepo.findStudentById(connection, john.id)
+
     val actualStudents = (for {
       _ <- EitherT(StudentsRepo.insert(connection, john))
-      maybeJohn <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+      maybeJohn <- EitherT(findStudent)
       _ <- EitherT(StudentsRepo.updateNameAndEmail(connection, john.id, jim.name, jim.email))
-      maybeJim <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+      maybeJim <- EitherT(findStudent)
       _ <- EitherT(StudentsRepo.deleteStudent(connection, john.id))
-      maybeNobody <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+      maybeNobody <- EitherT(findStudent)
     } yield (maybeJohn, maybeJim, maybeNobody)).value.unsafeRunSync()
 
     actualStudents shouldBe Right((Some(john), Some(jim), None))
