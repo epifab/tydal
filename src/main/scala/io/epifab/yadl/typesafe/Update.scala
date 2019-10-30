@@ -1,22 +1,20 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.typesafe.fields.{BinaryExpr, ColumnsBuilder}
+import io.epifab.yadl.typesafe.fields.{AlwaysTrue, BinaryExpr, ColumnsBuilder}
 import io.epifab.yadl.typesafe.runner.{UpdateStatement, UpdateStatementBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class UnfilteredUpdate[NAME <: String, SCHEMA, FIELDS <: HList](val table: Table[NAME, SCHEMA], val fields: FIELDS) {
-  def fields[P, F <: HList]
-      (f: SCHEMA => P)
-      (implicit generic: Generic.Aux[P, F]): UnfilteredUpdate[NAME, SCHEMA, F] =
-    new UnfilteredUpdate(table, generic.to(f(table.schema)))
-
-  def where[E <: BinaryExpr](f: SCHEMA => E): Update[NAME, SCHEMA, FIELDS, E] =
-    new Update(table, fields, f(table.schema))
-}
-
 class Update[NAME <: String, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
     (val table: Table[NAME, SCHEMA], val fields: FIELDS, val where: E) {
+
+  def fields[P, F <: HList]
+    (f: SCHEMA => P)
+    (implicit generic: Generic.Aux[P, F]): Update[NAME, SCHEMA, F, E] =
+    new Update(table, generic.to(f(table.schema)), where)
+
+  def where[E2 <: BinaryExpr](f: SCHEMA => E2): Update[NAME, SCHEMA, FIELDS, E2] =
+    new Update(table, fields, f(table.schema))
 
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
       (implicit
@@ -34,6 +32,6 @@ object Update {
        name: ValueOf[NAME],
        genericSchema: Generic.Aux[SCHEMA, FIELDS],
        columnsBuilder: ColumnsBuilder[FIELDS]
-      ): UnfilteredUpdate[NAME, SCHEMA, FIELDS] =
-    new UnfilteredUpdate(tableBuilder as name.value, columnsBuilder.build(name.value))
+      ): Update[NAME, SCHEMA, FIELDS, AlwaysTrue] =
+    new Update(tableBuilder as name.value, columnsBuilder.build(name.value), AlwaysTrue)
 }
