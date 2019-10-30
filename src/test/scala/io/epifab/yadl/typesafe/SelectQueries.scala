@@ -1,7 +1,5 @@
 package io.epifab.yadl.typesafe
 
-import java.time.Instant
-
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
 import io.epifab.yadl.typesafe.fields._
@@ -18,14 +16,14 @@ object SelectQueries {
         $("e", "exam_timestamp").as["etime"],
         $("c", "name").as["cname"]
       ))
-      .where(_("s", "id") === Placeholder[Int, "sid"])
+      .where(_("s", "id") === "sid")
 
   val studentsQuery = {
     val maxScoreSubQuery =
       Select
         .from(Exams as "e")
         .groupBy1(_("e", "student_id"))
-        .where(_("e", "registration_timestamp") < Placeholder[Instant, "min_date"])
+        .where(_("e", "registration_timestamp") < "min_date")
         .take($ => (
           $("e", "student_id"),
           Max($("e", "score")).as["max_score"],
@@ -44,7 +42,7 @@ object SelectQueries {
         $("ms", "max_score").as["score"],
         Nullable($("cc", "name")).as["cname"]
       ))
-      .where(_("s", "id") === Placeholder[Int, "student_id"])
+      .where(_("s", "id") === "student_id")
   }
 
   val examsWithCourseQuery =
@@ -58,5 +56,5 @@ object SelectQueries {
 
   val updateStudentQuery = Update(Students)
     .fields(s => (s.name, s.email))
-    .where(_.id === Placeholder[Int, "id"])
+    .where(_.id === "id")
 }
