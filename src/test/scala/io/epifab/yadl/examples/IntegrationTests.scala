@@ -6,11 +6,11 @@ import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 import cats.Applicative
 import cats.data.EitherT
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
+import io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.Schema.Art
 import io.epifab.yadl.typesafe.SelectQueries._
 import io.epifab.yadl.typesafe.fields.Value
 import io.epifab.yadl.typesafe.{DataError, IOEither, StudentsRepo}
-import io.epifab.yadl.{PostgresConfig, PostgresConnection, typesafe}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import shapeless._
@@ -194,8 +194,10 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       maybeJohn <- EitherT(StudentsRepo.findStudentById(connection, john.id))
       _ <- EitherT(StudentsRepo.updateNameAndEmail(connection, john.id, jim.name, jim.email))
       maybeJim <- EitherT(StudentsRepo.findStudentById(connection, john.id))
-    } yield (maybeJohn, maybeJim)).value.unsafeRunSync()
+      _ <- EitherT(StudentsRepo.deleteStudent(connection, john.id))
+      maybeNobody <- EitherT(StudentsRepo.findStudentById(connection, john.id))
+    } yield (maybeJohn, maybeJim, maybeNobody)).value.unsafeRunSync()
 
-    actualStudents shouldBe Right((Some(john), Some(jim)))
+    actualStudents shouldBe Right((Some(john), Some(jim), None))
   }
 }

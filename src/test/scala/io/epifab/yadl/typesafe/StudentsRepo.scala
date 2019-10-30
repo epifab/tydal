@@ -47,4 +47,12 @@ object StudentsRepo {
           "id" ~> id
         )
       }
+
+  def deleteStudent(connection: Connection, id: Int): IOEither[DataError, Int] =
+    Delete.from(Students)
+      .where(_.id === "id")
+      .compile
+      .run(connection) {
+        Tuple1("id" ~> id)
+      }
 }

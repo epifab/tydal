@@ -112,6 +112,16 @@ object QueryBuilder {
       (placeholders.build(update.fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
         where.build(update.where).prepend(" WHERE ")).get(HNil)
     })
+
+  implicit def deleteQuery[NAME <: String, SCHEMA, P <: HList, WHERE <: BinaryExpr]
+      (implicit
+       where: QueryFragmentBuilder["where", WHERE, P]
+      ): QueryBuilder[Delete[NAME, SCHEMA, WHERE], P, HNil] =
+    QueryBuilder.instance(delete =>
+      (QueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
+      where.build(delete.filter).prepend(" WHERE "))
+          .get(HNil)
+    )
 }
 
 sealed trait QueryFragmentBuilder[TYPE, -X, P <: HList] {

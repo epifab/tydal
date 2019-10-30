@@ -60,12 +60,32 @@ class QueryBuilderTest extends FlatSpec with Matchers {
     )
   }
 
+  it should "build an update query without filter" in {
+    Update(Students).fields(s => (s.name, s.email)).compile.query shouldBe (
+      "UPDATE students SET" +
+        " name = ?::varchar," +
+        " email = ?::varchar"
+      )
+  }
+
   it should "build an update query" in {
     updateStudentQuery.compile.query shouldBe (
       "UPDATE students SET" +
         " name = ?::varchar," +
         " email = ?::varchar" +
         " WHERE students.id = ?::int"
+    )
+  }
+
+  it should "build a delete query without filter" in {
+    Delete.from(Students).compile.query shouldBe
+      "DELETE FROM students"
+  }
+
+  it should "build a delete query" in {
+    deleteStudentQuery.compile.query shouldBe (
+      "DELETE FROM students WHERE" +
+        " students.id = ?::int"
     )
   }
 }

@@ -57,4 +57,7 @@ object SelectQueries {
   val updateStudentQuery = Update(Students)
     .fields(s => (s.name, s.email))
     .where(_.id === "id")
+
+  val deleteStudentQuery = Delete.from(Students)
+    .where(_.id === "id")
 }
