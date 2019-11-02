@@ -88,6 +88,6 @@ object SelectQueries {
           "instant" ~~> Instant.parse("1986-03-08T09:00:00z"),
         )
       )
-      .toTuple
+      .tuple
   }
 }

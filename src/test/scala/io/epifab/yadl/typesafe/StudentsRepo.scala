@@ -11,7 +11,7 @@ object StudentsRepo {
       .where(_("s", "id") === "student_id")
       .compile
       .withValues(Tuple1("student_id" ~~> id))
-      .option
+      .takeFirst
       .mapTo[Student]
   }
 
