@@ -1,8 +1,12 @@
 package io.epifab.yadl.typesafe
 
+import java.time.{Instant, LocalDate}
+
+import io.circe.Decoder
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
 import io.epifab.yadl.typesafe.fields._
+import shapeless.the
 
 object SelectQueries {
   val studentExams =
@@ -60,4 +64,30 @@ object SelectQueries {
 
   val deleteStudentQuery = Delete.from(Students)
     .where(_.id === "id")
+
+  def getFields: TransactionIO[Seq[(Int, Seq[Double], Map[String, String], LocalDate, Instant)]] = {
+    implicit val mapEnc: FieldEncoder[Map[String, String]] = FieldEncoder.jsonEncoder
+    implicit val mapDec: FieldDecoder[Map[String, String]] = FieldDecoder.jsonDecoder(the[Decoder[Map[String, String]]])
+
+    val int = Placeholder[Int, "int"]
+    val listOfDouble = Placeholder[Seq[Double], "listOfDouble"]
+    val json = Placeholder[Map[String, String], "map"]
+    val date = Placeholder[LocalDate, "date"]
+    val instant = Placeholder[Instant, "instant"]
+
+    Select
+      .from(Students as "s")
+      .take(_ => (int, listOfDouble, json, date, instant))
+      .compile
+      .withValues(
+        (
+          "int" ~~> 1,
+          "listOfDouble" ~~> Seq(3.0, 9.99),
+          "map" ~~> Map("blue" -> "sky", "yellow" -> "banana"),
+          "date" ~~> LocalDate.of(1992, 2, 25),
+          "instant" ~~> Instant.parse("1986-03-08T09:00:00z"),
+        )
+      )
+      .toTuple
+  }
 }

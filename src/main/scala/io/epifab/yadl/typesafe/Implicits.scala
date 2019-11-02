@@ -3,8 +3,9 @@ package io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.fields._
 
 object Implicits {
-  implicit class ExtendedTag[A <: String with Singleton](tag: A) {
-    def ~> [T](value: T)(implicit fieldEncoder: FieldEncoder[T]): Value[T] with Tag[A] = Value(tag, value)
+  implicit class ExtendedTag[A <: String with Singleton](tag: A)(implicit valueOf: ValueOf[A]) {
+    def ~~>[T](value: T)(implicit fieldEncoder: FieldEncoder[T]): Value[T] with Tag[A] = Value(tag, value)
+    def ?[T](implicit fieldEncoder: FieldEncoder[T], fieldDecoder: FieldDecoder[T]): Placeholder[T, T] with Tag[A] = Placeholder[T, A]
   }
 
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {

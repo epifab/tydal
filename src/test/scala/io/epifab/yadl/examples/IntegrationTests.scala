@@ -4,7 +4,6 @@ import java.sql.Connection
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import cats.Applicative
-import cats.data.EitherT
 import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
 import io.epifab.yadl.typesafe
 import io.epifab.yadl.typesafe.Schema.Art
@@ -166,10 +165,9 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     val students: IOEither[DataError, Seq[StudentExam]] =
       studentExams
         .compile
-        .run(connection) {
-          Tuple1(Value("sid", 2))
-        }
+        .withValues(Tuple1(Value("sid", 2)))
         .mapTo[StudentExam]
+        .transact(connection)
 
     students.unsafeRunSync().map(_.toSet) shouldBe Right(Set(
       StudentExam(2, "Jane Doe", 29, exam2.dateTime.toInstant(ZoneOffset.UTC), "Math"),
@@ -189,17 +187,23 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
     val jim = john.copy(name = "Jim", email = Some("jim@yadl.com"))
 
-    val findStudent = StudentsRepo.findStudentById(connection, john.id)
+    val findStudent = StudentsRepo.findStudentById(john.id)
 
     val actualStudents = (for {
-      _ <- EitherT(StudentsRepo.insert(connection, john))
-      maybeJohn <- EitherT(findStudent)
-      _ <- EitherT(StudentsRepo.updateNameAndEmail(connection, john.id, jim.name, jim.email))
-      maybeJim <- EitherT(findStudent)
-      _ <- EitherT(StudentsRepo.deleteStudent(connection, john.id))
-      maybeNobody <- EitherT(findStudent)
-    } yield (maybeJohn, maybeJim, maybeNobody)).value.unsafeRunSync()
+      _ <- StudentsRepo.insert(john)
+      maybeJohn <- findStudent
+      _ <- StudentsRepo.updateNameAndEmail(john.id, jim.name, jim.email)
+      maybeJim <- findStudent
+      _ <- StudentsRepo.deleteStudent(john.id)
+      maybeNobody <- findStudent
+    } yield (maybeJohn, maybeJim, maybeNobody)).transact(connection).unsafeRunSync()
 
     actualStudents shouldBe Right((Some(john), Some(jim), None))
   }
+
+//  it can "inject and extract all sort of fields" in {
+//    getFields.transact(connection).unsafeRunSync() shouldBe Right(Seq(
+//      (1, Seq(3.0, 9.99), Map("blue" -> "sky", "yellow" -> "banana"), LocalDate.of(1992, 2, 25), Instant.parse("1986-03-08T09:00:00z"))
+//    ))
+//  }
 }

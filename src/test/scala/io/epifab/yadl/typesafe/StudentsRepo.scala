@@ -1,58 +1,54 @@
 package io.epifab.yadl.typesafe
 
-import java.sql.Connection
-
-import cats.effect.IO
 import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
 
 object StudentsRepo {
-  def findStudentById(connection: Connection, id: Int): IO[Either[DataError, Option[Student]]] = {
+  def findStudentById(id: Int): TransactionIO[Option[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)
       .where(_("s", "id") === "student_id")
       .compile
-      .run(connection) {
-        Tuple1("student_id" ~> id)
-      }
-      .takeFirst
+      .withValues(Tuple1("student_id" ~~> id))
+      .option
       .mapTo[Student]
   }
 
-  def insert(connection: Connection, student: Student): IOEither[DataError, Int] = {
-    Insert.into(Students)
+  def insert(student: Student): TransactionIO[Int] = {
+    Insert
+      .into(Students)
       .compile
-      .run(connection) {
+      .withValues {
         (
-          "id" ~> student.id,
-          "name" ~> student.name,
-          "email" ~> student.email,
-          "date_of_birth" ~> student.dateOfBirth,
-          "address" ~> student.address,
-          "interests" ~> student.interests
+          "id" ~~> student.id,
+          "name" ~~> student.name,
+          "email" ~~> student.email,
+          "date_of_birth" ~~> student.dateOfBirth,
+          "address" ~~> student.address,
+          "interests" ~~> student.interests
         )
       }
   }
 
-  def updateNameAndEmail(connection: Connection, id: Int, name: String, email: Option[String]): IOEither[DataError, Int] =
+  def updateNameAndEmail(id: Int, name: String, email: Option[String]): TransactionIO[Int] =
     Update(Students)
       .fields(s => (s.name, s.email))
       .where(_.id === "id")
       .compile
-      .run(connection) {
+      .withValues {
         (
-          "name" ~> name,
-          "email" ~> email,
-          "id" ~> id
+          "name" ~~> name,
+          "email" ~~> email,
+          "id" ~~> id
         )
       }
 
-  def deleteStudent(connection: Connection, id: Int): IOEither[DataError, Int] =
+  def deleteStudent(id: Int): TransactionIO[Int] =
     Delete.from(Students)
       .where(_.id === "id")
       .compile
-      .run(connection) {
-        Tuple1("id" ~> id)
+      .withValues {
+        Tuple1("id" ~~> id)
       }
 }
