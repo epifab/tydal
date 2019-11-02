@@ -3,13 +3,8 @@ package io.epifab.yadl.examples
 import java.sql.Connection
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.examples
-import io.epifab.yadl.examples.Model.{Course, Exam, Student, StudentExam}
-import io.epifab.yadl.examples.Schema._
-import io.epifab.yadl.fields.Value
+import io.epifab.yadl.examples.Model._
 import io.epifab.yadl.runner.DataError
-import io.epifab.yadl.typesafe.SelectQueries._
-import io.epifab.yadl.typesafe._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -73,7 +68,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       "John",
       Some("john@yadl.com"),
       LocalDate.of(1986, 3, 8),
-      Some(examples.Schema.Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
+      Some(Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
       Seq(Interest.Art)
     )
 

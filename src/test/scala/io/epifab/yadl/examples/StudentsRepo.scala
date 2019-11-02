@@ -1,24 +1,26 @@
 package io.epifab.yadl.examples
 
 import io.epifab.yadl.examples.Model.{Student, StudentExam}
-import io.epifab.yadl.examples.Schema.{Courses, Exams, Students}
+import io.epifab.yadl.examples.Schema._
 import io.epifab.yadl.runner.TransactionIO
 import io.epifab.yadl.{Delete, Insert, Select, Update}
 import io.epifab.yadl.Implicits._
 
 object StudentsRepo {
-  private val studentExamsQuery = Select.from(Students as "s")
-    .join($ => (Exams as "e").on(_ ("student_id") === $("s", "id")))
-    .join($ => (Courses as "c").on(_ ("id") === $("e", "course_id")))
-    .take($ => (
-      $("s", "id").as["sid"],
-      $("s", "name").as["sname"],
-      $("e", "score").as["rate"],
-      $("e", "exam_timestamp").as["etime"],
-      $("c", "name").as["cname"]
-    ))
-    .where(_ ("s", "id") === "sid")
-    .compile
+  private val studentExamsQuery =
+    Select
+      .from(Students as "s")
+      .join($ => (Exams as "e").on(_ ("student_id") === $("s", "id")))
+      .join($ => (Courses as "c").on(_ ("id") === $("e", "course_id")))
+      .take($ => (
+        $("s", "id").as["sid"],
+        $("s", "name").as["sname"],
+        $("e", "score").as["rate"],
+        $("e", "exam_timestamp").as["etime"],
+        $("c", "name").as["cname"]
+      ))
+      .where(_ ("s", "id") === "sid")
+      .compile
 
   def findById(id: Int): TransactionIO[Option[Student]] =
     Select

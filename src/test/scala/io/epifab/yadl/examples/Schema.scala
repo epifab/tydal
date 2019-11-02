@@ -5,29 +5,11 @@ import java.time.{Instant, LocalDate}
 import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import io.epifab.yadl._
+import io.epifab.yadl.examples.Model.{Address, Interest}
 import io.epifab.yadl.fields.{Column, FieldDecoder, FieldEncoder}
 import shapeless.the
 
 object Schema {
-  abstract sealed class Interest(val value: String)
-
-  object Interest {
-    def apply(value: String): Either[String, Interest] = value match {
-      case Music.value => Right(Music)
-      case Art.value => Right(Art)
-      case History.value => Right(History)
-      case Math.value => Right(Math)
-      case _ => Left("Unknown interest")
-    }
-
-    case object Music extends Interest("music")
-    case object Art extends Interest("art")
-    case object History extends Interest("history")
-    case object Math extends Interest("math")
-  }
-
-  case class Address(postcode: String, line1: String, line2: Option[String])
-
   implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
     FieldDecoder.enumDecoder("interest", Interest.apply)
 
