@@ -3,7 +3,7 @@ package io.epifab.yadl
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 
-import io.epifab.yadl.typesafe.fields.FieldDecoder
+import io.epifab.yadl.fields.FieldDecoder
 import org.scalatest.{FlatSpec, Matchers}
 
 class InstantDecoderSpec extends FlatSpec with Matchers {

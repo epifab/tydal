@@ -3,25 +3,14 @@ package io.epifab.yadl.typesafe
 import java.time.{Instant, LocalDate}
 
 import io.circe.Decoder
-import io.epifab.yadl.typesafe.Implicits._
-import io.epifab.yadl.typesafe.Schema._
-import io.epifab.yadl.typesafe.fields._
+import io.epifab.yadl.runner.TransactionIO
+import io.epifab.yadl.Implicits._
+import io.epifab.yadl.{Delete, Select, Update}
+import io.epifab.yadl.examples.Schema._
+import io.epifab.yadl.fields._
 import shapeless.the
 
 object SelectQueries {
-  val studentExams =
-    Select.from(Students as "s")
-      .join($ => (Exams as "e").on(_("student_id") === $("s", "id")))
-      .join($ => (Courses as "c").on(_("id") === $("e", "course_id")))
-      .take($ => (
-        $("s", "id").as["sid"],
-        $("s", "name").as["sname"],
-        $("e", "score").as["rate"],
-        $("e", "exam_timestamp").as["etime"],
-        $("c", "name").as["cname"]
-      ))
-      .where(_("s", "id") === "sid")
-
   val studentsQuery = {
     val maxScoreSubQuery =
       Select

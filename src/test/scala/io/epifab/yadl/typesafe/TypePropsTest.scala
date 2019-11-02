@@ -2,6 +2,7 @@ package io.epifab.yadl.typesafe
 
 import java.time.{Instant, LocalDate}
 
+import io.epifab.yadl.Tag
 import org.scalatest.FunSuite
 import shapeless.the
 
@@ -28,7 +29,7 @@ class TypePropsTest extends FunSuite {
     the[Negative[Negative[SameType[Int, Int]]]]
   }
 
-  import io.epifab.yadl.typesafe.fields._
+  import io.epifab.yadl.fields._
 
   test("IsNumeric") {
     the[IsNumeric[Int]]

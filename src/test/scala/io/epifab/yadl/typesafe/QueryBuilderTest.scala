@@ -1,6 +1,7 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.typesafe.Schema.Students
+import io.epifab.yadl.{Delete, Insert, Select, Update}
+import io.epifab.yadl.examples.Schema.Students
 import io.epifab.yadl.typesafe.SelectQueries._
 import org.scalatest.{FlatSpec, Matchers}
 

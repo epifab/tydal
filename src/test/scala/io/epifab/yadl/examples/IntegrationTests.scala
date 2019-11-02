@@ -3,10 +3,12 @@ package io.epifab.yadl.examples
 import java.sql.Connection
 import java.time.{Instant, LocalDate}
 
-import io.epifab.yadl.typesafe
-import io.epifab.yadl.typesafe.Schema._
+import io.epifab.yadl.examples
+import io.epifab.yadl.examples.Model.{Course, Exam, Student, StudentExam}
+import io.epifab.yadl.examples.Schema._
+import io.epifab.yadl.fields.Value
+import io.epifab.yadl.runner.DataError
 import io.epifab.yadl.typesafe.SelectQueries._
-import io.epifab.yadl.typesafe.fields.Value
 import io.epifab.yadl.typesafe._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
@@ -31,8 +33,8 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val student3Exams: Seq[(Exam, Course)] = Seq.empty
 
   def tearDown(): Either[DataError, Unit] = (for {
-    _ <- Delete.from(Exams).compile.withValues(())
-    _ <- Delete.from(Courses).compile.withValues(())
+    _ <- ExamsRepo.removeAll
+    _ <- CoursesRepo.removeAll
     _ <- StudentsRepo.removeAll
   } yield ()).transact(connection).unsafeRunSync()
 
@@ -59,28 +61,19 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   private val connection: Connection = QueryRunnerFactories.connection
 
   it should "run a query successfully" in {
-    case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
-
-    val students: IOEither[DataError, Seq[StudentExam]] =
-      studentExams
-        .compile
-        .withValues(Tuple1(Value("sid", 2)))
-        .mapTo[StudentExam]
-        .transact(connection)
-
-    students.unsafeRunSync().map(_.toSet) shouldBe Right(Set(
+    StudentsRepo.findStudentExams(2).transact(connection).unsafeRunSync().map(_.toSet) shouldBe Right(Set(
       StudentExam(2, "Jane Doe", 29, exam2.timestamp, "Math"),
       StudentExam(2, "Jane Doe", 30, exam3.timestamp, "Astronomy")
     ))
   }
 
   it should "create, update and get a student" in {
-    val john = typesafe.Schema.Student(
+    val john = Student(
       199,
       "John",
       Some("john@yadl.com"),
       LocalDate.of(1986, 3, 8),
-      Some(typesafe.Schema.Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
+      Some(examples.Schema.Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
       Seq(Interest.Art)
     )
 
