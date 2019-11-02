@@ -9,10 +9,6 @@ import shapeless.the
 
 object Schema {
   abstract sealed class Interest(val value: String)
-  case object Music extends Interest("music")
-  case object Art extends Interest("art")
-  case object History extends Interest("history")
-  case object Math extends Interest("math")
 
   object Interest {
     def apply(value: String): Either[String, Interest] = value match {
@@ -22,6 +18,11 @@ object Schema {
       case Math.value => Right(Math)
       case _ => Left("Unknown interest")
     }
+
+    case object Music extends Interest("music")
+    case object Art extends Interest("art")
+    case object History extends Interest("history")
+    case object Math extends Interest("math")
   }
 
   case class Address(postcode: String, line1: String, line2: Option[String])
@@ -52,7 +53,7 @@ object Schema {
     courseId: Column[Int] AS "course_id",
     score: Column[Int] AS "score",
     examTimestamp: Column[Instant] AS "exam_timestamp",
-    registrationTimestamp: Column[Instant] AS "registration_timestamp"
+    registrationTimestamp: Column[Option[Instant]] AS "registration_timestamp"
   )
 
   case class CoursesSchema(id: Column[Int] AS "id", name: Column[String] AS "name")
@@ -71,4 +72,8 @@ object Schema {
     address: Option[Address],
     interests: Seq[Interest]
   )
+
+  case class Exam(studentId: Int, courseId: Int, score: Int, timestamp: Instant, registration: Option[Instant])
+
+  case class Course(id: Int, name: String)
 }

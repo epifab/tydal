@@ -4,18 +4,17 @@ import io.epifab.yadl.typesafe.Implicits._
 import io.epifab.yadl.typesafe.Schema._
 
 object StudentsRepo {
-  def findStudentById(id: Int): TransactionIO[Option[Student]] = {
+  def findById(id: Int): TransactionIO[Option[Student]] =
     Select
       .from(Students as "s")
-      .take(_("s").*)
-      .where(_("s", "id") === "student_id")
+      .take(_ ("s").*)
+      .where(_ ("s", "id") === "student_id")
       .compile
       .withValues(Tuple1("student_id" ~~> id))
       .takeFirst
       .mapTo[Student]
-  }
 
-  def insert(student: Student): TransactionIO[Int] = {
+  def add(student: Student): TransactionIO[Int] = {
     Insert
       .into(Students)
       .compile
@@ -44,11 +43,17 @@ object StudentsRepo {
         )
       }
 
-  def deleteStudent(id: Int): TransactionIO[Int] =
+  def remove(id: Int): TransactionIO[Int] =
     Delete.from(Students)
       .where(_.id === "id")
       .compile
       .withValues {
         Tuple1("id" ~~> id)
       }
+
+  lazy val removeAll: TransactionIO[Int] =
+    Delete
+      .from(Students)
+      .compile
+      .withValues(())
 }

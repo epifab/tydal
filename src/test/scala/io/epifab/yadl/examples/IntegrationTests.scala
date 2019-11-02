@@ -1,23 +1,15 @@
 package io.epifab.yadl.examples
 
 import java.sql.Connection
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
+import java.time.{Instant, LocalDate}
 
-import cats.Applicative
-import io.epifab.yadl.domain.{DALError, Delete, QueryRunner}
 import io.epifab.yadl.typesafe
-import io.epifab.yadl.typesafe.Schema.Art
+import io.epifab.yadl.typesafe.Schema._
 import io.epifab.yadl.typesafe.SelectQueries._
 import io.epifab.yadl.typesafe.fields.Value
-import io.epifab.yadl.typesafe.{DataError, IOEither, StudentsRepo}
+import io.epifab.yadl.typesafe._
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
-import shapeless._
-
-class Repos(override val queryRunner: QueryRunner[Id])(override implicit val A: Applicative[Id])
-  extends StudentsRepo[Id]
-    with ExamsRepo[Id]
-    with CoursesRepo[Id]
 
 class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val student1 = Student(1, "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq(Interest.Art, Interest.Math))
@@ -26,36 +18,34 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
 
-  private val marchThe8th: LocalDateTime = LocalDateTime.of(2018, 3, 8, 9, 5, 6, 0)
-  private val novemberThe22nd3PM: LocalDateTime = LocalDateTime.of(2018, 11, 22, 15, 30, 20, 0)
-  private val novemberThe22nd5PM: LocalDateTime = LocalDateTime.of(2018, 11, 22, 17, 30, 20, 0)
+  private val marchThe8th: Instant = Instant.parse("2018-03-08T09:05:00z")
+  private val novemberThe22nd3PM: Instant = Instant.parse("2018-11-22T15:30:20z")
+  private val novemberThe22nd5PM: Instant = Instant.parse("2018-11-22T17:30:20z")
 
-  val exam1 = Exam(studentId = 1, courseId = 1, 24, marchThe8th, Some(marchThe8th.withNano(123456000).toInstant(ZoneOffset.UTC)))
-  val exam2 = Exam(studentId = 2, courseId = 1, 29, novemberThe22nd3PM, Some(novemberThe22nd3PM.withNano(123456000).toInstant(ZoneOffset.UTC)))
+  val exam1 = Exam(studentId = 1, courseId = 1, 24, marchThe8th, Some(marchThe8th.plusNanos(123456000)))
+  val exam2 = Exam(studentId = 2, courseId = 1, 29, novemberThe22nd3PM, Some(novemberThe22nd3PM.plusNanos(123456000)))
   val exam3 = Exam(studentId = 2, courseId = 2, 30, novemberThe22nd5PM, None)
 
   val student1Exams: Seq[(Exam, Course)] = Seq(exam1 -> course1)
   val student2Exams: Seq[(Exam, Course)] = Seq(exam2 -> course1, exam3 -> course2)
   val student3Exams: Seq[(Exam, Course)] = Seq.empty
 
-  val repo = new Repos(QueryRunnerFactories.syncQueryRunner)
+  def tearDown(): Either[DataError, Unit] = (for {
+    _ <- Delete.from(Exams).compile.withValues(())
+    _ <- Delete.from(Courses).compile.withValues(())
+    _ <- StudentsRepo.removeAll
+  } yield ()).transact(connection).unsafeRunSync()
 
-  def tearDown(): Either[DALError, Unit] = for {
-    _ <- repo.queryRunner.run(Delete(new Schema.ExamsTable))
-    _ <- repo.queryRunner.run(Delete(new Schema.CoursesTable))
-    _ <- repo.queryRunner.run(Delete(new Schema.StudentsTable))
-  } yield ()
-
-  def setUp(): Either[DALError, Unit] = for {
-    _ <- repo.createStudent(student1)
-    _ <- repo.createStudent(student2)
-    _ <- repo.createStudent(student3)
-    _ <- repo.createCourse(course1)
-    _ <- repo.createCourse(course2)
-    _ <- repo.createExam(exam1)
-    _ <- repo.createExam(exam2)
-    _ <- repo.createExam(exam3)
-  } yield ()
+  def setUp(): Either[DataError, Unit] = (for {
+    _ <- StudentsRepo.add(student1)
+    _ <- StudentsRepo.add(student2)
+    _ <- StudentsRepo.add(student3)
+    _ <- CoursesRepo.add(course1)
+    _ <- CoursesRepo.add(course2)
+    _ <- ExamsRepo.add(exam1)
+    _ <- ExamsRepo.add(exam2)
+    _ <- ExamsRepo.add(exam3)
+  } yield ()).transact(connection).unsafeRunSync()
 
   override def beforeAll(): Unit = {
     tearDown() shouldBe Symbol("Right")
@@ -64,97 +54,6 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     tearDown() shouldBe Symbol("Right")
-  }
-
-  "The query runner" should "retrieve a student by ID" in {
-    repo.findStudent(2) shouldBe Right(Some(student2))
-  }
-
-  it should "retrieve a list of students by name" in {
-    repo.findStudentByName("%Doe") shouldBe Right(Seq(student1, student2))
-  }
-
-  it should "retrieve a list of students by ids" in {
-    repo.findStudents(2, 3, 4) shouldBe Right(Seq(student2, student3))
-  }
-
-  it should "retrieve a list of students by email" in {
-    repo.findStudentByEmail("%@doe.com") shouldBe Right(Seq(student1, student2))
-  }
-
-  it should "retrieve students with missing email" in {
-    repo.findStudentsWithoutEmail() shouldBe Right(Seq(student3))
-  }
-
-  it should "find students by list of interests (contains)" in {
-    repo.findStudentsByInterests(Seq.empty) shouldBe Right(Seq(student1, student2, student3))
-    repo.findStudentsByInterests(Seq(Interest.Music)) shouldBe Right(Seq(student2, student3))
-    repo.findStudentsByInterests(Seq(Interest.Music, Interest.Art)) shouldBe Right(Seq(student2))
-    repo.findStudentsByInterests(Seq(Interest.Music, Interest.Art, Interest.History)) shouldBe Right(Seq.empty)
-  }
-
-  it should "find students by list of interests (intercepts)" in {
-    repo.findStudentsByAnyInterest(Seq.empty) shouldBe Right(Seq.empty)
-    repo.findStudentsByAnyInterest(Seq(Interest.Music)) shouldBe Right(Seq(student2, student3))
-    repo.findStudentsByAnyInterest(Seq(Interest.Music, Interest.Art)) shouldBe Right(Seq(student1, student2, student3))
-    repo.findStudentsByAnyInterest(Seq(Interest.Music, Interest.Art, Interest.History)) shouldBe Right(Seq(student1, student2, student3))
-  }
-
-  it should "find exams by date" in {
-    repo.findExamsByDate(LocalDate.of(2018, 11, 22)) shouldBe Right(Seq(
-      exam2 -> course1,
-      exam3 -> course2
-    ))
-  }
-
-  it should "find student exams" in {
-    repo.findStudentsExams(student1, student2, student3) shouldBe Right(Seq(
-      student1 -> student1Exams,
-      student2 -> student2Exams,
-      student3 -> student3Exams
-    ))
-  }
-
-  it should "find student exam stats" in {
-    repo.findStudentExamStats(2) shouldBe Right(
-      Some(
-        StudentExams(
-          studentId = 2,
-          examsCount = 2,
-          avgScore = Some(29.5),
-          minScore = Some(29),
-          maxScore = Some(30)
-        )
-      )
-    )
-  }
-
-  it should "not find exams for unexisting student" in {
-    repo.findStudentExamStats(123) shouldBe Right(None)
-  }
-
-  it should "update a student" in {
-    val edited: Either[DALError, Option[Student]] = for {
-      _ <- repo.updateStudent(student3.copy(name = "Edited"))
-      edited <- repo.findStudent(3)
-    } yield edited
-
-    edited.map(_.map(_.name)) shouldBe Right(Some("Edited"))
-  }
-
-  it should "find students by date of birth (testing date sequences)" in {
-    val results = repo.findStudentsByDateOfBirth(student1.dateOfBirth, student2.dateOfBirth)
-    results.map(_.toSet) shouldBe Right(Set(student1, student2))
-  }
-
-  it should "find exams by date time (testing date time sequences)" in {
-    val results = repo.findExamsByDateTime(exam1.dateTime, exam3.dateTime)
-    results.map(_.toSet) shouldBe Right(Set(exam1, exam3))
-  }
-
-  it should "find distinct courses" in {
-    val results = repo.findCourseIdsByStudentExams(student1, student2, student3)
-    results.map(_.map(_.id)) shouldBe Right(Seq(1, 2))
   }
 
   private val connection: Connection = QueryRunnerFactories.connection
@@ -170,8 +69,8 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
         .transact(connection)
 
     students.unsafeRunSync().map(_.toSet) shouldBe Right(Set(
-      StudentExam(2, "Jane Doe", 29, exam2.dateTime.toInstant(ZoneOffset.UTC), "Math"),
-      StudentExam(2, "Jane Doe", 30, exam3.dateTime.toInstant(ZoneOffset.UTC), "Astronomy")
+      StudentExam(2, "Jane Doe", 29, exam2.timestamp, "Math"),
+      StudentExam(2, "Jane Doe", 30, exam3.timestamp, "Astronomy")
     ))
   }
 
@@ -182,19 +81,19 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       Some("john@yadl.com"),
       LocalDate.of(1986, 3, 8),
       Some(typesafe.Schema.Address("N1 987", "32 Liverpool Road", Some("Hackney"))),
-      Seq(Art)
+      Seq(Interest.Art)
     )
 
     val jim = john.copy(name = "Jim", email = Some("jim@yadl.com"))
 
-    val findStudent = StudentsRepo.findStudentById(john.id)
+    val findStudent = StudentsRepo.findById(john.id)
 
     val actualStudents = (for {
-      _ <- StudentsRepo.insert(john)
+      _ <- StudentsRepo.add(john)
       maybeJohn <- findStudent
       _ <- StudentsRepo.updateNameAndEmail(john.id, jim.name, jim.email)
       maybeJim <- findStudent
-      _ <- StudentsRepo.deleteStudent(john.id)
+      _ <- StudentsRepo.remove(john.id)
       maybeNobody <- findStudent
     } yield (maybeJohn, maybeJim, maybeNobody)).transact(connection).unsafeRunSync()
 
