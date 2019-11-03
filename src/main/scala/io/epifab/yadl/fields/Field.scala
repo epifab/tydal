@@ -93,13 +93,9 @@ object Placeholder {
     (implicit
      name: ValueOf[NAME],
      encoder: FieldEncoder[TYPE],
-     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] with NamedPlaceholder[TYPE, NAME] =
-    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] with NamedPlaceholder[TYPE, NAME] {
+     decoder: FieldDecoder[TYPE]): Placeholder[TYPE, TYPE] with Tag[NAME] =
+    new Placeholder(name.value)(decoder, encoder) with Tag[NAME] {
       override def tagValue: String = name
-      override def resolve(u: TYPE): Value[TYPE] with Tag[NAME] =
-        new Value(u) with Tag[NAME] {
-          override def tagValue: String = name
-        }
     }
 }
 

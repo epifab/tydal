@@ -97,6 +97,12 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     StudentsRepo.findById(john.id).transact(connection).unsafeRunSync() shouldBe Right(None)
   }
 
+  it should "find a student by email" in {
+    StudentsRepo.findAllBy(_.email, student1.email)
+      .transact(connection)
+      .unsafeRunSync() shouldBe Right(Seq(student1))
+  }
+
   //  it can "inject and extract all sort of fields" in {
 //    getFields.transact(connection).unsafeRunSync() shouldBe Right(Seq(
 //      (1, Seq(3.0, 9.99), Map("blue" -> "sky", "yellow" -> "banana"), LocalDate.of(1992, 2, 25), Instant.parse("1986-03-08T09:00:00z"))

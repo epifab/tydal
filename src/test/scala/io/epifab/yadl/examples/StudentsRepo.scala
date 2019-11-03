@@ -3,8 +3,9 @@ package io.epifab.yadl.examples
 import io.epifab.yadl.examples.Model.{Student, StudentExam}
 import io.epifab.yadl.examples.Schema._
 import io.epifab.yadl.runner.TransactionIO
-import io.epifab.yadl.{Delete, Insert, Select, Update}
+import io.epifab.yadl.{Delete, Insert, Select, Tag, Update, fields}
 import io.epifab.yadl.Implicits._
+import io.epifab.yadl.fields.{AreComparable, Column, Field, FieldDecoder, FieldEncoder, FieldT, NamedPlaceholder, Placeholder}
 
 object StudentsRepo {
   private val studentExamsQuery =
@@ -31,6 +32,21 @@ object StudentsRepo {
       .withValues(Tuple1("student_id" ~~> id))
       .takeFirst
       .mapTo[Student]
+
+  def findAllBy[C <: Column[_], T]
+      (column: StudentsSchema => C, value: T)
+      (implicit
+       fieldEncoder: FieldEncoder[T],
+       fieldDecoder: FieldDecoder[T],
+       areComparable: AreComparable[C, Placeholder[T, T] with Tag["x"]]): TransactionIO[Seq[Student]] = {
+    Select
+      .from(Students as "s")
+      .take(_("s").*)
+      .where { $ => column($("s").schema) === Placeholder[T, "x"] }
+      .compile
+      .withValues(Tuple1("x" ~~> value))
+      .mapTo[Student]
+  }
 
   def findStudentExams(id: Int): TransactionIO[Seq[StudentExam]] = {
     studentExamsQuery
