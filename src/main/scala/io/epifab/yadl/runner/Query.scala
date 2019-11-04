@@ -12,13 +12,13 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
     append(s)
 
   def `++`[Q <: HList, R <: HList](other: QueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
-    concatenate(other, "")
+    concatenateOptional(other, "")
 
   def `+ +`[Q <: HList, R <: HList](other: QueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
-    concatenate(other, " ")
+    concatenateOptional(other, " ")
 
   def `+,+`[Q <: HList, R <: HList](other: QueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
-    concatenate(other, ", ")
+    concatenateOptional(other, ", ")
 
   def wrap(before: String, after: String): QueryFragment[P] =
     QueryFragment(sql.map(before + _ + after), placeholders)
@@ -32,7 +32,7 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
   def map(f: String => String): QueryFragment[P] =
     QueryFragment(sql.map(f), placeholders)
 
-  def concatenate[Q <: HList, R <: HList](other: QueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
+  def concatenateOptional[Q <: HList, R <: HList](other: QueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
     QueryFragment.apply(
       Seq(sql, other.sql)
         .flatten
@@ -40,8 +40,20 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
       concat(placeholders, other.placeholders)
     )
 
+  def concatenateRequired[Q <: HList, R <: HList](other: QueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): QueryFragment[R] =
+    QueryFragment.apply(
+      for {
+        s1 <- sql
+        s2 <- other.sql
+      } yield s1 + separator + s2,
+      concat(placeholders, other.placeholders)
+    )
+
   def getOrElse[FIELDS <: HList](default: String, fields: FIELDS): Query[P, FIELDS] =
     Query(sql.getOrElse(default), placeholders, fields)
+
+  def orElse(s: Option[String]): QueryFragment[P] =
+    new QueryFragment(sql.orElse(s), placeholders)
 
   def get[FIELDS <: HList](fields: FIELDS): Query[P, FIELDS] =
     Query(sql.get, placeholders, fields)
@@ -56,7 +68,7 @@ object QueryFragment {
   def apply(sql: String): QueryFragment[HNil] =
     QueryFragment(Some(sql), HNil)
 
-  def apply[P <: Placeholder[_, _]](sql: String, placeholder: P): QueryFragment[P :: HNil] =
+  def apply[P <: Placeholder[_]](sql: String, placeholder: P): QueryFragment[P :: HNil] =
     QueryFragment(Some(sql), placeholder :: HNil)
 }
 
@@ -83,11 +95,11 @@ object QueryBuilder {
      groupBy: QueryFragmentBuilder["groupBy", GROUP_BY, P6],
      concat3: Concat.Aux[P5, P6, P7]): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE], P7, FIELDS] =
     QueryBuilder.instance(select =>
-      (fields.build(select.fields) `+ +`
+      (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.sources).map("FROM " + _) `+ +`
         where.build(select.filter).map("WHERE " + _) `+ +`
         groupBy.build(select.groupByFields).map("GROUP BY " + _)
-      ).prepend("SELECT ").getOrElse("SELECT 1", select.fields)
+      ).get(select.fields)
     )
 
   implicit def insertQuery[NAME <: String, SCHEMA, COLUMNS <: HList, PLACEHOLDERS <: HList]
@@ -231,8 +243,14 @@ object QueryFragmentBuilder {
        concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["src", FieldExpr2[F1, F2, _], R] =
     instance((f: FieldExpr2[F1, F2, _]) => (builder1.build(f.field1) `+,+` builder2.build(f.field2)).wrap(f.dbFunction.name + "(", ")"))
 
-  implicit def placeholder[P <: Placeholder[_, _]]: QueryFragmentBuilder["src", P, P :: HNil] =
+  implicit def placeholder[P <: NamedPlaceholder[_]]: QueryFragmentBuilder["src", P, P :: HNil] =
     instance((f: P) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
+
+  implicit def value[V <: Value[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+    instance((f: V) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
+
+  implicit def optionalValue[V <: OptionalValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+    instance((f: V) => QueryFragment(f.value.map(_ => s"?::${f.encoder.dbType.sqlName}"), f :: HNil))
 
   // ------------------------------
   // Column name and placeholder
@@ -258,9 +276,9 @@ object QueryFragmentBuilder {
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],
        fieldEncoder: FieldEncoder[T],
-       queryFragmentBuilder: QueryFragmentBuilder["src", Placeholder[T, T] with Tag[A], PL]
+       queryFragmentBuilder: QueryFragmentBuilder["src", NamedPlaceholder[T] with Tag[A], PL]
       ): QueryFragmentBuilder["placeholder", Column[T] with Tag[A], PL] =
-    instance((_: Column[T] with Tag[A]) => queryFragmentBuilder.build(Placeholder[T, A]))
+    instance((_: Column[T] with Tag[A]) => queryFragmentBuilder.build(NamedPlaceholder[T, A]))
 
   implicit def emptyColumnPlaceholders: QueryFragmentBuilder["placeholder", HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
@@ -279,10 +297,10 @@ object QueryFragmentBuilder {
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],
        fieldEncoder: FieldEncoder[T],
-       queryFragmentBuilder: QueryFragmentBuilder["src", Placeholder[T, T] with Tag[A], PL]
+       queryFragmentBuilder: QueryFragmentBuilder["src", NamedPlaceholder[T] with Tag[A], PL]
       ): QueryFragmentBuilder["name=placeholder", Column[T] with Tag[A], PL] =
     instance((_: Column[T] with Tag[A]) =>
-      queryFragmentBuilder.build(Placeholder[T, A])
+      queryFragmentBuilder.build(NamedPlaceholder[T, A])
         .prepend(tag.value + " = "))
 
   implicit def emptyColumnNameAndPlaceholders: QueryFragmentBuilder["name=placeholder", HNil, HNil] =
@@ -323,19 +341,19 @@ object QueryFragmentBuilder {
       val e1 = left.build(expr.expr1)
       val e2 = right.build(expr.expr2)
       expr match {
-        case _: And[_, _] => e1.concatenate(e2, " AND ")
-        case _: Or[_, _] => e1.concatenate(e2, " OR ")
-        case _: Equals[_, _] => e1.concatenate(e2, " = ")
-        case _: NotEquals[_, _] => e1.concatenate(e2, " != ")
-        case _: GreaterThan[_, _] => e1.concatenate(e2, " > ")
-        case _: LessThan[_, _] => e1.concatenate(e2, " < ")
-        case _: GreaterThanOrEqual[_, _] => e1.concatenate(e2, " >= ")
-        case _: LessThanOrEqual[_, _] => e1.concatenate(e2, " <= ")
-        case _: Like[_, _] => e1.concatenate(e2, " LIKE ")
-        case _: IsSubset[_, _] => e1.concatenate(e2, " <@ ")
-        case _: IsSuperset[_, _] => e1.concatenate(e2, " @> ")
-        case _: Overlaps[_, _] => e1.concatenate(e2, " && ")
-        case _: IsIncluded[_, _] => e1.concatenate(e2.wrap("(", ")"), " = ANY")
+        case _: And[_, _] => e1.concatenateOptional(e2, " AND ")
+        case _: Or[_, _] => e1.concatenateOptional(e2, " OR ")
+        case _: Equals[_, _] => e1.concatenateRequired(e2, " = ")
+        case _: NotEquals[_, _] => e1.concatenateRequired(e2, " != ")
+        case _: GreaterThan[_, _] => e1.concatenateRequired(e2, " > ")
+        case _: LessThan[_, _] => e1.concatenateRequired(e2, " < ")
+        case _: GreaterThanOrEqual[_, _] => e1.concatenateRequired(e2, " >= ")
+        case _: LessThanOrEqual[_, _] => e1.concatenateRequired(e2, " <= ")
+        case _: Like[_, _] => e1.concatenateRequired(e2, " LIKE ")
+        case _: IsSubset[_, _] => e1.concatenateRequired(e2, " <@ ")
+        case _: IsSuperset[_, _] => e1.concatenateRequired(e2, " @> ")
+        case _: Overlaps[_, _] => e1.concatenateRequired(e2, " && ")
+        case _: IsIncluded[_, _] => e1.concatenateRequired(e2.wrap("(", ")"), " = ANY")
       }
     }
 

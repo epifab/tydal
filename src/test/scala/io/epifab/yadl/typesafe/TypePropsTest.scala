@@ -100,9 +100,9 @@ class TypePropsTest extends FunSuite {
     the[AreComparable[Double, Field[Option[Int]]]]
 
     // Text and time
-    the[AreComparable[Column[String] with Tag["test"], Placeholder[String, Any] with Tag["roar"]]]
-    the[AreComparable[Column[Instant] with Tag["test"], Placeholder[Instant, Any] with Tag["roar"]]]
-    the[AreComparable[Column[LocalDate] with Tag["test"], Placeholder[LocalDate, Any] with Tag["roar"]]]
+    the[AreComparable[Column[String] with Tag["test"], NamedPlaceholder[String] with Tag["roar"]]]
+    the[AreComparable[Column[Instant] with Tag["test"], NamedPlaceholder[Instant] with Tag["roar"]]]
+    the[AreComparable[Column[LocalDate] with Tag["test"], NamedPlaceholder[LocalDate] with Tag["roar"]]]
 
     // Fields
     the[AreComparable[Int, Field[Int]]]

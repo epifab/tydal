@@ -3,7 +3,7 @@ package io.epifab.yadl.runner
 import java.sql.Connection
 
 import io.epifab.yadl._
-import io.epifab.yadl.fields.{FieldT, Placeholder, Value}
+import io.epifab.yadl.fields.{FieldT, NamedPlaceholder, OptionalValue, Value}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -43,7 +43,7 @@ object StatementBuilder {
     (query: Query[HNil, OUTPUT]) =>
       new GenericStatement(query.sql, _ => RunnableStatement(query.sql, Seq.empty, query.fields))
 
-  implicit def placeholders[P <: Placeholder[_, _] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+  implicit def namedPlaceholder[P <: NamedPlaceholder[_] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        tagged: Tagged[P, PTAG],
        fieldT: FieldT[P, PTYPE],
@@ -61,4 +61,48 @@ object StatementBuilder {
           query.fields
         )
       )
+
+  implicit def value[P <: Value[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+      (implicit
+       fieldT: FieldT[P, PTYPE],
+       tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
+       tupler: Tupler.Aux[TAIL_INPUT, INPUT_TUPLE],
+       generic: Generic.Aux[INPUT_TUPLE, TAIL_INPUT]
+      ): StatementBuilder[P :: TAIL, TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
+    (query: Query[P :: TAIL, OUTPUT]) =>
+      new GenericStatement(query.sql, values => {
+        RunnableStatement(
+          query.sql,
+          tail
+            .build(Query(query.sql, query.placeholders.tail, query.fields))
+            .toRunnable(values)
+            .input prepended query.placeholders.head,
+          query.fields
+        )
+      })
+
+  implicit def optionalValue[P <: OptionalValue[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+      (implicit
+       fieldT: FieldT[P, PTYPE],
+       tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
+       tupler: Tupler.Aux[TAIL_INPUT, INPUT_TUPLE],
+       generic: Generic.Aux[INPUT_TUPLE, TAIL_INPUT]
+      ): StatementBuilder[P :: TAIL, TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
+    (query: Query[P :: TAIL, OUTPUT]) =>
+      new GenericStatement(query.sql, values => {
+        val tailValues = tail
+          .build(Query(query.sql, query.placeholders.tail, query.fields))
+          .toRunnable(values)
+          .input
+
+        val valueSeq = query.placeholders.head.value
+          .map(tailValues.prepended)
+          .getOrElse(tailValues)
+
+        RunnableStatement(
+          query.sql,
+          valueSeq,
+          query.fields
+        )
+      })
 }

@@ -103,6 +103,15 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       .unsafeRunSync() shouldBe Right(Seq(student1))
   }
 
+  it should "filter students by optional parameters" in {
+    val xxx = (for {
+      allStudents <- StudentsRepo.findAllBy(None, None)
+      student3 <- StudentsRepo.findAllBy(Some(3), None)
+    } yield (allStudents, student3)).transact(connection).unsafeRunSync()
+
+    xxx shouldBe Right(Seq(student1, student2, student3), Seq(student3))
+  }
+
   //  it can "inject and extract all sort of fields" in {
 //    getFields.transact(connection).unsafeRunSync() shouldBe Right(Seq(
 //      (1, Seq(3.0, 9.99), Map("blue" -> "sky", "yellow" -> "banana"), LocalDate.of(1992, 2, 25), Instant.parse("1986-03-08T09:00:00z"))

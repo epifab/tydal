@@ -58,11 +58,11 @@ object SelectQueries {
     implicit val mapEnc: FieldEncoder[Map[String, String]] = FieldEncoder.jsonEncoder
     implicit val mapDec: FieldDecoder[Map[String, String]] = FieldDecoder.jsonDecoder(the[Decoder[Map[String, String]]])
 
-    val int = Placeholder[Int, "int"]
-    val listOfDouble = Placeholder[Seq[Double], "listOfDouble"]
-    val json = Placeholder[Map[String, String], "map"]
-    val date = Placeholder[LocalDate, "date"]
-    val instant = Placeholder[Instant, "instant"]
+    val int = NamedPlaceholder[Int, "int"]
+    val listOfDouble = NamedPlaceholder[Seq[Double], "listOfDouble"]
+    val json = NamedPlaceholder[Map[String, String], "map"]
+    val date = NamedPlaceholder[LocalDate, "date"]
+    val instant = NamedPlaceholder[Instant, "instant"]
 
     Select
       .from(Students as "s")

@@ -6,6 +6,8 @@ import io.epifab.yadl.Tag
 import io.epifab.yadl.fields._
 import shapeless.{::, HList, HNil}
 
+import scala.util.Try
+
 /**
  * Type class to extract data from a generic result set
  *
@@ -50,7 +52,7 @@ object DataExtractor {
             getSeq(resultSet, innerType, fieldName)
 
           case TypeOption(innerDbType) =>
-            Option(resultSet.getObject(fieldName))
+            Try(Option(resultSet.getObject(fieldName))).toOption.flatten
               .map(_ => get(resultSet, innerDbType, fieldName))
         }
       }

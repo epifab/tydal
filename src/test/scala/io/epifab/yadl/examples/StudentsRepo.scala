@@ -1,11 +1,14 @@
 package io.epifab.yadl.examples
 
+import java.time.LocalDate
+
+import io.epifab.yadl.Implicits.ExtendedTag
+import io.epifab.yadl._
 import io.epifab.yadl.examples.Model.{Student, StudentExam}
 import io.epifab.yadl.examples.Schema._
-import io.epifab.yadl.runner.TransactionIO
-import io.epifab.yadl.{Delete, Insert, Select, Tag, Update, fields}
-import io.epifab.yadl.Implicits._
-import io.epifab.yadl.fields.{AreComparable, Column, Field, FieldDecoder, FieldEncoder, FieldT, NamedPlaceholder, Placeholder}
+import io.epifab.yadl.fields._
+import io.epifab.yadl.runner.{SelectStatement, TransactionIO}
+import shapeless.HNil
 
 object StudentsRepo {
   private val studentExamsQuery =
@@ -38,13 +41,23 @@ object StudentsRepo {
       (implicit
        fieldEncoder: FieldEncoder[T],
        fieldDecoder: FieldDecoder[T],
-       areComparable: AreComparable[C, Placeholder[T, T] with Tag["x"]]): TransactionIO[Seq[Student]] = {
+       areComparable: AreComparable[C, NamedPlaceholder[T] with Tag["x"]]): TransactionIO[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)
-      .where { $ => column($("s").schema) === Placeholder[T, "x"] }
+      .where { $ => column($("s").schema) === NamedPlaceholder[T, "x"] }
       .compile
       .withValues(Tuple1("x" ~~> value))
+      .mapTo[Student]
+  }
+
+  def findAllBy(id: Option[Int], email: Option[Option[String]]): TransactionIO[Seq[Student]] = {
+    Select
+      .from(Students as "s")
+      .take(_("s").*)
+      .where { $ => $("s", "id") === OptionalValue(id) }
+      .compile
+      .withValues(())
       .mapTo[Student]
   }
 
