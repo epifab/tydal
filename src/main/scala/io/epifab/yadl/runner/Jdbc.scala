@@ -3,7 +3,7 @@ package io.epifab.yadl.runner
 import java.sql.{Connection, PreparedStatement}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
-import io.epifab.yadl.fields.{FieldType, TypeDate, TypeDateTime, TypeDouble, TypeEnum, TypeGeography, TypeGeometry, TypeInt, TypeJson, TypeOption, TypeSeq, TypeString, Value}
+import io.epifab.yadl.fields._
 
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -33,7 +33,7 @@ object SqlDate {
 }
 
 object Jdbc {
-  def initStatement(connection: Connection, sql: String, placeholderValues: Seq[Value[_]]): Either[DriverError, PreparedStatement] =
+  def initStatement(connection: Connection, sql: String, placeholderValues: Seq[PlaceholderValue[_]]): Either[DriverError, PreparedStatement] =
     Try(connection.prepareStatement(sql)).toEither match {
       case Right(preparedStatement) =>
         placeholderValues.zipWithIndex.foreach {

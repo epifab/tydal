@@ -9,8 +9,8 @@ object FieldValues {
   implicit def field[F <: Field[_] with Tag[_], T, A <: String]
       (implicit
        fieldT: FieldT[F, T],
-       taggedField: Tagged[F, A]): FieldValues[F, Value[T] with Tag[A]] =
-    new FieldValues[F, Value[T] with Tag[A]] { }
+       taggedField: Tagged[F, A]): FieldValues[F, PlaceholderValue[T] with Tag[A]] =
+    new FieldValues[F, PlaceholderValue[T] with Tag[A]] { }
 
   implicit val hNil: FieldValues[HNil, HNil] = new FieldValues[HNil, HNil] {}
 

@@ -3,7 +3,7 @@ package io.epifab.yadl.runner
 import java.sql.Connection
 
 import io.epifab.yadl._
-import io.epifab.yadl.fields.{FieldT, NamedPlaceholder, OptionalValue, Value}
+import io.epifab.yadl.fields.{FieldT, NamedPlaceholder, OptionalPlaceholderValue, PlaceholderValue}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -32,7 +32,7 @@ class SelectStatement[INPUT, FIELDS <: HList]
   TransactionIO[Seq[RAW_OUTPUT]] = TransactionIO(toRunnable(values))
 }
 
-case class RunnableStatement[FIELDS <: HList](sql: String, input: Seq[Value[_]], fields: FIELDS)
+case class RunnableStatement[FIELDS <: HList](sql: String, input: Seq[PlaceholderValue[_]], fields: FIELDS)
 
 trait StatementBuilder[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT, OUTPUT <: HList] {
   def build(query: Query[PLACEHOLDERS, OUTPUT]): GenericStatement[RAW_INPUT, INPUT, OUTPUT]
@@ -48,9 +48,9 @@ object StatementBuilder {
        tagged: Tagged[P, PTAG],
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
-       tupler: Tupler.Aux[Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE],
-       generic: Generic.Aux[INPUT_TUPLE, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT]
-      ): StatementBuilder[P :: TAIL, Value[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
+       tupler: Tupler.Aux[PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE],
+       generic: Generic.Aux[INPUT_TUPLE, PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT]
+      ): StatementBuilder[P :: TAIL, PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
     (query: Query[P :: TAIL, OUTPUT]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
           query.sql,
@@ -62,7 +62,7 @@ object StatementBuilder {
         )
       )
 
-  implicit def value[P <: Value[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+  implicit def value[P <: PlaceholderValue[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
@@ -81,7 +81,7 @@ object StatementBuilder {
         )
       })
 
-  implicit def optionalValue[P <: OptionalValue[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+  implicit def optionalValue[P <: OptionalPlaceholderValue[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],

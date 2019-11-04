@@ -246,10 +246,10 @@ object QueryFragmentBuilder {
   implicit def placeholder[P <: NamedPlaceholder[_]]: QueryFragmentBuilder["src", P, P :: HNil] =
     instance((f: P) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def value[V <: Value[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+  implicit def value[V <: PlaceholderValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
     instance((f: V) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def optionalValue[V <: OptionalValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+  implicit def optionalValue[V <: OptionalPlaceholderValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
     instance((f: V) => QueryFragment(f.value.map(_ => s"?::${f.encoder.dbType.sqlName}"), f :: HNil))
 
   // ------------------------------

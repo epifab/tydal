@@ -55,7 +55,7 @@ object StudentsRepo {
     Select
       .from(Students as "s")
       .take(_("s").*)
-      .where { $ => $("s", "id") === OptionalValue(id) }
+      .where { $ => $("s", "id") === OptionalPlaceholderValue(id) }
       .compile
       .withValues(())
       .mapTo[Student]

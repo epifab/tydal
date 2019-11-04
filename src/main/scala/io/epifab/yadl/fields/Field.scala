@@ -86,42 +86,42 @@ object NamedPlaceholder {
     }
 }
 
-class Value[X](val value: X)(implicit val decoder: FieldDecoder[X], val encoder: FieldEncoder[X])
+class PlaceholderValue[X](val value: X)(implicit val decoder: FieldDecoder[X], val encoder: FieldEncoder[X])
   extends Placeholder[X] {
   def dbValue: encoder.DBTYPE = encoder.encode(value)
 
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Value[X] with Tag[TAG] =
-    new Value[X](value) with Tag[TAG] {
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): PlaceholderValue[X] with Tag[TAG] =
+    new PlaceholderValue[X](value) with Tag[TAG] {
       override def tagValue: String = alias.value
     }
 }
 
-object Value {
+object PlaceholderValue {
   def apply[TAG <: String with Singleton, VALUE]
   (tag: TAG, value: VALUE)
   (implicit
    encoder: FieldEncoder[VALUE],
-   decoder: FieldDecoder[VALUE]): Value[VALUE] with Tag[TAG] =
-    new Value(value) with Tag[TAG] {
+   decoder: FieldDecoder[VALUE]): PlaceholderValue[VALUE] with Tag[TAG] =
+    new PlaceholderValue(value) with Tag[TAG] {
       override def tagValue: String = tag
     }
 }
 
-class OptionalValue[T] private(val value: Option[Value[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
+class OptionalPlaceholderValue[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
   extends Placeholder[Option[T]] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): OptionalValue[T] with Tag[TAG] = new OptionalValue(value) with Tag[TAG] {
+  override def as[TAG <: String](implicit alias: ValueOf[TAG]): OptionalPlaceholderValue[T] with Tag[TAG] = new OptionalPlaceholderValue(value) with Tag[TAG] {
     override def tagValue: String = alias.value
   }
 }
 
-object OptionalValue {
+object OptionalPlaceholderValue {
   def apply[T]
   (value: Option[T])
   (implicit
    decoderOpt: FieldDecoder[Option[T]],
    decoder: FieldDecoder[T],
-   encoder: FieldEncoder[T]): OptionalValue[T] =
-    new OptionalValue(value.map(new Value(_)))
+   encoder: FieldEncoder[T]): OptionalPlaceholderValue[T] =
+    new OptionalPlaceholderValue(value.map(new PlaceholderValue(_)))
 }
 
 @implicitNotFound("Could not build a schema for this table.\n" +
@@ -156,14 +156,6 @@ trait FieldT[-F <: Field[_], T] {
 
 object FieldT {
   implicit def pure[T]: FieldT[Field[T], T] = (field: Field[T]) => field
-}
-
-trait ValueT[-F <: Value[_], T] {
-  def get(f: F): Value[T]
-}
-
-object ValueT {
-  implicit def pure[T]: ValueT[Value[T], T] = (value: Value[T]) => value
 }
 
 object Field {
