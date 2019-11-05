@@ -1,5 +1,7 @@
 package io.epifab.yadl.runner
 
+import io.epifab.yadl.Ascending.AscendingOrder
+import io.epifab.yadl.Descending.DescendingOrder
 import io.epifab.yadl._
 import io.epifab.yadl.fields._
 import io.epifab.yadl.runner.FragmentType._
@@ -86,7 +88,11 @@ object QueryBuilder {
       override def build(x: T): Query[P, F] = f(x)
     }
 
-  implicit def selectQuery[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList, P6 <: HList, P7 <: HList]
+  implicit def selectQuery[
+    FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, SORT_BY <: HList,
+    P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList,
+    P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList
+  ]
     (implicit
      fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, FIELDS, P1],
      from: QueryFragmentBuilder[FT_From, SOURCES, P2],
@@ -94,12 +100,16 @@ object QueryBuilder {
      where: QueryFragmentBuilder[FT_Where, WHERE, P4],
      concat2: Concat.Aux[P3, P4, P5],
      groupBy: QueryFragmentBuilder[FT_FieldExprList, GROUP_BY, P6],
-     concat3: Concat.Aux[P5, P6, P7]): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE], P7, FIELDS] =
+     concat3: Concat.Aux[P5, P6, P7],
+     sortBy: QueryFragmentBuilder[FT_SortBy, SORT_BY, P8],
+     concat4: Concat.Aux[P7, P8, P9]
+    ): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, _, SORT_BY], P9, FIELDS] =
     QueryBuilder.instance(select =>
       (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.sources).prepend("FROM ") `+ +`
-        where.build(select.filter).prepend("WHERE ") `+ +`
-        groupBy.build(select.groupByFields).prepend("GROUP BY ")
+        where.build(select.whereFilter).prepend("WHERE ") `+ +`
+        groupBy.build(select.groupByFields).prepend("GROUP BY ") `+ +`
+        sortBy.build(select.sortByClause).prepend("ORDER BY ")
       ).get(select.fields)
     )
 
@@ -150,6 +160,7 @@ object FragmentType {
   type FT_ColumnNameList = "ColumnNameList"
   type FT_PlaceholderList = "PlaceholderList"
   type FT_ColumnNameAndPlaceholderList = "ColumnNameAndPlaceholderList"
+  type FT_SortBy = "SortByList"
 }
 
 object QueryFragmentBuilder {
@@ -190,7 +201,7 @@ object QueryFragmentBuilder {
   implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_, _] with Tag[_], HNil] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def fromSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _], P <: HList]
+  implicit def fromSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _, _, _], P <: HList]
       (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SUBQUERY_FIELDS, S] with Tag[_], P] =
     instance(subQuery =>
       QueryFragment(query.build(subQuery.select))
@@ -231,6 +242,25 @@ object QueryFragmentBuilder {
     QueryFragmentBuilder.instance(fields =>
       head.build(fields.head) `+,+` tail.build(fields.tail)
     )
+
+  // ------------------------------
+  // Sort by
+  // ------------------------------
+
+  implicit def sortByField[S <: SortBy[_]]: QueryFragmentBuilder[FT_SortBy, S, HNil] =
+    QueryFragmentBuilder.instance(sortBy => QueryFragment(sortBy.alias + " " + (sortBy.sortOrder match {
+      case AscendingOrder => "ASC"
+      case DescendingOrder => "DESC"
+    })))
+
+  implicit def sortByEmptyList: QueryFragmentBuilder[FT_SortBy, HNil, HNil] =
+    QueryFragmentBuilder.instance(_ => QueryFragment.empty)
+
+  implicit def sortByNonEmptyList[H, T <: HList]
+      (implicit
+       head: QueryFragmentBuilder[FT_SortBy, H, HNil],
+       tail: QueryFragmentBuilder[FT_SortBy, T, HNil]): QueryFragmentBuilder[FT_SortBy, H :: T, HNil] =
+    instance(clauses => head.build(clauses.head) `+,+` tail.build(clauses.tail))
 
   // ------------------------------
   // Field (src)

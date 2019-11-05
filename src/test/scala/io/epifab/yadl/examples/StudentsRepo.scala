@@ -18,11 +18,12 @@ object StudentsRepo {
       .take($ => (
         $("s", "id").as["sid"],
         $("s", "name").as["sname"],
-        $("e", "score").as["rate"],
+        $("e", "score").as["score"],
         $("e", "exam_timestamp").as["etime"],
         $("c", "name").as["cname"]
       ))
-      .where(_ ("s", "id") === "sid")
+      .where(_("s", "id") in "sids")
+      .sortBy($ => (Ascending($("sid")), Descending($("score"))))
       .compile
 
   def findById(id: Int): TransactionIO[Option[Student]] =
@@ -74,9 +75,9 @@ object StudentsRepo {
       .mapTo[Student]
   }
 
-  def findStudentExams(id: Int): TransactionIO[Seq[StudentExam]] = {
+  def findStudentExams(ids: Seq[Int]): TransactionIO[Seq[StudentExam]] = {
     studentExamsQuery
-      .withValues(Tuple1("sid" ~~> id))
+      .withValues(Tuple1("sids" ~~> ids))
       .mapTo[StudentExam]
   }
 

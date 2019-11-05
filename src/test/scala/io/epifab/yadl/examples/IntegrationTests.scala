@@ -66,9 +66,10 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   private val connection: Connection = QueryRunnerFactories.connection
 
   it should "run a query successfully" in {
-    StudentsRepo.findStudentExams(2).transact(connection).unsafeRunSync().map(_.toSet) shouldBe Right(Set(
-      StudentExam(2, "Jane Doe", 29, exam2.timestamp, "Math"),
-      StudentExam(2, "Jane Doe", 30, exam3.timestamp, "Astronomy")
+    StudentsRepo.findStudentExams(Seq(2, 1)).transact(connection).unsafeRunSync() shouldBe Right(Seq(
+      StudentExam(1, "John Doe", 24, exam1.timestamp, "Math"),
+      StudentExam(2, "Jane Doe", 30, exam3.timestamp, "Astronomy"),
+      StudentExam(2, "Jane Doe", 29, exam2.timestamp, "Math")
     ))
   }
 
