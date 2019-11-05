@@ -96,6 +96,9 @@ object CanBeSubset {
 
 object CanOverlap {
   implicit def pure[T]: CanOverlap[Seq[T], Seq[T]] = new CanOverlap[Seq[T], Seq[T]] {}
+  implicit def optionLeft[T]: CanOverlap[Option[Seq[T]], Seq[T]] = new CanOverlap[Option[Seq[T]], Seq[T]] {}
+  implicit def optionRight[T]: CanOverlap[Seq[T], Option[Seq[T]]] = new CanOverlap[Seq[T], Option[Seq[T]]] {}
+  implicit def option[T]: CanOverlap[Option[Seq[T]], Option[Seq[T]]] = new CanOverlap[Option[Seq[T]], Option[Seq[T]]] {}
 
   implicit def field[F <: Field[_], G <: Field[_], T, U]
       (implicit

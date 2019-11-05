@@ -105,6 +105,13 @@ object PlaceholderValue {
     new PlaceholderValue(value) with Tag[TAG] {
       override def tagValue: String = tag
     }
+
+  def apply[VALUE]
+  (value: VALUE)
+  (implicit
+   encoder: FieldEncoder[VALUE],
+   decoder: FieldDecoder[VALUE]): PlaceholderValue[VALUE] =
+    new PlaceholderValue(value)
 }
 
 class OptionalPlaceholderValue[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
@@ -118,10 +125,9 @@ object OptionalPlaceholderValue {
   def apply[T]
   (value: Option[T])
   (implicit
-   decoderOpt: FieldDecoder[Option[T]],
    decoder: FieldDecoder[T],
    encoder: FieldEncoder[T]): OptionalPlaceholderValue[T] =
-    new OptionalPlaceholderValue(value.map(new PlaceholderValue(_)))
+    new OptionalPlaceholderValue(value.map(new PlaceholderValue(_)))(decoder.toOption, encoder)
 }
 
 @implicitNotFound("Could not build a schema for this table.\n" +
@@ -163,6 +169,9 @@ object Field {
     def ===[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): Equals[F1, F2] =
       Equals(field1, field2)
 
+    def like[F2 <: Field[_]](field2: F2)(implicit leftIsText: IsText[F1], rightIsText: IsText[F2]): Like[F1, F2] =
+      Like(field1, field2)
+
     def !==[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): NotEquals[F1, F2] =
       NotEquals(field1, field2)
 
@@ -199,6 +208,15 @@ object Field {
      fieldDecoder: FieldDecoder[T],
      comparable: AreComparable[F1, NamedPlaceholder[T] with Tag[NAME]]): Equals[F1, NamedPlaceholder[T] with Tag[NAME]] =
       Equals(field1, NamedPlaceholder[T, NAME])
+
+    def like[NAME <: String with Singleton]
+    (placeholderName: NAME)
+    (implicit
+     valueOf: ValueOf[NAME],
+     isText: IsText[F1],
+     fieldEncoder: FieldEncoder[String],
+     fieldDecoder: FieldDecoder[String]): Like[F1, NamedPlaceholder[String] with Tag[NAME]] =
+      Like(field1, NamedPlaceholder[String, NAME])
 
     def !==[NAME <: String with Singleton, T]
     (placeholderName: NAME)

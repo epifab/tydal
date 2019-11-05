@@ -2,6 +2,7 @@ package io.epifab.yadl.examples
 
 import java.sql.Connection
 import java.time.{Instant, LocalDate}
+import java.util.concurrent.atomic.AtomicInteger
 
 import io.epifab.yadl.examples.Model._
 import io.epifab.yadl.runner.{DataError, DriverError}
@@ -104,12 +105,85 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   }
 
   it should "filter students by optional parameters" in {
-    val xxx = (for {
-      allStudents <- StudentsRepo.findAllBy(None, None)
-      student3 <- StudentsRepo.findAllBy(Some(3), None)
-    } yield (allStudents, student3)).transact(connection).unsafeRunSync()
+    val atomicInteger = new AtomicInteger(100)
+    val id = atomicInteger.get()
+    def newId = atomicInteger.addAndGet(1)
 
-    xxx shouldBe Right(Seq(student1, student2, student3), Seq(student3))
+    val a24yo = LocalDate.now.minusYears(24)
+    val a23yo = LocalDate.now.minusYears(23)
+    val a22yo = LocalDate.now.minusYears(22)
+    val a21yo = LocalDate.now.minusYears(21)
+    val allInterests = Seq(Interest.Art, Interest.History, Interest.Math, Interest.Music)
+
+    (for {
+      // matching email, all interests
+      _ <- StudentsRepo.add(Student(newId, s"James $id Doe", Some(s"james$id@yadl.com"), a24yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Doe", Some(s"jack$id@yadl.com"), a23yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Doe", Some(s"john$id@yadl.com"), a22yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Doe", Some(s"jane$id@yadl.com"), a21yo, None, allInterests))
+      // non matching email
+      _ <- StudentsRepo.add(Student(newId, s"James $id Doe", Some(s"james${id}@roar.com"), a24yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Doe", Some(s"jack${id}@roar.com"), a23yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Doe", Some(s"john${id}@roar.com"), a22yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Doe", Some(s"jane${id}@roar.com"), a21yo, None, allInterests))
+      // matching email, only math
+      _ <- StudentsRepo.add(Student(newId, s"James $id Doe", Some(s"james$id@yadl.com"), a24yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Doe", Some(s"jack$id@yadl.com"), a23yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Doe", Some(s"john$id@yadl.com"), a22yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Doe", Some(s"jane$id@yadl.com"), a21yo, None, Seq(Interest.Math)))
+
+      // different surname
+
+      // matching email, all interests
+      _ <- StudentsRepo.add(Student(newId, s"James $id Roe", Some(s"james$id@yadl.com"), a24yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Roe", Some(s"jack$id@yadl.com"), a23yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Roe", Some(s"john$id@yadl.com"), a22yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Roe", Some(s"jane$id@yadl.com"), a21yo, None, allInterests))
+      // non matching email
+      _ <- StudentsRepo.add(Student(newId, s"James $id Roe", Some(s"james${id}@roar.com"), a24yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Roe", Some(s"jack${id}@roar.com"), a23yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Roe", Some(s"john${id}@roar.com"), a22yo, None, allInterests))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Roe", Some(s"jane${id}@roar.com"), a21yo, None, allInterests))
+      // matching email, only math
+      _ <- StudentsRepo.add(Student(newId, s"James $id Roe", Some(s"james$id@yadl.com"), a24yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"Jack $id Roe", Some(s"jack$id@yadl.com"), a23yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"John $id Roe", Some(s"john$id@yadl.com"), a22yo, None, Seq(Interest.Math)))
+      _ <- StudentsRepo.add(Student(newId, s"Jane $id Roe", Some(s"jane$id@yadl.com"), a21yo, None, Seq(Interest.Math)))
+    } yield ()).transact(connection).unsafeRunSync() shouldBe Symbol("Right")
+
+    val results = for {
+      i1 <- StudentsRepo.findAllBy(
+        minAge = Some(22),
+      ).map(_.length)
+
+      i2 <- StudentsRepo.findAllBy(
+        minAge = Some(22),
+        maxAge = Some(23),
+      ).map(_.length)
+
+      i3 <- StudentsRepo.findAllBy(
+        minAge = Some(22),
+        maxAge = Some(23),
+        name = Some("%Doe%"),
+      ).map(_.length)
+
+      i4 <- StudentsRepo.findAllBy(
+        minAge = Some(22),
+        maxAge = Some(23),
+        name = Some("%Doe%"),
+        email = Some(s"%@yadl.com")
+      ).map(_.length)
+
+      i5 <- StudentsRepo.findAllBy(
+        minAge = Some(22),
+        maxAge = Some(23),
+        name = Some("%Doe%"),
+        email = Some(s"%@yadl.com"),
+        interests = Some(Seq(Interest.Music))
+      ).map(_.length)
+    } yield (i1, i2, i3, i4, i5)
+
+    results.transact(connection).unsafeRunSync() shouldBe Right((21, 12, 6, 4, 2))
   }
 
   //  it can "inject and extract all sort of fields" in {

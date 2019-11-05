@@ -1,8 +1,9 @@
 package io.epifab.yadl.runner
 
-import io.epifab.yadl.fields._
-import io.epifab.yadl.utils.Concat
 import io.epifab.yadl._
+import io.epifab.yadl.fields._
+import io.epifab.yadl.runner.FragmentType._
+import io.epifab.yadl.utils.Concat
 import shapeless.{::, Generic, HList, HNil}
 
 case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, fields: FIELDS)
@@ -87,26 +88,26 @@ object QueryBuilder {
 
   implicit def selectQuery[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList, P6 <: HList, P7 <: HList]
     (implicit
-     fields: QueryFragmentBuilder["fields", FIELDS, P1],
-     from: QueryFragmentBuilder["from", SOURCES, P2],
+     fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, FIELDS, P1],
+     from: QueryFragmentBuilder[FT_From, SOURCES, P2],
      concat1: Concat.Aux[P1, P2, P3],
-     where: QueryFragmentBuilder["where", WHERE, P4],
+     where: QueryFragmentBuilder[FT_Where, WHERE, P4],
      concat2: Concat.Aux[P3, P4, P5],
-     groupBy: QueryFragmentBuilder["groupBy", GROUP_BY, P6],
+     groupBy: QueryFragmentBuilder[FT_FieldExprList, GROUP_BY, P6],
      concat3: Concat.Aux[P5, P6, P7]): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE], P7, FIELDS] =
     QueryBuilder.instance(select =>
       (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
-        from.build(select.sources).map("FROM " + _) `+ +`
-        where.build(select.filter).map("WHERE " + _) `+ +`
-        groupBy.build(select.groupByFields).map("GROUP BY " + _)
+        from.build(select.sources).prepend("FROM ") `+ +`
+        where.build(select.filter).prepend("WHERE ") `+ +`
+        groupBy.build(select.groupByFields).prepend("GROUP BY ")
       ).get(select.fields)
     )
 
   implicit def insertQuery[NAME <: String, SCHEMA, COLUMNS <: HList, PLACEHOLDERS <: HList]
       (implicit
        generic: Generic.Aux[SCHEMA, COLUMNS],
-       names: QueryFragmentBuilder["name", COLUMNS, HNil],
-       placeholders: QueryFragmentBuilder["placeholder", COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, SCHEMA], PLACEHOLDERS, HNil] =
+       names: QueryFragmentBuilder[FT_ColumnNameList, COLUMNS, HNil],
+       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, SCHEMA], PLACEHOLDERS, HNil] =
     QueryBuilder.instance(insert => {
       val columns = generic.to(insert.table.schema)
       (names.build(columns).wrap("(", ")") ++
@@ -117,8 +118,8 @@ object QueryBuilder {
 
   implicit def updateQuery[NAME <: String, SCHEMA, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, WHERE <: BinaryExpr]
       (implicit
-       placeholders: QueryFragmentBuilder["name=placeholder", COLUMNS, P],
-       where: QueryFragmentBuilder["where", WHERE, Q],
+       placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, COLUMNS, P],
+       where: QueryFragmentBuilder[FT_Where, WHERE, Q],
        concat: Concat.Aux[P, Q, R]
       ): QueryBuilder[Update[NAME, SCHEMA, COLUMNS, WHERE], R, HNil] =
     QueryBuilder.instance(update => {
@@ -128,7 +129,7 @@ object QueryBuilder {
 
   implicit def deleteQuery[NAME <: String, SCHEMA, P <: HList, WHERE <: BinaryExpr]
       (implicit
-       where: QueryFragmentBuilder["where", WHERE, P]
+       where: QueryFragmentBuilder[FT_Where, WHERE, P]
       ): QueryBuilder[Delete[NAME, SCHEMA, WHERE], P, HNil] =
     QueryBuilder.instance(delete =>
       (QueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
@@ -141,78 +142,92 @@ sealed trait QueryFragmentBuilder[TYPE, -X, P <: HList] {
   def build(x: X): QueryFragment[P]
 }
 
+object FragmentType {
+  type FT_FieldExprAndAliasList = "FieldExprAndAliasList"
+  type FT_FieldExprList = "FieldExprList"
+  type FT_From = "From"
+  type FT_Where = "FT_Where"
+  type FT_ColumnNameList = "ColumnNameList"
+  type FT_PlaceholderList = "PlaceholderList"
+  type FT_ColumnNameAndPlaceholderList = "ColumnNameAndPlaceholderList"
+}
+
 object QueryFragmentBuilder {
-  def instance[A <: String, T, P <: HList](f: T => QueryFragment[P]): QueryFragmentBuilder[A, T, P] =
+  class PartialQFB[FT] {
+    def apply[T, P <: HList](t: T)(implicit queryFragmentBuilder: QueryFragmentBuilder[FT, T, P]): QueryFragmentBuilder[FT, T, P] =
+      queryFragmentBuilder
+  }
+
+  def apply[FT] = new PartialQFB[FT]
+
+  def instance[A, T, P <: HList](f: T => QueryFragment[P]): QueryFragmentBuilder[A, T, P] =
     new QueryFragmentBuilder[A, T, P] {
       override def build(x: T): QueryFragment[P] = f(x)
     }
 
-  implicit def emptySourceFrom: QueryFragmentBuilder["from", HNil, HNil] =
+  implicit def fromEmptySources: QueryFragmentBuilder[FT_From, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
-  implicit def nonEmptySourceFrom[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+  implicit def fromNonEmptySources[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["from", H, P],
-       tail: QueryFragmentBuilder["from", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["from", H :: T, R] =
+       head: QueryFragmentBuilder[FT_From, H, P],
+       tail: QueryFragmentBuilder[FT_From, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, H :: T, R] =
     instance { sources =>
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def joinFrom[S <: Selectable[_] with Tag[_], WHERE <: BinaryExpr, P <: HList, Q <: HList, R <: HList]
+  implicit def fromJoin[S <: Selectable[_] with Tag[_], WHERE <: BinaryExpr, P <: HList, Q <: HList, R <: HList]
       (implicit
-       src: QueryFragmentBuilder["from", S, P],
-       where: QueryFragmentBuilder["where", WHERE, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["from", Join[S, WHERE], R] =
+       src: QueryFragmentBuilder[FT_From, S, P],
+       where: QueryFragmentBuilder[FT_Where, WHERE, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, WHERE], R] =
     instance(join =>
       src.build(join.selectable).prepend("INNER JOIN ") ++
         where.build(join.filter).prepend(" ON ")
     )
 
-  implicit val tableFrom: QueryFragmentBuilder["from", Table[_, _] with Tag[_], HNil] =
+  implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_, _] with Tag[_], HNil] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def subQueryFrom[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _], P <: HList]
-      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder["from", SelectSubQuery[SUBQUERY_FIELDS, S] with Tag[_], P] =
+  implicit def fromSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _], P <: HList]
+      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SUBQUERY_FIELDS, S] with Tag[_], P] =
     instance(subQuery =>
       QueryFragment(query.build(subQuery.select))
         .wrap("(", ") AS " + subQuery.tagValue)
     )
 
   // ------------------------------
-  // Fields
+  // Src and alias lists
   // ------------------------------
 
-  implicit def field[P <: HList, F <: Field[_] with Tag[_]](implicit src: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["fields", F, P] =
+  implicit def fieldExprAndAliasField[P <: HList, F <: Tag[_]](implicit src: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprAndAliasList, F, P] =
     instance((f: F) => src.build(f).append(" AS " + f.tagValue))
 
-  implicit def emptyFields: QueryFragmentBuilder["fields", HNil, HNil] =
+  implicit def fieldExprAndAliasEmptyList: QueryFragmentBuilder[FT_FieldExprAndAliasList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
-  implicit def nonEmptyFields[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+  implicit def fieldExprAndAliasNonEmptyList[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["fields", H, P],
-       tail: QueryFragmentBuilder["fields", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["fields", H :: T, R] =
+       head: QueryFragmentBuilder[FT_FieldExprAndAliasList, H, P],
+       tail: QueryFragmentBuilder[FT_FieldExprAndAliasList, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_FieldExprAndAliasList, H :: T, R] =
     QueryFragmentBuilder.instance(fields =>
       head.build(fields.head) `+,+` tail.build(fields.tail)
     )
 
   // ------------------------------
-  // Group by
+  // Src lists
   // ------------------------------
 
-  implicit def groupByField[F <: Field[_], P <: HList](implicit field: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["groupBy", F, P] =
-    instance(field.build)
-
-  implicit def emptyGroupByFields: QueryFragmentBuilder["groupBy", HNil, HNil] =
+  implicit def fieldExprEmptyList: QueryFragmentBuilder[FT_FieldExprList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
-  implicit def nonEmptyGroupByFields[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+  implicit def fieldExprNonEmptyList[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["groupBy", H, P],
-       tail: QueryFragmentBuilder["groupBy", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["groupBy", H :: T, R] =
+       head: QueryFragmentBuilder[FT_FieldExprList, H, P],
+       tail: QueryFragmentBuilder[FT_FieldExprList, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_FieldExprList, H :: T, R] =
     QueryFragmentBuilder.instance(fields =>
       head.build(fields.head) `+,+` tail.build(fields.tail)
     )
@@ -221,52 +236,52 @@ object QueryFragmentBuilder {
   // Field (src)
   // ------------------------------
 
-  implicit val columnSrc: QueryFragmentBuilder["src", Column[_], HNil] =
+  implicit val fieldExprColumn: QueryFragmentBuilder[FT_FieldExprList, Column[_], HNil] =
     instance((f: Column[_]) => QueryFragment(s"${f.srcAlias}.${f.name}"))
 
-  implicit def castSrc[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["src", Cast[F, _], P] =
+  implicit def fieldExprCast[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Cast[F, _], P] =
     instance((f: Cast[F, _]) => builder.build(f.field).append("::" + f.decoder.dbType.sqlName))
 
-  implicit def nullableSrc[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["src", Nullable[F, _], P] =
+  implicit def fieldExprNullable[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Nullable[F, _], P] =
     instance((f: Nullable[F, _]) => builder.build(f.field))
 
-  implicit def aggregationSrc[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["src", Aggregation[F, _], P] =
+  implicit def fieldExprAggregation[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Aggregation[F, _], P] =
     instance((f: Aggregation[F, _]) => builder.build(f.field).wrap(f.dbFunction.name + "(", ")"))
 
-  implicit def fieldExpr1[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["src", FieldExpr1[F, _], P] =
+  implicit def fieldExpr1[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, FieldExpr1[F, _], P] =
     instance((f: FieldExpr1[F, _]) => builder.build(f.field).wrap(f.dbFunction.name + "(", ")"))
 
   implicit def fieldExpr2[F1 <: Field[_], F2 <: Field[_], P <: HList, Q <: HList, R <: HList]
       (implicit
-       builder1: QueryFragmentBuilder["src", F1, P],
-       builder2: QueryFragmentBuilder["src", F2, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["src", FieldExpr2[F1, F2, _], R] =
+       builder1: QueryFragmentBuilder[FT_FieldExprList, F1, P],
+       builder2: QueryFragmentBuilder[FT_FieldExprList, F2, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_FieldExprList, FieldExpr2[F1, F2, _], R] =
     instance((f: FieldExpr2[F1, F2, _]) => (builder1.build(f.field1) `+,+` builder2.build(f.field2)).wrap(f.dbFunction.name + "(", ")"))
 
-  implicit def placeholder[P <: NamedPlaceholder[_]]: QueryFragmentBuilder["src", P, P :: HNil] =
+  implicit def placeholder[P <: NamedPlaceholder[_]]: QueryFragmentBuilder[FT_FieldExprList, P, P :: HNil] =
     instance((f: P) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def value[V <: PlaceholderValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+  implicit def value[V <: PlaceholderValue[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def optionalValue[V <: OptionalPlaceholderValue[_]]: QueryFragmentBuilder["src", V, V :: HNil] =
+  implicit def optionalValue[V <: OptionalPlaceholderValue[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => QueryFragment(f.value.map(_ => s"?::${f.encoder.dbType.sqlName}"), f :: HNil))
 
   // ------------------------------
   // Column name and placeholder
   // ------------------------------
 
-  implicit val columnName: QueryFragmentBuilder["name", Column[_], HNil] =
+  implicit val columnName: QueryFragmentBuilder[FT_ColumnNameList, Column[_], HNil] =
     instance((f: Column[_]) => QueryFragment(f.name))
 
-  implicit def emptyColumnNames: QueryFragmentBuilder["name", HNil, HNil] =
+  implicit def emptyColumnNames: QueryFragmentBuilder[FT_ColumnNameList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
   implicit def nonEmptyColumnNames[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["name", H, P],
-       tail: QueryFragmentBuilder["name", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["name", H :: T, R] =
+       head: QueryFragmentBuilder[FT_ColumnNameList, H, P],
+       tail: QueryFragmentBuilder[FT_ColumnNameList, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_ColumnNameList, H :: T, R] =
     instance { sources =>
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }
@@ -276,18 +291,18 @@ object QueryFragmentBuilder {
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],
        fieldEncoder: FieldEncoder[T],
-       queryFragmentBuilder: QueryFragmentBuilder["src", NamedPlaceholder[T] with Tag[A], PL]
-      ): QueryFragmentBuilder["placeholder", Column[T] with Tag[A], PL] =
+       queryFragmentBuilder: QueryFragmentBuilder[FT_FieldExprList, NamedPlaceholder[T] with Tag[A], PL]
+      ): QueryFragmentBuilder[FT_PlaceholderList, Column[T] with Tag[A], PL] =
     instance((_: Column[T] with Tag[A]) => queryFragmentBuilder.build(NamedPlaceholder[T, A]))
 
-  implicit def emptyColumnPlaceholders: QueryFragmentBuilder["placeholder", HNil, HNil] =
+  implicit def emptyColumnPlaceholders: QueryFragmentBuilder[FT_PlaceholderList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
   implicit def nonEmptyColumnPlaceholders[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["placeholder", H, P],
-       tail: QueryFragmentBuilder["placeholder", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["placeholder", H :: T, R] =
+       head: QueryFragmentBuilder[FT_PlaceholderList, H, P],
+       tail: QueryFragmentBuilder[FT_PlaceholderList, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_PlaceholderList, H :: T, R] =
     instance { sources =>
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }
@@ -297,20 +312,20 @@ object QueryFragmentBuilder {
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],
        fieldEncoder: FieldEncoder[T],
-       queryFragmentBuilder: QueryFragmentBuilder["src", NamedPlaceholder[T] with Tag[A], PL]
-      ): QueryFragmentBuilder["name=placeholder", Column[T] with Tag[A], PL] =
+       queryFragmentBuilder: QueryFragmentBuilder[FT_FieldExprList, NamedPlaceholder[T] with Tag[A], PL]
+      ): QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, Column[T] with Tag[A], PL] =
     instance((_: Column[T] with Tag[A]) =>
       queryFragmentBuilder.build(NamedPlaceholder[T, A])
         .prepend(tag.value + " = "))
 
-  implicit def emptyColumnNameAndPlaceholders: QueryFragmentBuilder["name=placeholder", HNil, HNil] =
+  implicit def emptyColumnNameAndPlaceholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => QueryFragment.empty)
 
   implicit def nonEmptyColumnNameAndPlaceholders[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
-       head: QueryFragmentBuilder["name=placeholder", H, P],
-       tail: QueryFragmentBuilder["name=placeholder", T, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["name=placeholder", H :: T, R] =
+       head: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, H, P],
+       tail: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, T, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, H :: T, R] =
     instance { sources =>
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }
@@ -319,11 +334,11 @@ object QueryFragmentBuilder {
   // Binary expressions
   // ------------------------------
 
-  implicit def whereAlwaysTrue: QueryFragmentBuilder["where", AlwaysTrue, HNil] =
+  implicit def whereAlwaysTrue: QueryFragmentBuilder[FT_Where, AlwaysTrue, HNil] =
     instance((_: AlwaysTrue) => QueryFragment.empty)
 
-  implicit def binaryExpr1[E1 <: BinaryExpr, P <: HList]
-      (implicit left: QueryFragmentBuilder["where", E1, P]): QueryFragmentBuilder["where", BinaryExpr1[E1], P] =
+  implicit def whereBinaryExpr1[E1 <: BinaryExpr, P <: HList]
+      (implicit left: QueryFragmentBuilder[FT_Where, E1, P]): QueryFragmentBuilder[FT_Where, BinaryExpr1[E1], P] =
     instance { (expr: BinaryExpr1[E1]) =>
       val e1 = left.build(expr.expr)
       expr match {
@@ -332,14 +347,14 @@ object QueryFragmentBuilder {
       }
     }
 
-  implicit def binaryExpr2[E1, E2, P <: HList, Q <: HList, R <: HList]
+  implicit def whereBinaryExpr2[E1, E2, P <: HList, Q <: HList, R <: HList]
       (implicit
-       left: QueryFragmentBuilder["where", E1, P],
-       right: QueryFragmentBuilder["where", E2, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder["where", BinaryExpr2[E1, E2], R] =
-    instance { (expr: BinaryExpr2[E1, E2]) =>
-      val e1 = left.build(expr.expr1)
-      val e2 = right.build(expr.expr2)
+       left: QueryFragmentBuilder[FT_Where, E1, P],
+       right: QueryFragmentBuilder[FT_Where, E2, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_Where, BinaryExpr2[E1, E2], R] =
+    instance { expr: BinaryExpr2[E1, E2] =>
+      val e1 = left.build(expr.left)
+      val e2 = right.build(expr.right)
       expr match {
         case _: And[_, _] => e1.concatenateOptional(e2, " AND ")
         case _: Or[_, _] => e1.concatenateOptional(e2, " OR ")
@@ -357,6 +372,6 @@ object QueryFragmentBuilder {
       }
     }
 
-  implicit def whereField[P <: HList, F <: Field[_]](implicit field: QueryFragmentBuilder["src", F, P]): QueryFragmentBuilder["where", F, P] =
+  implicit def whereField[P <: HList, F <: Field[_]](implicit field: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_Where, F, P] =
     instance(field.build)
 }

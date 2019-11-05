@@ -1,9 +1,8 @@
 package io.epifab.yadl.typesafe
 
-import io.epifab.yadl.{Delete, Insert, Select, Update}
 import io.epifab.yadl.examples.Schema._
-import io.epifab.yadl.examples.StudentsRepo
 import io.epifab.yadl.typesafe.SelectQueries._
+import io.epifab.yadl.{Delete, Insert, Select, Update}
 import org.scalatest.{FlatSpec, Matchers}
 
 class QueryBuilderTest extends FlatSpec with Matchers {

@@ -4,11 +4,10 @@ import java.time.LocalDate
 
 import io.epifab.yadl.Implicits.ExtendedTag
 import io.epifab.yadl._
-import io.epifab.yadl.examples.Model.{Student, StudentExam}
+import io.epifab.yadl.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.yadl.examples.Schema._
 import io.epifab.yadl.fields._
-import io.epifab.yadl.runner.{SelectStatement, TransactionIO}
-import shapeless.HNil
+import io.epifab.yadl.runner.TransactionIO
 
 object StudentsRepo {
   private val studentExamsQuery =
@@ -51,11 +50,25 @@ object StudentsRepo {
       .mapTo[Student]
   }
 
-  def findAllBy(id: Option[Int], email: Option[Option[String]]): TransactionIO[Seq[Student]] = {
+  def findAllBy(
+                 minAge: Option[Int] = None,
+                 maxAge: Option[Int] = None,
+                 name: Option[String] = None,
+                 email: Option[String] = None,
+                 interests: Option[Seq[Interest]] = None
+               ): TransactionIO[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)
-      .where { $ => $("s", "id") === OptionalPlaceholderValue(id) }
+      .where { $ =>
+        val minAgeFilter = $("s", "date_of_birth") <= OptionalPlaceholderValue(minAge.map(LocalDate.now.minusYears(_)))
+        val maxAgeFilter = $("s", "date_of_birth") >= OptionalPlaceholderValue(maxAge.map(LocalDate.now.minusYears(_)))
+        val nameFilter = $("s", "name") like OptionalPlaceholderValue(name)
+        val emailFilter = $("s", "email") like OptionalPlaceholderValue(email)
+        val interestsFilter = $("s", "interests") overlaps OptionalPlaceholderValue(interests)
+
+        minAgeFilter and maxAgeFilter and nameFilter and emailFilter and interestsFilter
+      }
       .compile
       .withValues(())
       .mapTo[Student]
