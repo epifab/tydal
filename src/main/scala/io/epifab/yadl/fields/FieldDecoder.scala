@@ -8,23 +8,23 @@ import io.epifab.yadl.utils.EitherSupport
 
 import scala.util.Try
 
-trait FieldDecoder[+T] { Self =>
+trait FieldDecoder[+T] { baseDecoder =>
   type DBTYPE
   def dbType: FieldType[DBTYPE]
   def decode(value: DBTYPE): Either[DecoderError, T]
 
-  def toSeq: FieldDecoder[Seq[T]] = new FieldDecoder[Seq[T]] {
-    override type DBTYPE = Seq[Self.DBTYPE]
-    override def dbType: FieldType[Seq[Self.DBTYPE]] = Self.dbType.toSeq
-    override def decode(value: DBTYPE): Either[DecoderError, Seq[T]] = EitherSupport.firstLeftOrRights(value.map(Self.decode))
+  def toSeq: FieldDecoder.Aux[Seq[T], Seq[DBTYPE]] = new FieldDecoder[Seq[T]] {
+    override type DBTYPE = Seq[baseDecoder.DBTYPE]
+    override def dbType: FieldType[Seq[baseDecoder.DBTYPE]] = baseDecoder.dbType.toSeq
+    override def decode(value: DBTYPE): Either[DecoderError, Seq[T]] = EitherSupport.firstLeftOrRights(value.map(baseDecoder.decode))
   }
 
-  def toOption: FieldDecoder[Option[T]] = new FieldDecoder[Option[T]] {
-    override type DBTYPE = Option[Self.DBTYPE]
-    override def dbType: FieldType[Option[Self.DBTYPE]] = Self.dbType.toOption
+  def toOption: FieldDecoder.Aux[Option[T], Option[DBTYPE]] = new FieldDecoder[Option[T]] {
+    override type DBTYPE = Option[baseDecoder.DBTYPE]
+    override def dbType: FieldType[Option[baseDecoder.DBTYPE]] = baseDecoder.dbType.toOption
     override def decode(value: DBTYPE): Either[DecoderError, Option[T]] = value match {
       case None => Right(None)
-      case Some(u) => Self.decode(u).map(Some(_))
+      case Some(u) => baseDecoder.decode(u).map(Some(_))
     }
   }
 }
@@ -82,18 +82,9 @@ object FieldDecoder {
     override def decode(value: String): Either[DecoderError, A] = decodeFunction(value).left.map(DecoderError)
   }
 
-  implicit def seqDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] = new FieldDecoder[Seq[T]] {
-    override type DBTYPE = Seq[U]
-    override def dbType: FieldType[Seq[U]] = baseDecoder.dbType.toSeq
-    override def decode(value: Seq[U]): Either[DecoderError, Seq[T]] = EitherSupport.firstLeftOrRights(value.map(baseDecoder.decode))
-  }
+  implicit def seqDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] =
+    baseDecoder.toSeq
 
-  implicit def optionDecoder[T, U](implicit baseDecoder: => FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] = new FieldDecoder[Option[T]] {
-    override type DBTYPE = Option[U]
-    override def dbType: FieldType[Option[U]] = baseDecoder.dbType.toOption
-    override def decode(value: Option[U]): Either[DecoderError, Option[T]] = value match {
-      case None => Right(None)
-      case Some(u) => baseDecoder.decode(u).map(Some(_))
-    }
-  }
+  implicit def optionDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] =
+    baseDecoder.toOption
 }

@@ -3,11 +3,9 @@ package io.epifab.yadl.examples
 import java.time.{Instant, LocalDate}
 
 import io.circe.generic.auto._
-import io.circe.{Decoder, Encoder}
 import io.epifab.yadl._
 import io.epifab.yadl.examples.Model.{Address, Interest}
 import io.epifab.yadl.fields.{Column, FieldDecoder, FieldEncoder}
-import shapeless.the
 
 object Schema {
   implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
@@ -17,10 +15,10 @@ object Schema {
     FieldEncoder.enumEncoder("interest", _.value)
 
   implicit val addressDecoder: FieldDecoder.Aux[Address, String] =
-    FieldDecoder.jsonDecoder(the[Decoder[Address]])
+    FieldDecoder.jsonDecoder[Address]
 
   implicit val addressEncoder: FieldEncoder.Aux[Address, String] =
-    FieldEncoder.jsonEncoder(the[Encoder[Address]])
+    FieldEncoder.jsonEncoder[Address]
 
   case class StudentsSchema(
     id: Column[Int] AS "id",

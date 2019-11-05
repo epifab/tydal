@@ -3,12 +3,25 @@ package io.epifab.yadl.fields
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 import io.circe.{Encoder => JsonEncoder}
+import io.epifab.yadl.fields
 import io.epifab.yadl.runner.{SqlDate, SqlDateTime}
 
-trait FieldEncoder[-T] {
+trait FieldEncoder[-T] { baseEncoder =>
   type DBTYPE
   def dbType: FieldType[DBTYPE]
   def encode(value: T): DBTYPE
+
+  def toSeq: fields.FieldEncoder.Aux[Seq[T], Seq[DBTYPE]] = new FieldEncoder[Seq[T]] {
+    override type DBTYPE = Seq[baseEncoder.DBTYPE]
+    override def dbType: FieldType[Seq[baseEncoder.DBTYPE]] = baseEncoder.dbType.toSeq
+    override def encode(value: Seq[T]): DBTYPE = value.map(baseEncoder.encode)
+  }
+
+  def toOption: FieldEncoder.Aux[Option[T], Option[DBTYPE]] = new FieldEncoder[Option[T]] {
+    override type DBTYPE = Option[baseEncoder.DBTYPE]
+    override def dbType: FieldType[Option[baseEncoder.DBTYPE]] = baseEncoder.dbType.toOption
+    override def encode(value: Option[T]): DBTYPE = value.map(baseEncoder.encode)
+  }
 }
 
 object FieldEncoder {
@@ -56,15 +69,9 @@ object FieldEncoder {
     override def encode(value: A): String = encodeFunction(value)
   }
 
-  implicit def seqEncoder[T, U](implicit baseEncoder: FieldEncoder.Aux[T, U]): FieldEncoder.Aux[Seq[T], Seq[U]] = new FieldEncoder[Seq[T]] {
-    override type DBTYPE = Seq[U]
-    override def dbType: FieldType[Seq[U]] = baseEncoder.dbType.toSeq
-    override def encode(value: Seq[T]): Seq[U] = value.map(baseEncoder.encode)
-  }
+  implicit def seqEncoder[T, U](implicit baseEncoder: FieldEncoder.Aux[T, U]): FieldEncoder.Aux[Seq[T], Seq[U]] =
+    baseEncoder.toSeq
 
-  implicit def optionEncoder[T, U](implicit baseEncoder: FieldEncoder.Aux[T, U]): FieldEncoder.Aux[Option[T], Option[U]] = new FieldEncoder[Option[T]] {
-    override type DBTYPE = Option[U]
-    override def dbType: FieldType[Option[U]] = baseEncoder.dbType.toOption
-    override def encode(value: Option[T]): Option[U] = value.map(baseEncoder.encode)
-  }
+  implicit def optionEncoder[T, U](implicit baseEncoder: FieldEncoder.Aux[T, U]): FieldEncoder.Aux[Option[T], Option[U]] =
+    baseEncoder.toOption
 }

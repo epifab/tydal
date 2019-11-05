@@ -6,7 +6,7 @@ import sbt.Global
 Global / name := "yadl"
 Global / version := sys.env.getOrElse("BUILD_NUMBER", "LOCAL")
 Global / organization := "epifab.io"
-Global / scalaVersion := "2.13.0"
+Global / scalaVersion := "2.13.1"
 Global / exportJars := true
 Global / parallelExecution := false
 Global / scalacOptions ++= Seq(
@@ -27,18 +27,10 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.8" % Test
 )
 
-val circeVersion = "0.12.0-M3"
+val circeVersion = "0.12.3"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
-
-libraryDependencies ++= Seq(
-  "org.slf4j" % "slf4j-simple" % "1.7.22",
-  "org.slf4j" % "slf4j-api" % "1.7.22",
-  // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-  "ch.qos.logback" % "logback-core" % "1.1.7",
-  "ch.qos.logback" % "logback-classic" % "1.1.7"
-)

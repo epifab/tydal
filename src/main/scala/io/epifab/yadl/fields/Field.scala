@@ -166,6 +166,8 @@ object FieldT {
 
 object Field {
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {
+    def ??[T](implicit fieldT: FieldT[F1, T]): Nullable[F1, T] = Nullable(field1)(fieldT, fieldT.get(field1).decoder.toOption)
+
     def ===[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): Equals[F1, F2] =
       Equals(field1, field2)
 
