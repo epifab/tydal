@@ -67,45 +67,21 @@ object AreComparable {
     new AreComparable[T, U] {}
 }
 
-sealed trait CanBeSuperset[T, U] extends TypeProps
-sealed trait CanBeSubset[T, U] extends TypeProps
-sealed trait CanOverlap[T, U] extends TypeProps
+sealed trait AreComparableSeq[T, U] extends TypeProps
 sealed trait CanBeIncluded[T, U] extends TypeProps
 
-object CanBeSuperset {
-  implicit def pure[T]: CanBeSuperset[Seq[T], Seq[T]] = new CanBeSuperset[Seq[T], Seq[T]] {}
+object AreComparableSeq {
+  implicit def pure[T]: AreComparableSeq[Seq[T], Seq[T]] = new AreComparableSeq[Seq[T], Seq[T]] {}
+  implicit def optionLeft[T]: AreComparableSeq[Option[Seq[T]], Seq[T]] = new AreComparableSeq[Option[Seq[T]], Seq[T]] {}
+  implicit def optionRight[T]: AreComparableSeq[Seq[T], Option[Seq[T]]] = new AreComparableSeq[Seq[T], Option[Seq[T]]] {}
+  implicit def option[T]: AreComparableSeq[Option[Seq[T]], Option[Seq[T]]] = new AreComparableSeq[Option[Seq[T]], Option[Seq[T]]] {}
 
   implicit def field[F <: Field[_], G <: Field[_], T, U]
       (implicit
        ft: FieldT[F, T],
        gt: FieldT[G, U],
-       canBeSuperset: CanBeSuperset[T, U]): CanBeSuperset[F, G] =
-    new CanBeSuperset[F, G] {}
-}
-
-object CanBeSubset {
-  implicit def pure[T]: CanBeSubset[Seq[T], Seq[T]] = new CanBeSubset[Seq[T], Seq[T]] {}
-
-  implicit def field[F <: Field[_], G <: Field[_], T, U]
-      (implicit
-       ft: FieldT[F, T],
-       gt: FieldT[G, U],
-       canBeSubset: CanBeSubset[T, U]): CanBeSubset[F, G] =
-    new CanBeSubset[F, G] {}
-}
-
-object CanOverlap {
-  implicit def pure[T]: CanOverlap[Seq[T], Seq[T]] = new CanOverlap[Seq[T], Seq[T]] {}
-  implicit def optionLeft[T]: CanOverlap[Option[Seq[T]], Seq[T]] = new CanOverlap[Option[Seq[T]], Seq[T]] {}
-  implicit def optionRight[T]: CanOverlap[Seq[T], Option[Seq[T]]] = new CanOverlap[Seq[T], Option[Seq[T]]] {}
-  implicit def option[T]: CanOverlap[Option[Seq[T]], Option[Seq[T]]] = new CanOverlap[Option[Seq[T]], Option[Seq[T]]] {}
-
-  implicit def field[F <: Field[_], G <: Field[_], T, U]
-      (implicit
-       ft: FieldT[F, T],
-       gt: FieldT[G, U],
-       canOverlap: CanOverlap[T, U]): CanOverlap[F, G] =
-    new CanOverlap[F, G] {}
+       canOverlap: AreComparableSeq[T, U]): AreComparableSeq[F, G] =
+    new AreComparableSeq[F, G] {}
 }
 
 object CanBeIncluded {

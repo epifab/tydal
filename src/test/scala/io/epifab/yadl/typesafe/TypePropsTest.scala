@@ -115,28 +115,12 @@ class TypePropsTest extends FunSuite {
     the[Negative[AreComparable[Field[Int], Field[String]]]]
   }
 
-  test("CanBeSubset") {
-    the[CanBeSubset[Seq[Int], Seq[Int]]]
-    the[CanBeSubset[Column[Seq[Int]], Field[Seq[Int]]]]
+  test("AreComparableSeq") {
+    the[AreComparableSeq[Seq[Int], Seq[Int]]]
+    the[AreComparableSeq[Column[Seq[Int]], Field[Seq[Int]]]]
 
-    the[Negative[CanBeSubset[Int, Seq[Int]]]]
-    the[Negative[CanBeSubset[Seq[Seq[Int]], Seq[Int]]]]
-  }
-
-  test("CanBeSuperset") {
-    the[CanBeSuperset[Seq[Int], Seq[Int]]]
-    the[CanBeSuperset[Column[Seq[Int]], Field[Seq[Int]]]]
-
-    the[Negative[CanBeSuperset[Int, Seq[Int]]]]
-    the[Negative[CanBeSuperset[Seq[Seq[Int]], Seq[Int]]]]
-  }
-
-  test("CanOverlap") {
-    the[CanOverlap[Seq[Int], Seq[Int]]]
-    the[CanOverlap[Column[Seq[Int]], Field[Seq[Int]]]]
-
-    the[Negative[CanOverlap[Int, Seq[Int]]]]
-    the[Negative[CanOverlap[Seq[Seq[Int]], Seq[Int]]]]
+    the[Negative[AreComparableSeq[Int, Seq[Int]]]]
+    the[Negative[AreComparableSeq[Seq[Seq[Int]], Seq[Int]]]]
   }
 
   test("CanBeIncluded") {

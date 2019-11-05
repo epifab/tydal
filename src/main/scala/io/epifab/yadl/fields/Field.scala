@@ -189,13 +189,13 @@ object Field {
     def >=[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): GreaterThanOrEqual[F1, F2] =
       GreaterThanOrEqual(field1, field2)
 
-    def subsetOf[F2 <: Field[_]](field2: F2)(implicit canBeSubset: CanBeSubset[F1, F2]): IsSubset[F1, F2] =
+    def subsetOf[F2 <: Field[_]](field2: F2)(implicit areComparableSeq: AreComparableSeq[F1, F2]): IsSubset[F1, F2] =
       IsSubset(field1, field2)
 
-    def supersetOf[F2 <: Field[_]](field2: F2)(implicit canBeSuperset: CanBeSuperset[F1, F2]): IsSuperset[F1, F2] =
+    def supersetOf[F2 <: Field[_]](field2: F2)(implicit areComparableSeq: AreComparableSeq[F1, F2]): IsSuperset[F1, F2] =
       IsSuperset(field1, field2)
 
-    def overlaps[F2 <: Field[_]](field2: F2)(implicit canOverlap: CanOverlap[F1, F2]): Overlaps[F1, F2] =
+    def overlaps[F2 <: Field[_]](field2: F2)(implicit areComparableSeq: AreComparableSeq[F1, F2]): Overlaps[F1, F2] =
       Overlaps(field1, field2)
 
     def in[F2 <: Field[_]](field2: F2)(implicit canBeIncluded: CanBeIncluded[F1, F2]): IsIncluded[F1, F2] =
@@ -276,7 +276,7 @@ object Field {
      fieldT: FieldT[F1, T],
      fieldEncoder: FieldEncoder[T],
      fieldDecoder: FieldDecoder[T],
-     canBeSubset: CanBeSubset[F1, NamedPlaceholder[T] with Tag[NAME]]): IsSubset[F1, NamedPlaceholder[T] with Tag[NAME]] =
+     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tag[NAME]]): IsSubset[F1, NamedPlaceholder[T] with Tag[NAME]] =
       IsSubset(field1, NamedPlaceholder[T, NAME])
 
     def supersetOf[NAME <: String with Singleton, T]
@@ -286,7 +286,7 @@ object Field {
      fieldT: FieldT[F1, T],
      fieldEncoder: FieldEncoder[T],
      fieldDecoder: FieldDecoder[T],
-     canBeSuperset: CanBeSuperset[F1, NamedPlaceholder[T] with Tag[NAME]]): IsSuperset[F1, NamedPlaceholder[T] with Tag[NAME]] =
+     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tag[NAME]]): IsSuperset[F1, NamedPlaceholder[T] with Tag[NAME]] =
       IsSuperset(field1, NamedPlaceholder[T, NAME])
 
     def overlaps[NAME <: String with Singleton, T]
@@ -296,7 +296,7 @@ object Field {
      fieldT: FieldT[F1, T],
      fieldEncoder: FieldEncoder[T],
      fieldDecoder: FieldDecoder[T],
-     canOverlap: CanOverlap[F1, NamedPlaceholder[T] with Tag[NAME]]): Overlaps[F1, NamedPlaceholder[T] with Tag[NAME]] =
+     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tag[NAME]]): Overlaps[F1, NamedPlaceholder[T] with Tag[NAME]] =
       Overlaps(field1, NamedPlaceholder[T, NAME])
 
     def in[NAME <: String with Singleton, T]
