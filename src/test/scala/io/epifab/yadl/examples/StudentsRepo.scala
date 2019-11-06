@@ -49,7 +49,7 @@ object StudentsRepo {
       .compile
       .withValues(Tuple1("x" ~~> value))
       .mapTo[Student]
-      .as[Seq]
+      .as[Vector]
   }
 
   def findAllBy(
@@ -74,14 +74,14 @@ object StudentsRepo {
       .compile
       .withValues(())
       .mapTo[Student]
-      .as[Seq]
+      .as[Vector]
   }
 
   def findStudentExams(ids: Seq[Int]): TransactionIO[Seq[StudentExam]] = {
     studentExamsQuery
       .withValues(Tuple1("sids" ~~> ids))
       .mapTo[StudentExam]
-      .as[Seq]
+      .as[Vector]
   }
 
   def add(student: Student): TransactionIO[Int] = {

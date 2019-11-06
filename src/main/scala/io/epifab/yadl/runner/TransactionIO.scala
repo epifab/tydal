@@ -10,7 +10,7 @@ import io.epifab.yadl.runner.TransactionIO.{FlatMapTransactionIO, MapTransaction
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList}
 
-trait TransactionIO[OUTPUT] {
+trait TransactionIO[+OUTPUT] {
   final def transact(connection: Connection): IOEither[DataError, OUTPUT] =
     ensureNonAutoCommit(connection).flatMap(_ =>
       IO(connection.setSavepoint()).flatMap(savePoint =>

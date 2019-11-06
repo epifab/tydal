@@ -78,6 +78,6 @@ object SelectQueries {
         )
       )
       .tuple
-      .as[Seq]
+      .as[Vector]
   }
 }
