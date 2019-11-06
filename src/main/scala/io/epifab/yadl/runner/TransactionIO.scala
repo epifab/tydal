@@ -36,27 +36,6 @@ trait TransactionIO[OUTPUT] {
 }
 
 object TransactionIO {
-  // todo: Seq is not a good abstraction. Vector/List would be better
-  implicit val seqFunctor: Functor[Seq] = new Functor[Seq] {
-    override def map[A, B](fa: Seq[A])(f: A => B): Seq[B] = fa.map(f)
-  }
-
-  class ExtendedTransactionIO[F[_]: Functor, OUTPUT <: HList](transactionIO: TransactionIO[F[OUTPUT]]) {
-    def mapTo[O2](implicit generic: Generic.Aux[O2, OUTPUT]): TransactionIO[F[O2]] =
-      transactionIO.map(_.map(generic.from))
-
-    def tuple[TP](implicit t: Tupler.Aux[OUTPUT, TP], generic: Generic.Aux[TP, OUTPUT]): TransactionIO[F[TP]] =
-      mapTo[TP]
-  }
-
-  implicit class ExtendedOptTransactionIO[OUTPUT <: HList](transactionIO: TransactionIO[Option[OUTPUT]])
-    extends ExtendedTransactionIO[Option, OUTPUT](transactionIO)
-
-  implicit class ExtendedSeqTransactionIO[OUTPUT <: HList](transactionIO: TransactionIO[Seq[OUTPUT]])
-    extends ExtendedTransactionIO[Seq, OUTPUT](transactionIO) {
-    def takeFirst: TransactionIO[Option[OUTPUT]] = transactionIO.map(_.headOption)
-  }
-
   class MapTransactionIO[O1, OUTPUT](transactionIO: TransactionIO[O1], f: O1 => OUTPUT) extends TransactionIO[OUTPUT] {
     override def run(connection: Connection): IOEither[DataError, OUTPUT] =
       transactionIO.run(connection).map(_.map(f))

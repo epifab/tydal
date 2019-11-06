@@ -14,39 +14,43 @@ trait StatementExecutor[F[+_, +_], CONN, FIELDS <: HList, OUTPUT] {
   def run(connection: CONN, statement: RunnableStatement[FIELDS]): F[DataError, OUTPUT]
 }
 
-object StatementExecutor {
-  implicit def jdbcQuery[FIELDS <: HList, OUTPUT]
-    (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, OUTPUT]): StatementExecutor[IOEither, Connection, FIELDS, Seq[OUTPUT]] =
+trait ReadStatementExecutor[F[+_, +_], CONN, FIELDS <: HList, ROW]
+  extends StatementExecutor[F, CONN, FIELDS, Iterator[Either[DecoderError, ROW]]]
 
-    new StatementExecutor[IOEither, Connection, FIELDS, Seq[OUTPUT]] {
-      override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Seq[OUTPUT]]] =
+trait WriteStatementExecutor[F[+_, +_], CONN, FIELDS <: HList]
+  extends StatementExecutor[F, CONN, FIELDS, Int]
+
+
+object ReadStatementExecutor {
+  implicit def jdbcQuery[FIELDS <: HList, ROW]
+  (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, ROW]): ReadStatementExecutor[IOEither, Connection, FIELDS, ROW] =
+
+    new ReadStatementExecutor[IOEither, Connection, FIELDS, ROW] {
+      override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
         (for {
           preparedStatement <- EitherT(IO(Jdbc.initStatement(connection, statement.sql, statement.input)))
           results <- EitherT(IO(runStatement(preparedStatement, statement.fields)))
         } yield results).value
 
-      private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Seq[OUTPUT]] =
+      private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
         Try(preparedStatement.executeQuery()).toEither match {
-          case Right(resultSet) => extract(fields, resultSet)
+          case Right(resultSet) => Right(extract(fields, resultSet))
           case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
           case Left(fatalError) => throw fatalError
         }
 
-      private def extract(fields: FIELDS, resultSet: ResultSet): Either[DecoderError, Seq[OUTPUT]] = {
-        import io.epifab.yadl.utils.MonadicOps._
-
-        val iterator = new Iterator[Either[DecoderError, OUTPUT]] {
+      private def extract(fields: FIELDS, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
+        new Iterator[Either[DecoderError, ROW]] {
           override def hasNext: Boolean = resultSet.next()
-          override def next(): Either[DecoderError, OUTPUT] = dataExtractor.extract(resultSet, fields)
+          override def next(): Either[DecoderError, ROW] = dataExtractor.extract(resultSet, fields)
         }
-
-        iterator.toList.getOrFirstError
       }
     }
+}
 
-  implicit def jdbcUpdate: StatementExecutor[IOEither, Connection, HNil, Int] =
-
-    new StatementExecutor[IOEither, Connection, HNil, Int] {
+object StatementExecutor {
+  implicit def jdbcUpdate: WriteStatementExecutor[IOEither, Connection, HNil] =
+    new WriteStatementExecutor[IOEither, Connection, HNil] {
       override def run(connection: Connection, statement: RunnableStatement[HNil]): IO[Either[DataError, Int]] =
         (for {
           preparedStatement <- EitherT(IO(Jdbc.initStatement(connection, statement.sql, statement.input)))

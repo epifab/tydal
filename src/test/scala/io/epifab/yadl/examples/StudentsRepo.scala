@@ -33,8 +33,8 @@ object StudentsRepo {
       .where(_("s", "id") === "student_id")
       .compile
       .withValues(Tuple1("student_id" ~~> id))
-      .takeFirst
       .mapTo[Student]
+      .option
 
   def findAllBy[C <: Column[_], T]
       (column: StudentsSchema => C, value: T)
@@ -49,6 +49,7 @@ object StudentsRepo {
       .compile
       .withValues(Tuple1("x" ~~> value))
       .mapTo[Student]
+      .as[Seq]
   }
 
   def findAllBy(
@@ -73,12 +74,14 @@ object StudentsRepo {
       .compile
       .withValues(())
       .mapTo[Student]
+      .as[Seq]
   }
 
   def findStudentExams(ids: Seq[Int]): TransactionIO[Seq[StudentExam]] = {
     studentExamsQuery
       .withValues(Tuple1("sids" ~~> ids))
       .mapTo[StudentExam]
+      .as[Seq]
   }
 
   def add(student: Student): TransactionIO[Int] = {

@@ -7,29 +7,70 @@ import io.epifab.yadl.fields.{FieldT, NamedPlaceholder, OptionalPlaceholderValue
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
+import scala.collection.{Factory, mutable}
+
 class GenericStatement[RAW_INPUT <: HList, INPUT, FIELDS <: HList]
 (val query: String, val toRunnable: RAW_INPUT => RunnableStatement[FIELDS])
 (implicit tupler: Tupler.Aux[RAW_INPUT, INPUT], generic: Generic.Aux[INPUT, RAW_INPUT]) {
-  def update: UpdateStatement[INPUT, FIELDS] =
-    new UpdateStatement(query, (generic.to _).andThen(toRunnable))
-  def select: SelectStatement[INPUT, FIELDS] =
-    new SelectStatement(query, (generic.to _).andThen(toRunnable))
+  def update: WriteStatement[INPUT, FIELDS] =
+    new WriteStatement(query, (generic.to _).andThen(toRunnable))
+  def select: ReadStatementStep1[INPUT, FIELDS] =
+    new ReadStatementStep1(query, (generic.to _).andThen(toRunnable))
 }
 
-class UpdateStatement[INPUT, FIELDS <: HList]
+class WriteStatement[INPUT, FIELDS <: HList]
 (val query: String, toRunnable: INPUT => RunnableStatement[FIELDS]) {
   def withValues
   (values: INPUT)
-  (implicit statementExecutor: StatementExecutor[IOEither, Connection, FIELDS, Int]):
+  (implicit statementExecutor: WriteStatementExecutor[IOEither, Connection, FIELDS]):
   TransactionIO[Int] = TransactionIO(toRunnable(values))
 }
 
-class SelectStatement[INPUT, FIELDS <: HList]
+class ReadStatementStep1[INPUT, FIELDS <: HList]
 (val query: String, toRunnable: INPUT => RunnableStatement[FIELDS]) {
-  def withValues[RAW_OUTPUT <: HList]
-  (values: INPUT)
-  (implicit statementExecutor: StatementExecutor[IOEither, Connection, FIELDS, Seq[RAW_OUTPUT]]):
-  TransactionIO[Seq[RAW_OUTPUT]] = TransactionIO(toRunnable(values))
+  def withValues[RAW_OUTPUT <: HList](values: INPUT)(implicit statementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]): ReadStatementStep2[FIELDS, RAW_OUTPUT] =
+    new ReadStatementStep2[FIELDS, RAW_OUTPUT](toRunnable(values))
+}
+
+class ReadStatementStep2[FIELDS <: HList, RAW_OUTPUT <: HList]
+(runnableStatement: RunnableStatement[FIELDS])
+(implicit readStatementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]) {
+  def mapTo[OUTPUT](implicit generic: Generic.Aux[OUTPUT, RAW_OUTPUT]): ReadStatementStep3[FIELDS, RAW_OUTPUT, OUTPUT] =
+    new ReadStatementStep3(runnableStatement, generic.from)
+
+  def tuple[TUPLE](implicit tupler: Tupler.Aux[RAW_OUTPUT, TUPLE], generic: Generic.Aux[TUPLE, RAW_OUTPUT]): ReadStatementStep3[FIELDS, RAW_OUTPUT, TUPLE] =
+    new ReadStatementStep3(runnableStatement, generic.from)
+}
+
+
+class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
+(runnableStatement: RunnableStatement[FIELDS], toOutput: RAW_OUTPUT => OUTPUT)
+(implicit readStatementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]) {
+  def as[C[_]](implicit factory: Factory[OUTPUT, C[OUTPUT]]): TransactionIO[C[OUTPUT]] =
+    TransactionIO(runnableStatement) {
+      (connection: Connection, statement: RunnableStatement[FIELDS]) =>
+        readStatementExecutor.run(connection, statement).map {
+          case Left(dataError) => Left(dataError)
+          case Right(iterator) =>
+            val errorOrBuilder = iterator.foldLeft[Either[DataError, mutable.Builder[OUTPUT, C[OUTPUT]]]](Right(factory.newBuilder)) {
+              case (Left(e), _) => Left(e)
+              case (_, Left(e)) => Left(e)
+              case (Right(builder), Right(x)) => Right(builder.addOne(toOutput(x)))
+            }
+            errorOrBuilder.map(_.result)
+        }
+    }
+
+  def option: TransactionIO[Option[OUTPUT]] =
+    TransactionIO(runnableStatement) {
+      (connection: Connection, statement: RunnableStatement[FIELDS]) =>
+        readStatementExecutor.run(connection, statement).map {
+          case Left(dataError) => Left(dataError)
+          case Right(iterator) =>
+            if (iterator.hasNext) iterator.next().map(raw => Some(toOutput(raw)))
+            else Right(None)
+        }
+    }
 }
 
 case class RunnableStatement[FIELDS <: HList](sql: String, input: Seq[PlaceholderValue[_]], fields: FIELDS)

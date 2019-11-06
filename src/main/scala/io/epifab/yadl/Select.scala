@@ -1,7 +1,7 @@
 package io.epifab.yadl
 
 import io.epifab.yadl.fields._
-import io.epifab.yadl.runner.{QueryBuilder, SelectStatement, StatementBuilder}
+import io.epifab.yadl.runner.{QueryBuilder, ReadStatementStep1, StatementBuilder}
 import io.epifab.yadl.utils.{Appender, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
@@ -66,7 +66,7 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
        queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
        statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
        tupler: Tupler.Aux[RAW_INPUT, INPUT]
-      ): SelectStatement[INPUT, FIELDS] =
+      ): ReadStatementStep1[INPUT, FIELDS] =
     statementBuilder.build(queryBuilder.build(this)).select
 }
 

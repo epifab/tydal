@@ -1,7 +1,7 @@
 package io.epifab.yadl
 
 import io.epifab.yadl.fields.{AlwaysTrue, BinaryExpr, ColumnsBuilder}
-import io.epifab.yadl.runner.{QueryBuilder, StatementBuilder, UpdateStatement}
+import io.epifab.yadl.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
@@ -21,7 +21,7 @@ class Update[NAME <: String, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
        queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
        statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, HNil],
        tupler: Tupler.Aux[RAW_INPUT, INPUT]
-      ): UpdateStatement[INPUT, HNil] =
+      ): WriteStatement[INPUT, HNil] =
     statementBuilder.build(queryBuilder.build(this)).update
 }
 
