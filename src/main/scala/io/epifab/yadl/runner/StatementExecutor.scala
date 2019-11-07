@@ -34,14 +34,20 @@ object ReadStatementExecutor {
 
       private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
         Try(preparedStatement.executeQuery()).toEither match {
-          case Right(resultSet) => Right(extract(fields, resultSet))
+          case Right(resultSet) => Right(extract(fields, preparedStatement, resultSet))
           case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
           case Left(fatalError) => throw fatalError
         }
 
-      private def extract(fields: FIELDS, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
+      private def extract(fields: FIELDS, preparedStatement: PreparedStatement, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
         new Iterator[Either[DecoderError, ROW]] {
-          override def hasNext: Boolean = resultSet.next()
+          override def hasNext: Boolean = {
+            if (!resultSet.next()) {
+              try { resultSet.close(); preparedStatement.close(); false }
+              catch { case NonFatal(_) => false }
+            }
+            else true
+          }
           override def next(): Either[DecoderError, ROW] = dataExtractor.extract(resultSet, fields)
         }
       }

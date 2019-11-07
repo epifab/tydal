@@ -2,6 +2,7 @@ package io.epifab.yadl.runner
 
 import java.sql.Connection
 
+import cats.effect.IO
 import io.epifab.yadl._
 import io.epifab.yadl.fields.{FieldT, NamedPlaceholder, OptionalPlaceholderValue, PlaceholderValue}
 import shapeless.ops.hlist.Tupler
@@ -48,28 +49,37 @@ class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
 (implicit readStatementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]) {
   def as[C[_]](implicit factory: Factory[OUTPUT, C[OUTPUT]]): TransactionIO[C[OUTPUT]] =
     TransactionIO(runnableStatement) {
-      (connection: Connection, statement: RunnableStatement[FIELDS]) =>
-        readStatementExecutor.run(connection, statement).map {
-          case Left(dataError) => Left(dataError)
-          case Right(iterator) =>
-            val errorOrBuilder = iterator.foldLeft[Either[DataError, mutable.Builder[OUTPUT, C[OUTPUT]]]](Right(factory.newBuilder)) {
-              case (Left(e), _) => Left(e)
-              case (_, Left(e)) => Left(e)
-              case (Right(builder), Right(x)) => Right(builder.addOne(toOutput(x)))
-            }
-            errorOrBuilder.map(_.result)
-        }
+      new StatementExecutor[IOEither, Connection, FIELDS, C[OUTPUT]] {
+        override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, C[OUTPUT]]] =
+          readStatementExecutor.run(connection, statement).map {
+            case Left(dataError) => Left(dataError)
+            case Right(iterator) =>
+              val errorOrBuilder = iterator.foldLeft[Either[DataError, mutable.Builder[OUTPUT, C[OUTPUT]]]](Right(factory.newBuilder)) {
+                case (Left(e), _) => Left(e)
+                case (_, Left(e)) => Left(e)
+                case (Right(builder), Right(x)) => Right(builder.addOne(toOutput(x)))
+              }
+              errorOrBuilder.map(_.result)
+          }
+      }
     }
 
   def option: TransactionIO[Option[OUTPUT]] =
     TransactionIO(runnableStatement) {
-      (connection: Connection, statement: RunnableStatement[FIELDS]) =>
-        readStatementExecutor.run(connection, statement).map {
-          case Left(dataError) => Left(dataError)
-          case Right(iterator) =>
-            if (iterator.hasNext) iterator.next().map(raw => Some(toOutput(raw)))
-            else Right(None)
-        }
+      new StatementExecutor[IOEither, Connection, FIELDS, Option[OUTPUT]] {
+        override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Option[OUTPUT]]] =
+          readStatementExecutor.run(connection, statement).map {
+            case Left(dataError) => Left(dataError)
+            case Right(iterator) =>
+              iterator.foldLeft[Either[DataError, Option[OUTPUT]]](Right(None)) {
+                case (Left(e), _) => Left(e)
+                case (_, Left(e)) => Left(e)
+                case (Right(None), Right(x)) => Right(Some(toOutput(x)))
+                case (Right(Some(old)), Right(x)) =>
+                  Left(MultipleResultsError(s"Only one result was expected, multiple returned: $old - $x"))
+              }
+          }
+      }
     }
 }
 
