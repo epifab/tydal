@@ -13,7 +13,7 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgres://root:p4ssw0rd@postgres.local:5432/yadl
+      DATABASE_URL: postgres://root:p4ssw0rd@postgres.local:5432/tydal
       POSTGRES_SSL: "false"
 
   postgres:
@@ -26,4 +26,4 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: p4ssw0rd
-      POSTGRES_DB: yadl
+      POSTGRES_DB: tydal

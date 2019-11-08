@@ -3,7 +3,7 @@ import sbt.Global
 /*****************************************************************
  Global Settings & Configs
   *****************************************************************/
-Global / name := "yadl"
+Global / name := "tydal"
 Global / version := sys.env.getOrElse("BUILD_NUMBER", "LOCAL")
 Global / organization := "epifab.io"
 Global / scalaVersion := "2.13.1"

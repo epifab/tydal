@@ -1,6 +1,7 @@
-# YADL: Yet Another Data Library
+# TYDAL
 
-Scala library designed for running strongly typed SQL queries.
+TYDAL pronounced *tidal* - `/ˈtʌɪd(ə)l/` and formerly YADL)
+is a compile time PostgreSQL interpreter* for Scala. 
 
 
 ## Getting started
@@ -16,72 +17,139 @@ resolvers += "jitpack" at "https://jitpack.io"
 Step 2. Add the dependency
 
 ```
-libraryDependencies += "com.github.epifab" % "yadl" % "master-SNAPSHOT"	
+libraryDependencies += "com.github.epifab" % "tydl" % "1.x-SNAPSHOT"	
 ```
-
-Please note, the following dependencies will be included:
-
-- Cats (for applicatives, monads and more)
-- Shapeless (for hlists and automatic type class derivation)
-- Circe (for JSON support)
 
 
 ### What does it look like?
 
+- The Model:
+
 ```scala
-import io.epifab.yadl.domain._
-import io.epifab.yadl.implicits._
-import io.epifab.yadl.postgres._
-import shapeless.{::, HNil}
+object Model {
+  abstract sealed class Interest(val value: String)
 
-case class Student(id: Int, name: String, email: Option[String])
+  object Interest {
+    def apply(value: String): Either[String, Interest] = value match {
+      case Music.value => Right(Music)
+      case Art.value => Right(Art)
+      case History.value => Right(History)
+      case Math.value => Right(Math)
+      case _ => Left("Unknown interest")
+    }
 
-class StudentsTable extends Table[Student]("students") {
-  val id: Column[Int] = column("id")
-  val name: Column[String] = column("name")
-  val email: Column[Option[String]] = column("email")
+    case object Music extends Interest("music")
+    case object Art extends Interest("art")
+    case object History extends Interest("history")
+    case object Math extends Interest("math")
+  }
 
-  lazy val `*`: Columns[Student] = Columns(id :: name :: email :: HNil)
+  case class Address(postcode: String, line1: String, line2: Option[String])
+
+  case class Student(
+    id: Int,
+    name: String,
+    email: Option[String],
+    dateOfBirth: LocalDate,
+    address: Option[Address],
+    interests: Seq[Interest]
+  )
 }
+```
 
-class StudentsRepo[F[_]: cats.Applicative](implicit queryRunner: QueryRunner[F]) {
-  private val students = new StudentsTable
+- The Schema:
 
-  def findById(id: Int): F[Either[DALError, Option[Student]]] =
+```scala
+import io.epifab.tydal._
+
+object Schema {
+  implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =
+    FieldDecoder.enumDecoder("interest", Interest.apply)
+
+  implicit val interestEncoder: FieldEncoder.Aux[Interest, String] =
+    FieldEncoder.enumEncoder("interest", _.value)
+
+  implicit val addressDecoder: FieldDecoder.Aux[Address, String] =
+    FieldDecoder.jsonDecoder[Address]
+
+  implicit val addressEncoder: FieldEncoder.Aux[Address, String] =
+    FieldEncoder.jsonEncoder[Address]
+
+  case class StudentsSchema(
+    id: Column[Int] AS "id",
+    name: Column[String] AS "name",
+    email: Column[Option[String]] AS "email",
+    dateOfBirth: Column[LocalDate] AS "date_of_birth",
+    address: Column[Option[Address]] AS "address",
+    interests: Column[Seq[Interest]] AS "interests"
+  )
+
+  object Students extends TableBuilder["students", StudentsSchema]
+}
+```
+
+- The Repository:
+
+```scala
+object StudentsRepo {
+  def findById(id: Int): TransactionIO[Option[Student]] =
     Select
-      .from(students)
-      .take(students.*)
-      .where(students.id === Value(id))
-      .fetchOne
+      .from(Students as "s")
+      .take(_("s").*)
+      .where(_("s", "id") === "student_id")
+      .compile
+      .withValues(Tuple1("student_id" ~~> id))
+      .mapTo[Student]
+      .option
 
-  def update(student: Student): F[Either[DALError, Int]] =
-    Update(students)
-      .set(student)
-      .where(students.id === Value(student.id))
-      .execute()
+  def updateNameAndEmail(id: Int, name: String, email: Option[String]): TransactionIO[Int] =
+    Update(Students)
+      .fields(s => (s.name, s.email))
+      .where(_.id === "id")
+      .compile
+      .withValues {
+        (
+          "name" ~~> name,
+          "email" ~~> email,
+          "id" ~~> id
+        )
+      }
 
-  def insert(student: Student): F[Either[DALError, Int]] =
+  def add(student: Student): TransactionIO[Int] = {
     Insert
-      .into(students)
-      .set(student)
-      .execute()
-}
-
-object UpdateStudentProgram extends App {
-  implicit val connection: java.sql.Connection = ???
-
-  val repository = new StudentsRepo[cats.Id]
-
-  repository.findById(123) flatMap {
-    case Some(student) =>
-      repository.update(student.copy(name = "John Doe"))
-    case None =>
-      repository.insert(Student(123, "John Doe", Some("john.doe@yadl.org")))
+      .into(Students)
+      .compile
+      .withValues {
+        (
+          "id" ~~> student.id,
+          "name" ~~> student.name,
+          "email" ~~> student.email,
+          "date_of_birth" ~~> student.dateOfBirth,
+          "address" ~~> student.address,
+          "interests" ~~> student.interests
+        )
+      }
   }
 }
 ```
 
-Find more examples [here](src/main/scala/io/epifab/yadl/examples).
+- The Program:
+```scala
+object UpdateStudentProgram extends App {
+  private val connection: java.sql.Connection = ???
+
+  private val studentProgram: TransactionIO[Int] = StudentsRepo.findById(123) flatMap {
+    case Some(student) =>
+      StudentsRepo.updateNameAndEmail(student.id, "James Doe", Some("james.doe@tydl.com"))
+    case None =>
+      StudentsRepo.add(Student(123, "John Doe", Some("john.doe@tydl.org")))
+  }
+  
+  studentProgram.transact(connection).unsafeRunSync()
+}
+```
+
+Find more examples [here](src/main/scala/io/epifab/tydal/examples).
 
 
 ## More in-depth
@@ -89,20 +157,10 @@ Find more examples [here](src/main/scala/io/epifab/yadl/examples).
 
 ### Query DSL
 
-The idea behind this library was to provide a DSL as close as possible to the SQL language:
-
-```scala
-Select(exams.*, exams.course.*, exams.course.professor.*)
-  .from(exams)
-  .innerJoin(exams.course)
-  .innerJoin(exams.course.professor)
-  .where(exams.studentId === Value(123) and (exams.dateTime <= Value(now.atStartOfDay) and exams.dateTime > Value(now.minusDays(1).asStartOfDay)))
-  .sortBy(exams.studentId.asc)
-  .inRange(0, 100)
-```
+The idea behind this library is to provide a DSL as close as possible to the SQL language.
 
 Different features are supported although the library does not cover the entire SQL universe nor has the ambition to do so.
-You can explore some functionalities in the [examples package](src/main/scala/io/epifab/yadl/examples).
+You can explore some functionalities in the [examples package](src/main/scala/io/epifab/tydal/examples).
 
 
 ### Supported DBMS and data types
@@ -114,44 +172,12 @@ Database type               | Scala type
 `char`, `varchar`, `text`   | `String`
 `int`                       | `Int`
 `float`                     | `Double`
-`date`, `timestamp`         | `LocalDate`, `LocalDateTime`, `Instant` (java.time)
+`date`, `timestamp`         | `LocalDate`, `Instant` (java.time)
 `enum`                      | Any type `T`
 `arrays`                    | `Seq[T]` where `T` is any of the above
 `json`                      | Any type `T`
 
 In addition, every data type can be made optional and encoded as `Option`.
 
-The mapping between a SQL data type and its Scala representation is defined via a *type class* named `FieldAdapter`.
-As you would expect, you can create new `FieldAdapter` instances in order to support custom types.
-
-Here's a couple of examples:
-
-```scala
-implicit def booleanFieldAdapter(implicit intFieldAdapter: FieldAdapter[Int]): FieldAdapter[Boolean] =
-  intFieldAdapter.imap(
-    (b: Boolean) => if (b) 1 else 0, 
-    (i: Int) => i != 0
-  )
-```
-
-```scala
-import io.circe.generic.auto._
-
-case class Address(postcode: String, line1: String, line2: Option[String])
-
-implicit def addressFieldAdapter: FieldAdapter[Address] = new JsonFieldAdapter
-```
-
-### Synchronous vs. asynchronous drivers
-
-You probably have noticed by now the extensive use of *higher kinded types*:
-
-```scala
-class StudentsRepo[F[_]: cats.Applicative](implicit queryRunner: QueryRunner[F])
-```
-
-This design has the important consequence of making the library driver-agnostic.
-In fact, it is rather painless to switch between a blocking and a non-blocking implementation 
-or even to something more sophisticated such as an IO monad.
-
-Different solutions can be implemented by defining new instances of the [`QueryRunner`](src/main/scala/io/epifab/yadl/domain/QueryRunner.scala) type class.
+The mapping between a SQL data type and its Scala representation is defined via two *type classes* named `FieldEncoder` and `FieldDecoder`.
+You can, of course, define new encoders/decoders in order to support custom types.
