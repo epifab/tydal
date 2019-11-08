@@ -4,7 +4,7 @@ import java.sql.Connection
 
 import cats.effect.IO
 import io.epifab.tydal._
-import io.epifab.tydal.fields.{FieldT, NamedPlaceholder, OptionalPlaceholderValue, PlaceholderValue}
+import io.epifab.tydal.fields.{FieldT, NamedPlaceholder, PlaceholderValueOption, PlaceholderValue}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -132,7 +132,7 @@ object StatementBuilder {
         )
       })
 
-  implicit def optionalValue[P <: OptionalPlaceholderValue[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+  implicit def optionalValue[P <: PlaceholderValueOption[_], PTYPE, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],

@@ -63,11 +63,11 @@ object StudentsRepo {
       .from(Students as "s")
       .take(_("s").*)
       .where { $ =>
-        val minAgeFilter = $("s", "date_of_birth") <= OptionalPlaceholderValue(minAge.map(LocalDate.now.minusYears(_)))
-        val maxAgeFilter = $("s", "date_of_birth") >= OptionalPlaceholderValue(maxAge.map(LocalDate.now.minusYears(_)))
-        val nameFilter = $("s", "name") like OptionalPlaceholderValue(name)
-        val emailFilter = $("s", "email") like OptionalPlaceholderValue(email)
-        val interestsFilter = $("s", "interests") overlaps OptionalPlaceholderValue(interests)
+        val minAgeFilter = $("s", "date_of_birth") <= PlaceholderValueOption(minAge.map(LocalDate.now.minusYears(_)))
+        val maxAgeFilter = $("s", "date_of_birth") >= PlaceholderValueOption(maxAge.map(LocalDate.now.minusYears(_)))
+        val nameFilter = $("s", "name") like PlaceholderValueOption(name)
+        val emailFilter = $("s", "email") like PlaceholderValueOption(email)
+        val interestsFilter = $("s", "interests") overlaps PlaceholderValueOption(interests)
 
         minAgeFilter and maxAgeFilter and nameFilter and emailFilter and interestsFilter
       }

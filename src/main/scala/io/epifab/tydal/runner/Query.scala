@@ -294,7 +294,7 @@ object QueryFragmentBuilder {
   implicit def value[V <: PlaceholderValue[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => QueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def optionalValue[V <: OptionalPlaceholderValue[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
+  implicit def optionalValue[V <: PlaceholderValueOption[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => QueryFragment(f.value.map(_ => s"?::${f.encoder.dbType.sqlName}"), f :: HNil))
 
   // ------------------------------

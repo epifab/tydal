@@ -114,20 +114,20 @@ object PlaceholderValue {
     new PlaceholderValue(value)
 }
 
-class OptionalPlaceholderValue[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
+class PlaceholderValueOption[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
   extends Placeholder[Option[T]] {
-  override def as[TAG <: String with Singleton](alias: TAG): OptionalPlaceholderValue[T] with Tag[TAG] = new OptionalPlaceholderValue(value) with Tag[TAG] {
+  override def as[TAG <: String with Singleton](alias: TAG): PlaceholderValueOption[T] with Tag[TAG] = new PlaceholderValueOption(value) with Tag[TAG] {
     override def tagValue: String = alias
   }
 }
 
-object OptionalPlaceholderValue {
+object PlaceholderValueOption {
   def apply[T]
   (value: Option[T])
   (implicit
    decoder: FieldDecoder[T],
-   encoder: FieldEncoder[T]): OptionalPlaceholderValue[T] =
-    new OptionalPlaceholderValue(value.map(new PlaceholderValue(_)))(decoder.toOption, encoder)
+   encoder: FieldEncoder[T]): PlaceholderValueOption[T] =
+    new PlaceholderValueOption(value.map(new PlaceholderValue(_)))(decoder.toOption, encoder)
 }
 
 @implicitNotFound("Could not build a schema for this table.\n" +
