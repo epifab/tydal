@@ -19,8 +19,8 @@ object SelectQueries {
         .where(_("e", "registration_timestamp") < "min_date")
         .take($ => (
           $("e", "student_id"),
-          Max($("e", "score")).as["max_score"],
-          Min($("e", "course_id")).as["course_id"]
+          Max($("e", "score")) as "max_score",
+          Min($("e", "course_id")) as "course_id"
         ))
         .subQuery
 
@@ -30,10 +30,10 @@ object SelectQueries {
         .on(_("student_id") === $("s", "id")))
       .join($ => (Courses as "cc").on(_("id") === $("ms", "course_id")))
       .take($ => (
-        $("s", "id").as["sid"],
-        $("s", "name").as["sname"],
-        $("ms", "max_score").as["score"],
-        $("cc", "name").??.as["cname"]
+        $("s", "id") as "sid",
+        $("s", "name") as "sname",
+        $("ms", "max_score") as "score",
+        $("cc", "name").?? as "cname"
       ))
       .where(_("s", "id") === "student_id")
   }
@@ -43,8 +43,8 @@ object SelectQueries {
       .from(Exams as "e")
       .join($ => (Courses as "c").on(_("id") === $("e", "course_id")))
       .take($ => (
-        $("c", "name").as["cname"],
-        $("e", "score").as["score"]
+        $("c", "name") as "cname",
+        $("e", "score") as "score"
       ))
 
   val updateStudentQuery = Update(Students)

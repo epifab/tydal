@@ -16,11 +16,11 @@ object StudentsRepo {
       .join($ => (Exams as "e").on(_ ("student_id") === $("s", "id")))
       .join($ => (Courses as "c").on(_ ("id") === $("e", "course_id")))
       .take($ => (
-        $("s", "id").as["sid"],
-        $("s", "name").as["sname"],
-        $("e", "score").as["score"],
-        $("e", "exam_timestamp").as["etime"],
-        $("c", "name").as["cname"]
+        $("s", "id") as "sid",
+        $("s", "name") as "sname",
+        $("e", "score") as "score",
+        $("e", "exam_timestamp") as "etime",
+        $("c", "name") as "cname"
       ))
       .where(_("s", "id") in "sids")
       .sortBy($ => (Ascending($("sid")), Descending($("score"))))

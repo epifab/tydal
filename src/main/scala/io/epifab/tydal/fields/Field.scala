@@ -7,53 +7,53 @@ import scala.annotation.implicitNotFound
 
 sealed trait Field[+T] {
   def decoder: FieldDecoder[T]
-  def as[TAG <: String](implicit alias: ValueOf[TAG]): Field[T] with Tag[TAG]
+  def as[TAG <: String with Singleton](alias: TAG): Field[T] with Tag[TAG]
 }
 
 case class Column[+T](name: String, srcAlias: String)(implicit val decoder: FieldDecoder[T]) extends Field[T] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Column[T] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): Column[T] with Tag[TAG] =
     new Column[T](name, srcAlias) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
 case class Aggregation[+F <: Field[_], +U](field: F, dbFunction: DbAggregationFunction[F, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Aggregation[F, U] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): Aggregation[F, U] with Tag[TAG] =
     new Aggregation(field, dbFunction) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
 case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Cast[F, U] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): Cast[F, U] with Tag[TAG] =
     new Cast(field) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
 case class Nullable[+F <: Field[_], +T](field: F)(implicit fieldT: FieldT[F, T], val decoder: FieldDecoder[Option[T]])
   extends Field[Option[T]] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): Nullable[F, T] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): Nullable[F, T] with Tag[TAG] =
     new Nullable[F, T](field) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
 case class FieldExpr1[+F <: Field[_], +U](field: F, dbFunction: DbFunction1[F, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr1[F, U] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): FieldExpr1[F, U] with Tag[TAG] =
     new FieldExpr1(field, dbFunction) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
 case class FieldExpr2[+F1 <: Field[_], +F2 <: Field[_], +U](field1: F1, field2: F2, dbFunction: DbFunction2[F1, F2, U])(implicit val decoder: FieldDecoder[U])
   extends Field[U] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): FieldExpr2[F1, F2, U] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): FieldExpr2[F1, F2, U] with Tag[TAG] =
     new FieldExpr2(field1, field2, dbFunction) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
@@ -62,9 +62,9 @@ trait Placeholder[T] extends Field[T]
 class NamedPlaceholder[T] private(val name: String)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[T])
   extends Placeholder[T] {
 
-  def as[TAG <: String](implicit newName: ValueOf[TAG]): NamedPlaceholder[T] with Tag[TAG] =
-    new NamedPlaceholder[T](newName.value) with Tag[TAG] {
-      override def tagValue: String = newName.value
+  def as[TAG <: String with Singleton](newName: TAG): NamedPlaceholder[T] with Tag[TAG] =
+    new NamedPlaceholder[T](newName) with Tag[TAG] {
+      override def tagValue: String = newName
     }
 
   override def equals(obj: Any): Boolean = obj match {
@@ -90,9 +90,9 @@ class PlaceholderValue[X](val value: X)(implicit val decoder: FieldDecoder[X], v
   extends Placeholder[X] {
   def dbValue: encoder.DBTYPE = encoder.encode(value)
 
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): PlaceholderValue[X] with Tag[TAG] =
+  override def as[TAG <: String with Singleton](alias: TAG): PlaceholderValue[X] with Tag[TAG] =
     new PlaceholderValue[X](value) with Tag[TAG] {
-      override def tagValue: String = alias.value
+      override def tagValue: String = alias
     }
 }
 
@@ -116,8 +116,8 @@ object PlaceholderValue {
 
 class OptionalPlaceholderValue[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
   extends Placeholder[Option[T]] {
-  override def as[TAG <: String](implicit alias: ValueOf[TAG]): OptionalPlaceholderValue[T] with Tag[TAG] = new OptionalPlaceholderValue(value) with Tag[TAG] {
-    override def tagValue: String = alias.value
+  override def as[TAG <: String with Singleton](alias: TAG): OptionalPlaceholderValue[T] with Tag[TAG] = new OptionalPlaceholderValue(value) with Tag[TAG] {
+    override def tagValue: String = alias
   }
 }
 
