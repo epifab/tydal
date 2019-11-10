@@ -2,7 +2,7 @@ package io.epifab.tydal.examples
 
 import java.time.LocalDate
 
-import io.epifab.tydal.Implicits.ExtendedTag
+import io.epifab.tydal.Implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.tydal.examples.Schema._
@@ -13,17 +13,17 @@ object StudentsRepo {
   private val studentExamsQuery =
     Select
       .from(Students as "s")
-      .join($ => (Exams as "e").on(_ ("student_id") === $("s", "id")))
-      .join($ => (Courses as "c").on(_ ("id") === $("e", "course_id")))
+      .innerJoin(Exams as "e").on(_("student_id") === _("s", "id"))
+      .innerJoin(Courses as "c").on(_("id") === _("e", "course_id"))
       .take($ => (
-        $("s", "id") as "sid",
-        $("s", "name") as "sname",
-        $("e", "score") as "score",
-        $("e", "exam_timestamp") as "etime",
-        $("c", "name") as "cname"
+        $("s").id            as "sid",
+        $("s").name          as "sname",
+        $("e").score         as "score",
+        $("e").examTimestamp as "etime",
+        $("c").name          as "cname"
       ))
       .where(_("s", "id") in "sids")
-      .sortBy($ => (Ascending($("sid")), Descending($("score"))))
+      .sortBy($ => Ascending($("sid")) -> Descending($("score")))
       .compile
 
   val studentsWithMinScore = Select

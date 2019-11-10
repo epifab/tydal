@@ -85,7 +85,7 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
      override val havingFilter: HAVING,
      override val sortByClause: SORT_BY)
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS])
-    extends Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] {
+    extends Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] { Self =>
 
   private val findContext: FindContext[FIELDS] = new FindContext[FIELDS] {
     override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
@@ -124,13 +124,16 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect(fields, f(this) :: HNil, sources, whereFilter, havingFilter, sortByClause)
 
-  def join[NEW_SOURCE <: Selectable[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])
-    (implicit
-     appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
-     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY], _, FIELDS]):
-    NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY] =
-      new NonEmptySelect(fields, groupByFields, appender.append(sources, f(this)), whereFilter, havingFilter, sortByClause)
+  def innerJoin[NEW_SOURCE <: Selectable[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
+    new JoinBuilder(this, that)
+
+//  def join[NEW_SOURCE <: Selectable[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
+//    (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])
+//    (implicit
+//     appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
+//     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY], _, FIELDS]):
+//    NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY] =
+//      new NonEmptySelect(fields, groupByFields, appender.append(sources, f(this)), whereFilter, havingFilter, sortByClause)
 
   def where[NEW_WHERE <: BinaryExpr]
     (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
@@ -147,3 +150,26 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
 }
 
 object Select extends EmptySelect
+
+class JoinBuilder[
+  FIELDS <: HList,
+  GROUP_BY <: HList,
+  SOURCES <: HList,
+  WHERE <: BinaryExpr,
+  HAVING <: BinaryExpr,
+  SORT_BY <: HList,
+  NEW_SOURCE <: Selectable[_]](select: Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], that: NEW_SOURCE) {
+  def on[JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
+      (f: (NEW_SOURCE, SelectContext[FIELDS, SOURCES]) => JOIN_CLAUSE)
+      (implicit
+       appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
+       queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY] =
+    new NonEmptySelect(
+      select.fields,
+      select.groupByFields,
+      appender.append(select.sources, new Join(that, f(that, select))),
+      select.whereFilter,
+      select.havingFilter,
+      select.sortByClause
+    )
+}
