@@ -1,7 +1,7 @@
 # TYDAL
 
 TYDAL (pronounced *tidal* - `/ˈtʌɪd(ə)l/` and formerly YADL)
-is a compile time PostgreSQL query interpreter for Scala. 
+is a type safe PostgreSQL DSL for Scala.
 
 
 ## Getting started
@@ -23,7 +23,26 @@ libraryDependencies += "com.github.epifab" % "tydl" % "1.x-SNAPSHOT"
 
 ### What does it look like?
 
-Please refers to some of the examples [here](src/test/scala/io/epifab/tydal/examples).
+```scala
+Select
+  .from(Students as "s")
+  .join($ => (Exams as "e").on(_ ("student_id") === $("s", "id")))
+  .join($ => (Courses as "c").on(_ ("id") === $("e", "course_id")))
+  .take($ => (
+    $("s", "id") as "sid",
+    $("s", "name") as "sname",
+    $("e", "score") as "score",
+    $("e", "exam_timestamp") as "etime",
+    $("c", "name") as "cname"
+  ))
+  .where(_("s", "id") in List(1, 2, 3))
+  .sortBy($ => (Ascending($("sid")), Descending($("score"))))
+  .compile
+  .mapTo[StudentExam]
+  .as[Vector]
+```
+
+Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
 
 
 ## More in-depth
