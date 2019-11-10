@@ -26,6 +26,15 @@ object StudentsRepo {
       .sortBy($ => (Ascending($("sid")), Descending($("score"))))
       .compile
 
+  val studentsWithMinScore = Select
+    .from(Students as "s")
+    .take(_ ("s").*)
+    .where($ => $("s", "id") in Select
+      .from(Exams as "e")
+      .take1(_("e", "student_id"))
+      .where(_("e", "score") >= "min_score"))
+    .compile
+
   def findById(id: Int): TransactionIO[Option[Student]] =
     Select
       .from(Students as "s")
@@ -35,6 +44,13 @@ object StudentsRepo {
       .withValues(Tuple1("student_id" ~~> id))
       .mapTo[Student]
       .option
+
+  def findStudentsWithAtLeast1ExamScore(score: Int): TransactionIO[Set[Student]] = {
+    studentsWithMinScore
+      .withValues(Tuple1("min_score" ~~> score))
+      .mapTo[Student]
+      .as[Set]
+  }
 
   def findAllBy[C <: Column[_], T]
       (column: StudentsSchema => C, value: T)

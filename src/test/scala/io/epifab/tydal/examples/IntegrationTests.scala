@@ -187,6 +187,13 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     results.transact(connection).unsafeRunSync() shouldBe Right((21, 12, 6, 4, 2))
   }
 
+  it should "filter students who have at least one good score" in {
+    StudentsRepo
+      .findStudentsWithAtLeast1ExamScore(28)
+      .transact(connection)
+      .unsafeRunSync() shouldBe Right(Set(student2))
+  }
+
   //  it can "inject and extract all sort of fields" in {
 //    getFields.transact(connection).unsafeRunSync() shouldBe Right(Seq(
 //      (1, Seq(3.0, 9.99), Map("blue" -> "sky", "yellow" -> "banana"), LocalDate.of(1992, 2, 25), Instant.parse("1986-03-08T09:00:00z"))

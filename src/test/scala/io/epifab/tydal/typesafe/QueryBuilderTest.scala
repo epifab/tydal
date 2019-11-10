@@ -1,6 +1,7 @@
 package io.epifab.tydal.typesafe
 
 import io.epifab.tydal.examples.Schema._
+import io.epifab.tydal.examples.StudentsRepo
 import io.epifab.tydal.typesafe.SelectQueries._
 import io.epifab.tydal.{Delete, Insert, Select, Update}
 import org.scalatest.{FlatSpec, Matchers}
@@ -87,6 +88,20 @@ class QueryBuilderTest extends FlatSpec with Matchers {
     deleteStudentQuery.compile.query shouldBe (
       "DELETE FROM students WHERE" +
         " students.id = ?::int"
+    )
+  }
+
+  it should "build a query with a IN subquery clause" in {
+    StudentsRepo.studentsWithMinScore.query shouldBe (
+      "SELECT" +
+        " s.id AS id," +
+        " s.name AS name," +
+        " s.email AS email," +
+        " s.date_of_birth AS date_of_birth," +
+        " s.address AS address," +
+        " s.interests AS interests" +
+        " FROM students AS s" +
+        " WHERE s.id IN (SELECT e.student_id AS student_id FROM exams AS e WHERE e.score >= ?::int)"
     )
   }
 }

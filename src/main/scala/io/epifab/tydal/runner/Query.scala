@@ -399,9 +399,13 @@ object QueryFragmentBuilder {
         case _: IsSuperset[_, _] => e1.concatenateRequired(e2, " @> ")
         case _: Overlaps[_, _] => e1.concatenateRequired(e2, " && ")
         case _: IsIncluded[_, _] => e1.concatenateRequired(e2.wrap("(", ")"), " = ANY")
+        case _: InSubquery[_, _, _, _, _, _, _] => e1.concatenateRequired(e2.wrap("(", ")"), " IN ")
       }
     }
 
   implicit def whereField[P <: HList, F <: Field[_]](implicit field: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_Where, F, P] =
     instance(field.build)
+
+  implicit def whereSubQuery[P <: HList, S <: Select[_, _, _, _, _, _]](implicit subQuery: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_Where, S, P] =
+    instance(s => QueryFragment(subQuery.build(s)))
 }
