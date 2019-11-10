@@ -2,6 +2,8 @@ package io.epifab.tydal
 
 import shapeless.{::, HList, HNil}
 
+import scala.annotation.{implicitAmbiguous, implicitNotFound}
+
 trait Tag[A <: String] {
   def tagValue: String
 }
@@ -16,6 +18,7 @@ object Tagged {
   }
 }
 
+@implicitNotFound("Cannot build a tagged list of ${NEEDLE} from ${HAYSTACK}")
 trait TagMap[+NEEDLE, HAYSTACK] {
   def toMap(list: HAYSTACK): Map[String, NEEDLE]
 }

@@ -2,7 +2,7 @@ package io.epifab.tydal
 
 import io.epifab.tydal.fields._
 import io.epifab.tydal.runner.{QueryBuilder, ReadStatementStep1, StatementBuilder}
-import io.epifab.tydal.utils.{Appender, TaggedFinder}
+import io.epifab.tydal.utils.{Appender, Bounded, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -87,15 +87,21 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS])
     extends Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] {
 
+  private val findContext: FindContext[FIELDS] = new FindContext[FIELDS] {
+    override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
+      finder.find(fields)
+  }
+
   def take[P, NEW_FIELDS <: HList]
     (f: SelectContext[FIELDS, SOURCES] => P)
     (implicit
      generic: Generic.Aux[P, NEW_FIELDS],
+     taggedListOfFields: TagMap[Field[_], NEW_FIELDS],
      queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, NEW_FIELDS]):
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect(generic.to(f(this)), groupByFields, sources, whereFilter, havingFilter, sortByClause)
 
-  def take1[F <: Field[_]]
+  def take1[F <: Field[_] with Tag[_]]
     (f: SelectContext[FIELDS, SOURCES] => F)
     (implicit
      queryBuilder: QueryBuilder[Select[F :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, F :: HNil]):
@@ -106,11 +112,12 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (f: SelectContext[FIELDS, SOURCES] => P)
     (implicit
      generic: Generic.Aux[P, NEW_GROUPBY],
+     taggedListOfFields: TagMap[Field[_], NEW_GROUPBY],
      queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS]):
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect(fields, generic.to(f(this)), sources, whereFilter, havingFilter, sortByClause)
 
-  def groupBy1[F <: Field[_]]
+  def groupBy1[F <: Field[_] with Tag[_]]
     (f: SelectContext[FIELDS, SOURCES] => F)
     (implicit
      queryBuilder: QueryBuilder[Select[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS]):
@@ -130,15 +137,11 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY] =
     new NonEmptySelect(fields, groupByFields, sources, f(this), havingFilter, sortByClause)
 
-  private val findContext: FindContext[FIELDS] = new FindContext[FIELDS] {
-    override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
-      finder.find(fields)
-  }
-
   def sortBy[P, NEW_SORT_BY <: HList]
     (f: FindContext[FIELDS] => P)
     (implicit
      generic: Generic.Aux[P, NEW_SORT_BY],
+     taggedListOfSortByClauses: Bounded[SortBy[_], NEW_SORT_BY],
      queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, NEW_SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, NEW_SORT_BY] =
     new NonEmptySelect(fields, groupByFields, sources, whereFilter, havingFilter, generic.to(f(findContext)))
 }

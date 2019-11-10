@@ -8,6 +8,8 @@ import io.epifab.tydal.runner.FragmentType._
 import io.epifab.tydal.utils.Concat
 import shapeless.{::, Generic, HList, HNil}
 
+import scala.annotation.implicitNotFound
+
 case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, fields: FIELDS)
 
 case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
@@ -75,6 +77,7 @@ object QueryFragment {
     QueryFragment(Some(sql), placeholder :: HNil)
 }
 
+@implicitNotFound("Could not find a query builder for ${X}")
 sealed trait QueryBuilder[-X, P <: HList, F <: HList] {
   def build(x: X): Query[P, F]
 }

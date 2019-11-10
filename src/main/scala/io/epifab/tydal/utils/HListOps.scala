@@ -94,3 +94,14 @@ object HListOps {
   def concat[L1 <: HList, L2 <: HList, O <: HList](l1: L1, l2: L2)(implicit concat: Concat.Aux[L1, L2, O]): O =
     concat(l1, l2)
 }
+
+trait Bounded[+NEEDLE, HAYSTACK]
+
+object Bounded {
+  implicit def x[A]: Bounded[A, A] = new Bounded[A, A] {}
+
+  implicit def hNil[A]: Bounded[A, HNil] = new Bounded[A, HNil] {}
+
+  implicit def hCons[A, H, T <: HList](implicit boundHead: Bounded[A, H], boundTail: Bounded[A, T]): Bounded[A, H :: T] =
+    new Bounded[A, H :: T] {}
+}
