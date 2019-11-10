@@ -51,15 +51,10 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def havingFilter: HAVING
   def sortByClause: SORT_BY
 
-  class SubQueryBuilder[SUBQUERY_FIELDS <: HList](implicit val refinedFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]) {
-    def as[ALIAS <: String](implicit alias: ValueOf[ALIAS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]] with Tag[ALIAS] =
-      new SelectSubQuery(select, refinedFields.build(alias.value, select.fields)) with Tag[ALIAS] {
-        override def tagValue: String = alias.value
-      }
-  }
-
-  def subQuery[SUBQUERY_FIELDS <: HList](implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]) =
-    new SubQueryBuilder[SUBQUERY_FIELDS]
+  def as[TAG <: String with Singleton, SUBQUERY_FIELDS <: HList](tag: TAG)(implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]] with Tag[TAG] =
+    new SelectSubQuery(select, subQueryFields.build(tag, select.fields)) with Tag[TAG] {
+      override def tagValue: String = tag
+    }
 
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
       (implicit

@@ -22,11 +22,10 @@ object SelectQueries {
           Max($("e", "score")) as "max_score",
           Min($("e", "course_id")) as "course_id"
         ))
-        .subQuery
 
     Select
       .from(Students as "s")
-      .join($ => maxScoreSubQuery.as["ms"]
+      .join($ => (maxScoreSubQuery as "ms")
         .on(_("student_id") === $("s", "id")))
       .join($ => (Courses as "cc").on(_("id") === $("ms", "course_id")))
       .take($ => (
