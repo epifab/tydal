@@ -124,7 +124,7 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect(fields, f(this) :: HNil, sources, whereFilter, havingFilter, sortByClause)
 
-  def innerJoin[NEW_SOURCE <: Selectable[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
+  def innerJoin[NEW_SOURCE <: Selectable[_] with Tag[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
     new JoinBuilder(this, that)
 
 //  def join[NEW_SOURCE <: Selectable[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]

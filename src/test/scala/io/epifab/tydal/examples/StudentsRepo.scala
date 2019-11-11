@@ -52,6 +52,44 @@ object StudentsRepo {
       .as[Set]
   }
 
+  def findStudentsWithBestExam: TransactionIO[Seq[StudentExam]] =
+    Select
+      .from(Students as "s")
+      .innerJoin(
+        // max score per student
+        Select
+          .from(Exams as "e1")
+          .take($ => ($("e1").studentId as "sid1", Max($("e1").score) as "score1"))
+          .groupBy1(_("e1").studentId)
+          .as("me1")
+      )
+      .on(_("sid1") === _("s").id)
+      .innerJoin(
+        // select only the latest exam
+        Select
+          .from(Exams as "e2")
+          .take($ => ($("e2").studentId as "sid2", $("e2").score as "score2", Max($("e2").examTimestamp) as "etime"))
+          .groupBy($ => ($("e2").studentId, $("e2").score))
+          .as("me2")
+      )
+      .on((me2, ctx) => me2("sid2") === ctx("me1", "sid1") and (me2("score2") === ctx("me1", "score1")))
+      .innerJoin(Exams as "e")
+      .on((e, ctx) => e.examTimestamp === ctx("me2", "etime") and (e.studentId === ctx("me2", "sid2")))
+      .innerJoin(Courses as "c")
+      .on(_.id === _("e").courseId)
+      .take($ => (
+        $("s").id            as "sid",
+        $("s").name          as "sname",
+        $("e").score         as "score",
+        $("e").examTimestamp as "etime",
+        $("c").name          as "cname"
+      ))
+      .sortBy($ => (Descending($("score")), Ascending($("sname"))))
+      .compile
+      .withValues(())
+      .mapTo[StudentExam]
+      .as[Vector]
+
   def findAllBy[C <: Column[_], T]
       (column: StudentsSchema => C, value: T)
       (implicit

@@ -194,6 +194,28 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       .unsafeRunSync() shouldBe Right(Set(student2))
   }
 
+  it should "find users with their best exam" in {
+    val jack = Student(99, "Jack", None, LocalDate.of(1994, 2, 2), None, Seq.empty)
+    val jackExam1 = Exam(jack.id, course1.id, 29, Instant.now.minusSeconds(20), None)
+    val jackExam2 = Exam(jack.id, course2.id, 29, Instant.now, None)
+
+    (for {
+      _ <- StudentsRepo.add(jack)
+      _ <- ExamsRepo.add(jackExam1)
+      _ <- ExamsRepo.add(jackExam2)
+    } yield ()).transact(connection).unsafeRunSync() shouldBe Symbol("Right")
+
+    val bestStudentExams = StudentsRepo
+      .findStudentsWithBestExam
+      .transact(connection)
+      .unsafeRunSync()
+    bestStudentExams shouldBe Right(Seq(
+      StudentExam(2, student2.name, 30, exam3.timestamp, course2.name),
+      StudentExam(99, jack.name, 29, jackExam2.timestamp, course2.name),
+      StudentExam(1, student1.name, 24, exam1.timestamp, course1.name),
+    ))
+  }
+
   //  it can "inject and extract all sort of fields" in {
 //    getFields.transact(connection).unsafeRunSync() shouldBe Right(Seq(
 //      (1, Seq(3.0, 9.99), Map("blue" -> "sky", "yellow" -> "banana"), LocalDate.of(1992, 2, 25), Instant.parse("1986-03-08T09:00:00z"))
