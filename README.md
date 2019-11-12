@@ -17,7 +17,7 @@ resolvers += "jitpack" at "https://jitpack.io"
 Step 2. Add the dependency
 
 ```
-libraryDependencies += "com.github.epifab" % "tydl" % "1.x-SNAPSHOT"	
+libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"	
 ```
 
 
