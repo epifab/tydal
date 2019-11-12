@@ -52,7 +52,7 @@ object StudentsRepo {
       .as[Set]
   }
 
-  def findStudentsWithBestExam: TransactionIO[Seq[StudentExam]] =
+  val findStudentsWithBestExam: TransactionIO[Seq[StudentExam]] =
     Select
       .from(Students as "s")
       .innerJoin(
@@ -84,7 +84,7 @@ object StudentsRepo {
         $("e").examTimestamp as "etime",
         $("c").name          as "cname"
       ))
-      .sortBy($ => (Descending($("score")), Ascending($("sname"))))
+      .sortBy($ => Descending($("score")) -> Ascending($("sname")))
       .compile
       .withValues(())
       .mapTo[StudentExam]
