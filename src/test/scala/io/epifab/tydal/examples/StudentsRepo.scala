@@ -52,6 +52,21 @@ object StudentsRepo {
       .as[Set]
   }
 
+  val findStudentsWithAtLeast2Exams: TransactionIO[Set[(Int, Option[Double])]] =
+    Select
+      .from(Students as "s")
+      .innerJoin(Exams as "e").on(_.studentId === _("s").id)
+      .take(ctx => (
+        ctx("s").id as "sid",
+        Avg(ctx("e").score) as "score_avg"
+      ))
+      .groupBy1(_("s").id)
+      .having(ctx => Count(ctx("e").score) >= "min_num_exams")
+      .compile
+      .withValues(Tuple1("min_num_exams" ~~> 2))
+      .tuple
+      .as[Set]
+
   val findStudentsWithBestExam: TransactionIO[Seq[StudentExam]] =
     Select
       .from(Students as "s")

@@ -127,18 +127,15 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
   def innerJoin[NEW_SOURCE <: Selectable[_] with Tag[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
     new JoinBuilder(this, that)
 
-//  def join[NEW_SOURCE <: Selectable[_] with Tag[_], JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
-//    (f: SelectContext[FIELDS, SOURCES] => Join[NEW_SOURCE, JOIN_CLAUSE])
-//    (implicit
-//     appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
-//     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY], _, FIELDS]):
-//    NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY] =
-//      new NonEmptySelect(fields, groupByFields, appender.append(sources, f(this)), whereFilter, havingFilter, sortByClause)
-
   def where[NEW_WHERE <: BinaryExpr]
     (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
     (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY] =
     new NonEmptySelect($fields, $groupBy, $sources, f(this), $having, $sortBy)
+
+  def having[NEW_WHERE <: BinaryExpr]
+    (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
+    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, NEW_WHERE, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, WHERE, NEW_WHERE, SORT_BY] =
+    new NonEmptySelect($fields, $groupBy, $sources, $where, f(this), $sortBy)
 
   def sortBy[P, NEW_SORT_BY <: HList]
     (f: FindContext[FIELDS] => P)

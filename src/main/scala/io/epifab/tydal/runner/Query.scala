@@ -92,9 +92,9 @@ object QueryBuilder {
     }
 
   implicit def selectQuery[
-    FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, SORT_BY <: HList,
+    FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList,
     P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList,
-    P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList
+    P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList, P10 <: HList, P11 <: HList
   ]
     (implicit
      fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, FIELDS, P1],
@@ -104,14 +104,17 @@ object QueryBuilder {
      concat2: Concat.Aux[P3, P4, P5],
      groupBy: QueryFragmentBuilder[FT_FieldExprList, GROUP_BY, P6],
      concat3: Concat.Aux[P5, P6, P7],
-     sortBy: QueryFragmentBuilder[FT_SortBy, SORT_BY, P8],
-     concat4: Concat.Aux[P7, P8, P9]
-    ): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, _, SORT_BY], P9, FIELDS] =
+     having: QueryFragmentBuilder[FT_Where, HAVING, P8],
+     concat4: Concat.Aux[P7, P8, P9],
+     sortBy: QueryFragmentBuilder[FT_SortBy, SORT_BY, P10],
+     concat5: Concat.Aux[P9, P10, P11]
+    ): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], P11, FIELDS] =
     QueryBuilder.instance(select =>
       (fields.build(select.$fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.$sources).prepend("FROM ") `+ +`
         where.build(select.$where).prepend("WHERE ") `+ +`
         groupBy.build(select.$groupBy).prepend("GROUP BY ") `+ +`
+        having.build(select.$having).prepend("HAVING ") `+ +`
         sortBy.build(select.$sortBy).prepend("ORDER BY ")
       ).get(select.$fields)
     )
