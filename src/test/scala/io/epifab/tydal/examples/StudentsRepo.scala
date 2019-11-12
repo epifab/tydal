@@ -1,6 +1,6 @@
 package io.epifab.tydal.examples
 
-import java.time.LocalDate
+import java.time.{Instant, LocalDate, ZoneOffset}
 
 import io.epifab.tydal.Implicits._
 import io.epifab.tydal._
@@ -59,22 +59,30 @@ object StudentsRepo {
         // max score per student
         Select
           .from(Exams as "e1")
-          .take($ => ($("e1").studentId as "sid1", Max($("e1").score) as "score1"))
+          .take($ => (
+            $("e1").studentId as "sid",
+            Max($("e1").score) as "score"
+          ))
+          .where(_("e1").examTimestamp > "exam_min_date")
           .groupBy1(_("e1").studentId)
           .as("me1")
       )
-      .on(_("sid1") === _("s").id)
+      .on(_("sid") === _("s").id)
       .innerJoin(
         // select only the latest exam
         Select
           .from(Exams as "e2")
-          .take($ => ($("e2").studentId as "sid2", $("e2").score as "score2", Max($("e2").examTimestamp) as "etime"))
+          .take($ => (
+            $("e2").studentId as "sid",
+            $("e2").score as "score",
+            Max($("e2").examTimestamp) as "etime"
+          ))
           .groupBy($ => ($("e2").studentId, $("e2").score))
           .as("me2")
       )
-      .on((me2, ctx) => me2("sid2") === ctx("me1", "sid1") and (me2("score2") === ctx("me1", "score1")))
+      .on((me2, ctx) => me2("sid") === ctx("me1", "sid") and (me2("score") === ctx("me1", "score")))
       .innerJoin(Exams as "e")
-      .on((e, ctx) => e.examTimestamp === ctx("me2", "etime") and (e.studentId === ctx("me2", "sid2")))
+      .on((e, ctx) => e.examTimestamp === ctx("me2", "etime") and (e.studentId === ctx("me2", "sid")))
       .innerJoin(Courses as "c")
       .on(_.id === _("e").courseId)
       .take($ => (
@@ -84,9 +92,14 @@ object StudentsRepo {
         $("e").examTimestamp as "etime",
         $("c").name          as "cname"
       ))
+      .where(ctx => ctx("s").dateOfBirth > "student_min_dob" and (ctx("s").dateOfBirth < "student_max_dob"))
       .sortBy($ => Descending($("score")) -> Ascending($("sname")))
       .compile
-      .withValues(())
+      .withValues((
+        "exam_min_date" ~~> Instant.parse("2010-01-01T00:00:00Z"),
+        "student_min_dob" ~~> LocalDate.of(1994, 1, 1),
+        "student_max_dob" ~~> LocalDate.of(1998, 12, 31)
+      ))
       .mapTo[StudentExam]
       .as[Vector]
 

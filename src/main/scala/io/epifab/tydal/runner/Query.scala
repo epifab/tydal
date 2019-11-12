@@ -108,12 +108,12 @@ object QueryBuilder {
      concat4: Concat.Aux[P7, P8, P9]
     ): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, _, SORT_BY], P9, FIELDS] =
     QueryBuilder.instance(select =>
-      (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
-        from.build(select.sources).prepend("FROM ") `+ +`
-        where.build(select.whereFilter).prepend("WHERE ") `+ +`
-        groupBy.build(select.groupByFields).prepend("GROUP BY ") `+ +`
-        sortBy.build(select.sortByClause).prepend("ORDER BY ")
-      ).get(select.fields)
+      (fields.build(select.$fields).orElse(Some("1")).prepend("SELECT ") `+ +`
+        from.build(select.$sources).prepend("FROM ") `+ +`
+        where.build(select.$where).prepend("WHERE ") `+ +`
+        groupBy.build(select.$groupBy).prepend("GROUP BY ") `+ +`
+        sortBy.build(select.$sortBy).prepend("ORDER BY ")
+      ).get(select.$fields)
     )
 
   implicit def insertQuery[NAME <: String, SCHEMA, COLUMNS <: HList, PLACEHOLDERS <: HList]
