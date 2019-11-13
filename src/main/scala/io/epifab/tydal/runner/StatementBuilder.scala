@@ -94,14 +94,14 @@ object StatementBuilder {
     (query: Query[HNil, OUTPUT]) =>
       new GenericStatement(query.sql, _ => RunnableStatement(query.sql, Seq.empty, query.fields))
 
-  implicit def namedPlaceholder[P <: NamedPlaceholder[_] with Tag[_], PTYPE, PTAG <: String, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
+  implicit def namedPlaceholder[P <: NamedPlaceholder[_] with Tagging[_], PTYPE, PTAG <: Tag, TAIL <: HList, TAIL_INPUT <: HList, OUTPUT <: HList, INPUT_TUPLE]
       (implicit
        tagged: Tagged[P, PTAG],
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[TAIL, TAIL_INPUT, _, OUTPUT],
-       tupler: Tupler.Aux[PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE],
-       generic: Generic.Aux[INPUT_TUPLE, PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT]
-      ): StatementBuilder[P :: TAIL, PlaceholderValue[PTYPE] with Tag[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
+       tupler: Tupler.Aux[PlaceholderValue[PTYPE] with Tagging[PTAG] :: TAIL_INPUT, INPUT_TUPLE],
+       generic: Generic.Aux[INPUT_TUPLE, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TAIL_INPUT]
+      ): StatementBuilder[P :: TAIL, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TAIL_INPUT, INPUT_TUPLE, OUTPUT] =
     (query: Query[P :: TAIL, OUTPUT]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
           query.sql,

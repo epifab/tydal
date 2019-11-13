@@ -4,16 +4,16 @@ import shapeless.{::, HList, HNil}
 
 import scala.annotation.{implicitAmbiguous, implicitNotFound}
 
-trait Tag[A <: String] {
+trait Tagging[A <: Tag] {
   def tagValue: String
 }
 
-trait Tagged[-F <: Tag[_], A <: String] {
+trait Tagged[-F, A <: Tag] {
   def tag: A
 }
 
 object Tagged {
-  implicit def pure[A <: String](implicit valueOf: ValueOf[A]): Tagged[Tag[A], A] = new Tagged[Tag[A], A] {
+  implicit def pure[A <: Tag](implicit valueOf: ValueOf[A]): Tagged[Tagging[A], A] = new Tagged[Tagging[A], A] {
     override def tag: A = valueOf.value
   }
 }
@@ -24,7 +24,7 @@ trait TagMap[+NEEDLE, HAYSTACK] {
 }
 
 object TagMap {
-  implicit def pure[NEEDLE <: Tag[_]]: TagMap[NEEDLE, NEEDLE] =
+  implicit def pure[NEEDLE <: Tagging[_]]: TagMap[NEEDLE, NEEDLE] =
     (x: NEEDLE) => Map(x.tagValue -> x)
 
   implicit def hNil[NEEDLE]: TagMap[NEEDLE, HNil] =

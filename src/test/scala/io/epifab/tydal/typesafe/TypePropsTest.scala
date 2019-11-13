@@ -2,7 +2,7 @@ package io.epifab.tydal.typesafe
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.tydal.Tag
+import io.epifab.tydal.Tagging
 import org.scalatest.FunSuite
 import shapeless.the
 
@@ -27,13 +27,13 @@ class TypePropsTest extends FunSuite {
     the[IsNumeric[Int]]
     the[IsNumeric[Field[Option[Int]]]]
     the[IsNumeric[Field[Int]]]
-    the[IsNumeric[Column[Int] with Tag["test"]]]
+    the[IsNumeric[Column[Int] with Tagging["test"]]]
     the[IsNumeric[Column[Int]]]
 
     the[IsNumeric[Double]]
     the[IsNumeric[Option[Double]]]
     the[IsNumeric[Field[Double]]]
-    the[IsNumeric[Column[Double] with Tag["test"]]]
+    the[IsNumeric[Column[Double] with Tagging["test"]]]
     the[IsNumeric[Column[Double]]]
 
     the[Negative[IsNumeric[String]]]
@@ -45,7 +45,7 @@ class TypePropsTest extends FunSuite {
     // the[IsText[String]]
     the[IsText[Field[Option[String]]]]
     the[IsText[Field[String]]]
-    the[IsText[Column[String] with Tag["test"]]]
+    the[IsText[Column[String] with Tagging["test"]]]
     the[IsText[Column[String]]]
 
     the[Negative[IsText[Int]]]
@@ -58,7 +58,7 @@ class TypePropsTest extends FunSuite {
     // the[IsTemporal[Instant]];
     the[IsDate[Field[Option[LocalDate]]]]
     the[IsDate[Field[LocalDate]]]
-    the[IsDate[Column[LocalDate] with Tag["test"]]]
+    the[IsDate[Column[LocalDate] with Tagging["test"]]]
     the[IsDate[Column[LocalDate]]]
 
     the[Negative[IsDate[Int]]]
@@ -71,7 +71,7 @@ class TypePropsTest extends FunSuite {
     // the[IsTemporal[Instant]];
     the[IsDateTime[Field[Option[Instant]]]]
     the[IsDateTime[Field[Instant]]]
-    the[IsDateTime[Column[Instant] with Tag["test"]]]
+    the[IsDateTime[Column[Instant] with Tagging["test"]]]
     the[IsDateTime[Column[Instant]]]
 
     the[Negative[IsDateTime[Int]]]
@@ -92,9 +92,9 @@ class TypePropsTest extends FunSuite {
     the[AreComparable[Double, Field[Option[Int]]]]
 
     // Text and time
-    the[AreComparable[Column[String] with Tag["test"], NamedPlaceholder[String] with Tag["roar"]]]
-    the[AreComparable[Column[Instant] with Tag["test"], NamedPlaceholder[Instant] with Tag["roar"]]]
-    the[AreComparable[Column[LocalDate] with Tag["test"], NamedPlaceholder[LocalDate] with Tag["roar"]]]
+    the[AreComparable[Column[String] with Tagging["test"], NamedPlaceholder[String] with Tagging["roar"]]]
+    the[AreComparable[Column[Instant] with Tagging["test"], NamedPlaceholder[Instant] with Tagging["roar"]]]
+    the[AreComparable[Column[LocalDate] with Tagging["test"], NamedPlaceholder[LocalDate] with Tagging["roar"]]]
 
     // Fields
     the[AreComparable[Int, Field[Int]]]

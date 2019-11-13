@@ -5,7 +5,7 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class Update[NAME <: String, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
+class Update[NAME <: Tag, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
     (val table: Table[NAME, SCHEMA], val fields: FIELDS, val where: E) {
 
   def fields[P, F <: HList]
@@ -26,7 +26,7 @@ class Update[NAME <: String, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
 }
 
 object Update {
-  def apply[NAME <: String, SCHEMA, FIELDS <: HList]
+  def apply[NAME <: Tag, SCHEMA, FIELDS <: HList]
       (tableBuilder: TableBuilder[NAME, SCHEMA])
       (implicit
        name: ValueOf[NAME],

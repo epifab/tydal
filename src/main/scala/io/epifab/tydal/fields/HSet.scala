@@ -1,6 +1,6 @@
 package io.epifab.tydal.fields
 
-import io.epifab.tydal.Tag
+import io.epifab.tydal.Tagging
 import io.epifab.tydal.utils.Concat
 import shapeless.{::, HList, HNil}
 
@@ -42,11 +42,11 @@ object HSet {
         new DifferentElement[A, B] {}
     }
 
-    implicit def removed[A <: Tag[_], B <: Tag[_]](implicit sameElement: SameElement[A, B]): RemoveElement[A, B, HNil] = new RemoveElement[A, B, HNil] {
+    implicit def removed[A <: Tagging[_], B <: Tagging[_]](implicit sameElement: SameElement[A, B]): RemoveElement[A, B, HNil] = new RemoveElement[A, B, HNil] {
       override def remove(haystack: B): HNil = HNil
     }
 
-    implicit def notRemoved[A <: Tag[_], B <: Tag[_]](implicit differentElement: DifferentElement[A, B]): RemoveElement[A, B, B :: HNil] = new RemoveElement[A, B, B :: HNil] {
+    implicit def notRemoved[A <: Tagging[_], B <: Tagging[_]](implicit differentElement: DifferentElement[A, B]): RemoveElement[A, B, B :: HNil] = new RemoveElement[A, B, B :: HNil] {
       override def remove(haystack: B): B :: HNil = haystack :: HNil
     }
 
@@ -78,7 +78,7 @@ object HSet {
   implicit def hNil: HSet[HNil, HNil] =
     instance((_: HNil) => HNil)
 
-  implicit def hCons[H <: Tag[_], T <: HList, HX <: HList, XX <: HList]
+  implicit def hCons[H <: Tagging[_], T <: HList, HX <: HList, XX <: HList]
     (implicit
      removeHeadFromTail: RemoveElement[H, T, HX],
      hSet2: HSet[HX, XX]): HSet[H :: T, H :: XX] =

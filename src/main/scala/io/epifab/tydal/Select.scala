@@ -6,25 +6,25 @@ import io.epifab.tydal.utils.{Appender, Bounded, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
-class Join[+S <: Selectable[_] with Tag[_], +E <: BinaryExpr](val selectable: S, val filter: E)
+class Join[+S <: Selectable[_] with Tagging[_], +E <: BinaryExpr](val selectable: S, val filter: E)
 
 sealed trait SortOrder
 
-case class SortBy[+F <: Field[_] with Tag[_]](field: F, sortOrder: SortOrder) {
+case class SortBy[+F <: Field[_] with Tagging[_]](field: F, sortOrder: SortOrder) {
   def alias: String = field.tagValue
 }
 
 object Ascending {
   case object AscendingOrder extends SortOrder
 
-  def apply[F <: Field[_] with Tag[_]](field: F): SortBy[F] =
+  def apply[F <: Field[_] with Tagging[_]](field: F): SortBy[F] =
     SortBy(field, AscendingOrder)
 }
 
 object Descending {
   case object DescendingOrder extends SortOrder
 
-  def apply[F <: Field[_] with Tag[_]](field: F): SortBy[F] =
+  def apply[F <: Field[_] with Tagging[_]](field: F): SortBy[F] =
     SortBy(field, DescendingOrder)
 }
 
@@ -32,15 +32,15 @@ trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIEL
   def $fields: FIELDS
   def $sources: SOURCES
 
-  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, (FIELDS, SOURCES)]): X with Tag[TAG] =
+  override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, (FIELDS, SOURCES)]): X with Tagging[T] =
     finder.find(($fields, $sources))
 
-  def apply[TAG1 <: String with Singleton, TAG2 <: String with Singleton, X2, HAYSTACK2]
-      (tag1: TAG1, tag2: TAG2)
+  def apply[T1 <: Tag, T2 <: Tag, X2, HAYSTACK2]
+      (tag1: T1, tag2: T2)
       (implicit
-       finder1: TaggedFinder[TAG1, FindContext[HAYSTACK2], SOURCES],
-       finder2: TaggedFinder[TAG2, X2, HAYSTACK2]): X2 AS TAG2 =
-    finder1.find($sources).apply[TAG2, X2](tag2)
+       finder1: TaggedFinder[T1, FindContext[HAYSTACK2], SOURCES],
+       finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 AS T2 =
+    finder1.find($sources).apply[T2, X2](tag2)
 }
 
 sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList] extends SelectContext[FIELDS, SOURCES] { select =>
@@ -51,8 +51,8 @@ sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE 
   def $having: HAVING
   def $sortBy: SORT_BY
 
-  def as[TAG <: String with Singleton, SUBQUERY_FIELDS <: HList](tag: TAG)(implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]] with Tag[TAG] =
-    new SelectSubQuery(select, subQueryFields.build(tag, select.$fields)) with Tag[TAG] {
+  def as[T <: Tag with Singleton, SUBQUERY_FIELDS <: HList](tag: T)(implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]] with Tagging[T] =
+    new SelectSubQuery(select, subQueryFields.build(tag, select.$fields)) with Tagging[T] {
       override def tagValue: String = tag
     }
 
@@ -73,7 +73,7 @@ trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil]
   override val $having: AlwaysTrue = AlwaysTrue
   override val $sortBy: HNil = HNil
 
-  def from[T <: Selectable[_] with Tag[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil] =
+  def from[T <: Selectable[_] with Tagging[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil] =
     new NonEmptySelect($fields, $groupBy, source :: HNil, $where, $having, $sortBy)
 }
 
@@ -88,7 +88,7 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     extends Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] { Self =>
 
   private val findContext: FindContext[FIELDS] = new FindContext[FIELDS] {
-    override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, FIELDS]): X with Tag[TAG] =
+    override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, FIELDS]): X with Tagging[T] =
       finder.find($fields)
   }
 
@@ -101,7 +101,7 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect(generic.to(f(this)), $groupBy, $sources, $where, $having, $sortBy)
 
-  def take1[F <: Field[_] with Tag[_]]
+  def take1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[FIELDS, SOURCES] => F)
     (implicit
      queryBuilder: QueryBuilder[Select[F :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, F :: HNil]):
@@ -117,14 +117,14 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect($fields, generic.to(f(this)), $sources, $where, $having, $sortBy)
 
-  def groupBy1[F <: Field[_] with Tag[_]]
+  def groupBy1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[FIELDS, SOURCES] => F)
     (implicit
      queryBuilder: QueryBuilder[Select[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS]):
     NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect($fields, f(this) :: HNil, $sources, $where, $having, $sortBy)
 
-  def innerJoin[NEW_SOURCE <: Selectable[_] with Tag[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
+  def innerJoin[NEW_SOURCE <: Selectable[_] with Tagging[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
     new JoinBuilder(this, that)
 
   def where[NEW_WHERE <: BinaryExpr]
@@ -155,7 +155,7 @@ class JoinBuilder[
   WHERE <: BinaryExpr,
   HAVING <: BinaryExpr,
   SORT_BY <: HList,
-  NEW_SOURCE <: Selectable[_] with Tag[_]](select: Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], that: NEW_SOURCE) {
+  NEW_SOURCE <: Selectable[_] with Tagging[_]](select: Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], that: NEW_SOURCE) {
   def on[JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
       (f: (NEW_SOURCE, SelectContext[FIELDS, SOURCES]) => JOIN_CLAUSE)
       (implicit

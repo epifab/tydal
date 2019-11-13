@@ -2,7 +2,7 @@ package io.epifab.tydal.runner
 
 import java.sql.ResultSet
 
-import io.epifab.tydal.Tag
+import io.epifab.tydal.Tagging
 import io.epifab.tydal.fields._
 import shapeless.{::, HList, HNil}
 
@@ -28,7 +28,7 @@ object DataExtractor {
   def apply[RESULTS, FIELDS](resultSet: RESULTS, fields: FIELDS): Extractor[RESULTS, FIELDS] =
     new Extractor(resultSet, fields)
 
-  implicit def jdbcField[F <: Field[_] with Tag[_], T](implicit fieldT: FieldT[F, T]): DataExtractor[ResultSet, F, T] =
+  implicit def jdbcField[F <: Field[_] with Tagging[_], T](implicit fieldT: FieldT[F, T]): DataExtractor[ResultSet, F, T] =
     new DataExtractor[ResultSet, F, T] {
       def getSeq[U](resultSet: ResultSet, dbType: FieldType[Any], fieldName: String): Seq[Any] =
         resultSet

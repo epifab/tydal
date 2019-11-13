@@ -6,8 +6,8 @@ import shapeless.{::, HList, HNil}
 
 class SelectSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _, _, _]]
   (val select: S, override val schema: SUBQUERY_FIELDS)
-  extends Selectable[SUBQUERY_FIELDS] { self: Tag[_] =>
-  override def apply[TAG <: String with Singleton, X](tag: TAG)(implicit finder: TaggedFinder[TAG, X, SUBQUERY_FIELDS]): X with Tag[TAG] =
+  extends Selectable[SUBQUERY_FIELDS] { self: Tagging[_] =>
+  override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, SUBQUERY_FIELDS]): X with Tagging[T] =
     finder.find(schema)
 }
 
@@ -16,8 +16,8 @@ trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
 }
 
 object SubQueryFields {
-  implicit def singleField[T, ALIAS <: String]: SubQueryFields[Field[T] with Tag[ALIAS], Column[T] with Tag[ALIAS]] =
-    (srcAlias: String, field: Field[T] with Tag[ALIAS]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tag[ALIAS] {
+  implicit def singleField[T, ALIAS <: Tag]: SubQueryFields[Field[T] with Tagging[ALIAS], Column[T] with Tagging[ALIAS]] =
+    (srcAlias: String, field: Field[T] with Tagging[ALIAS]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tagging[ALIAS] {
       override def tagValue: String = field.tagValue
     }
 

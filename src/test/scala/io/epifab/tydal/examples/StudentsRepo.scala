@@ -123,7 +123,7 @@ object StudentsRepo {
       (implicit
        fieldEncoder: FieldEncoder[T],
        fieldDecoder: FieldDecoder[T],
-       areComparable: AreComparable[C, NamedPlaceholder[T] with Tag["x"]]): TransactionIO[Seq[Student]] = {
+       areComparable: AreComparable[C, NamedPlaceholder[T] with Tagging["x"]]): TransactionIO[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)

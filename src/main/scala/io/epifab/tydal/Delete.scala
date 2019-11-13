@@ -5,7 +5,7 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class Delete[NAME <: String, SCHEMA, E <: BinaryExpr](val table: Table[NAME, SCHEMA], val filter: E) {
+class Delete[NAME <: Tag, SCHEMA, E <: BinaryExpr](val table: Table[NAME, SCHEMA], val filter: E) {
   def where[E2 <: BinaryExpr](f: SCHEMA => E2): Delete[NAME, SCHEMA, E2] =
     new Delete(table, f(table.schema))
 
@@ -19,7 +19,7 @@ class Delete[NAME <: String, SCHEMA, E <: BinaryExpr](val table: Table[NAME, SCH
 }
 
 object Delete {
-  def from[NAME <: String, SCHEMA, FIELDS <: HList]
+  def from[NAME <: Tag, SCHEMA, FIELDS <: HList]
     (tableBuilder: TableBuilder[NAME, SCHEMA])
     (implicit
      name: ValueOf[NAME],

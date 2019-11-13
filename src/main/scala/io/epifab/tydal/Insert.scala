@@ -5,7 +5,7 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class Insert[NAME <: String, SCHEMA](val table: Table[NAME, SCHEMA]) {
+class Insert[NAME <: Tag, SCHEMA](val table: Table[NAME, SCHEMA]) {
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
       (implicit
        queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
@@ -16,7 +16,7 @@ class Insert[NAME <: String, SCHEMA](val table: Table[NAME, SCHEMA]) {
 }
 
 object Insert {
-  def into[NAME <: String, SCHEMA, FIELDS <: HList]
+  def into[NAME <: Tag, SCHEMA, FIELDS <: HList]
       (tableBuilder: TableBuilder[NAME, SCHEMA])
       (implicit
        name: ValueOf[NAME],
