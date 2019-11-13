@@ -29,7 +29,7 @@ object SelectQueries {
         $("s").id            as "sid",
         $("s").name          as "sname",
         $("ms", "max_score") as "score",
-        $("cc").name.??      as "cname"
+        Nullable($("cc").name)      as "cname"
       ))
       .where(_("s", "id") === "student_id")
   }

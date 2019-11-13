@@ -14,22 +14,14 @@ object SameType {
   implicit def trivial[T]: SameType[T, T] = new SameType[T, T] {}
 }
 
-trait Negative[A]
-
-object Negative {
-  implicit def negative[T](implicit t: T): Negative[T] = new Negative[T] {}
-  @implicitAmbiguous("Cannot find a negative type class ${A}")
-  implicit def positive[T]: Negative[T] = new Negative[T] {}
-}
-
 class TypePropsTest extends FunSuite {
+  import io.epifab.tydal.fields._
+
   test("Negative type class") {
     the[SameType[Int, Int]]
     the[Negative[SameType[Int, String]]]
     the[Negative[Negative[SameType[Int, Int]]]]
   }
-
-  import io.epifab.tydal.fields._
 
   test("IsNumeric") {
     the[IsNumeric[Int]]

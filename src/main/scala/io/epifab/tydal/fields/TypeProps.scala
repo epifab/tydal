@@ -2,6 +2,8 @@ package io.epifab.tydal.fields
 
 import java.time.{Instant, LocalDate}
 
+import scala.annotation.implicitAmbiguous
+
 sealed trait TypeProps
 
 trait IsNumeric[T] extends TypeProps
@@ -96,4 +98,46 @@ object CanBeIncluded {
        gt: FieldT[G, U],
        canOverlap: CanBeIncluded[T, U]): CanBeIncluded[F, G] =
     new CanBeIncluded[F, G] {}
+}
+
+sealed trait IsOptional[F] extends TypeProps
+
+object IsOptional {
+  implicit def optional[T]: IsOptional[Option[T]] = new IsOptional[Option[T]] {}
+
+  implicit def field[F <: Field[_], T]
+      (implicit
+       ft: FieldT[F, T],
+       isOptional: IsOptional[T]): IsOptional[F] =
+    new IsOptional[F] {}
+}
+
+sealed trait Negative[A]
+
+object Negative {
+  implicit def negative[T](implicit t: T): Negative[T] = new Negative[T] {}
+  @implicitAmbiguous("Cannot find a negative type class ${A}")
+  implicit def positive[T]: Negative[T] = new Negative[T] {}
+}
+
+sealed trait NullableField[F <: Field[_], G <: Field[_]] {
+  def apply(f: F): G
+}
+
+object NullableField {
+  implicit def nonOptional[F <: Field[_], T]
+      (implicit
+       fieldT: FieldT[F, T],
+       nonOptional: Negative[IsOptional[F]],
+       decoder: FieldDecoder[Option[T]]): NullableField[F, SoftCast[F, Option[T]]] =
+    new NullableField[F, SoftCast[F, Option[T]]] {
+      override def apply(f: F): SoftCast[F, Option[T]] = SoftCast[F, Option[T]](f)
+    }
+
+  implicit def optional[F <: Field[_], T]
+      (implicit
+       fieldT: FieldT[F, T],
+       optional: IsOptional[F]): NullableField[F, F] = new NullableField[F, F] {
+    override def apply(f: F): F = f
+  }
 }

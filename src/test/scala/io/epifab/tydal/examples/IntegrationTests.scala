@@ -15,6 +15,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq(Interest.Music))
   val course1 = Course(1, "Math")
   val course2 = Course(2, "Astronomy")
+  val course3 = Course(3, "Music")
 
   val john = Student(
     199,
@@ -49,6 +50,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     _ <- StudentsRepo.add(student3)
     _ <- CoursesRepo.add(course1)
     _ <- CoursesRepo.add(course2)
+    _ <- CoursesRepo.add(course3)
     _ <- ExamsRepo.add(exam1)
     _ <- ExamsRepo.add(exam2)
     _ <- ExamsRepo.add(exam3)
@@ -203,24 +205,22 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
   it should "find users with their best exam" in {
     val jack = Student(99, "Jack", None, LocalDate.of(1994, 2, 2), None, Seq.empty)
-    val jackExam1 = Exam(jack.id, course1.id, 29, Instant.now.minusSeconds(20), None)
-    val jackExam2 = Exam(jack.id, course2.id, 29, Instant.now, None)
+    val jackExam1 = Exam(jack.id, course1.id, 29, Instant.now.minusSeconds(172800), None)
+    val jackExam2 = Exam(jack.id, course2.id, 29, Instant.now.minusSeconds(86400), None)
+    val jackExam3 = Exam(jack.id, course3.id, 28, Instant.now, None)
 
     (for {
       _ <- StudentsRepo.add(jack)
       _ <- ExamsRepo.add(jackExam1)
       _ <- ExamsRepo.add(jackExam2)
+      _ <- ExamsRepo.add(jackExam3)
     } yield ()).transact(connection).unsafeRunSync() shouldBe Symbol("Right")
 
     val bestStudentExams = StudentsRepo
       .findStudentsWithBestExam
       .transact(connection)
       .unsafeRunSync()
-    bestStudentExams shouldBe Right(Seq(
-//      StudentExam(2, student2.name, 30, exam3.timestamp, course2.name),
-      StudentExam(99, jack.name, 29, jackExam2.timestamp, course2.name),
-//      StudentExam(1, student1.name, 24, exam1.timestamp, course1.name),
-    ))
+    bestStudentExams shouldBe Right(Seq(StudentExam(99, jack.name, 29, jackExam2.timestamp, course2.name)))
   }
 
   //  it can "inject and extract all sort of fields" in {

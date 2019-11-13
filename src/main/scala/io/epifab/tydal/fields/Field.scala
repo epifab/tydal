@@ -10,9 +10,9 @@ sealed trait Field[+T] {
   def as[TAG <: String with Singleton](alias: TAG): Field[T] with Tag[TAG]
 }
 
-case class Column[+T](name: String, srcAlias: String)(implicit val decoder: FieldDecoder[T]) extends Field[T] {
+case class Column[+T](name: String, relationAlias: String)(implicit val decoder: FieldDecoder[T]) extends Field[T] {
   override def as[TAG <: String with Singleton](alias: TAG): Column[T] with Tag[TAG] =
-    new Column[T](name, srcAlias) with Tag[TAG] {
+    new Column[T](name, relationAlias) with Tag[TAG] {
       override def tagValue: String = alias
     }
 }
@@ -33,12 +33,19 @@ case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder
     }
 }
 
-case class Nullable[+F <: Field[_], +T](field: F)(implicit fieldT: FieldT[F, T], val decoder: FieldDecoder[Option[T]])
-  extends Field[Option[T]] {
-  override def as[TAG <: String with Singleton](alias: TAG): Nullable[F, T] with Tag[TAG] =
-    new Nullable[F, T](field) with Tag[TAG] {
+case class SoftCast[+F <: Field[_], +T](field: F)(implicit val decoder: FieldDecoder[T])
+  extends Field[T] {
+  override def as[TAG <: String with Singleton](alias: TAG): SoftCast[F, T] with Tag[TAG] =
+    new SoftCast[F, T](field) with Tag[TAG] {
       override def tagValue: String = alias
     }
+}
+
+object Nullable {
+  def apply[F <: Field[_], G <: Field[_]]
+      (field: F)
+      (implicit nullableField: NullableField[F, G]): G =
+    nullableField(field)
 }
 
 case class FieldExpr1[+F <: Field[_], +U](field: F, dbFunction: DbFunction1[F, U])(implicit val decoder: FieldDecoder[U])
@@ -97,15 +104,6 @@ class PlaceholderValue[X](val value: X)(implicit val decoder: FieldDecoder[X], v
 }
 
 object PlaceholderValue {
-  def apply[TAG <: String with Singleton, VALUE]
-  (tag: TAG, value: VALUE)
-  (implicit
-   encoder: FieldEncoder[VALUE],
-   decoder: FieldDecoder[VALUE]): PlaceholderValue[VALUE] with Tag[TAG] =
-    new PlaceholderValue(value) with Tag[TAG] {
-      override def tagValue: String = tag
-    }
-
   def apply[VALUE]
   (value: VALUE)
   (implicit
@@ -166,8 +164,6 @@ object FieldT {
 
 object Field {
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {
-    def ??[T](implicit fieldT: FieldT[F1, T]): Nullable[F1, T] = Nullable(field1)(fieldT, fieldT.get(field1).decoder.toOption)
-
     def ===[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): Equals[F1, F2] =
       Equals(field1, field2)
 

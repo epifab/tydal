@@ -273,13 +273,13 @@ object QueryFragmentBuilder {
   // ------------------------------
 
   implicit val fieldExprColumn: QueryFragmentBuilder[FT_FieldExprList, Column[_], HNil] =
-    instance((f: Column[_]) => QueryFragment(s"${f.srcAlias}.${f.name}"))
+    instance((f: Column[_]) => QueryFragment(s"${f.relationAlias}.${f.name}"))
 
   implicit def fieldExprCast[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Cast[F, _], P] =
     instance((f: Cast[F, _]) => builder.build(f.field).append("::" + f.decoder.dbType.sqlName))
 
-  implicit def fieldExprNullable[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Nullable[F, _], P] =
-    instance((f: Nullable[F, _]) => builder.build(f.field))
+  implicit def fieldExprSoftCast[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, SoftCast[F, _], P] =
+    instance((f: SoftCast[F, _]) => builder.build(f.field))
 
   implicit def fieldExprAggregation[F <: Field[_], P <: HList](implicit builder: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldExprList, Aggregation[F, _], P] =
     instance((f: Aggregation[F, _]) => builder.build(f.field).wrap(f.dbFunction.name + "(", ")"))
