@@ -198,10 +198,13 @@ object QueryFragmentBuilder {
       (implicit
        src: QueryFragmentBuilder[FT_From, S, P],
        where: QueryFragmentBuilder[FT_Where, WHERE, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, WHERE], R] =
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, _, _, WHERE], R] =
     instance(join =>
-      src.build(join.selectable).prepend("INNER JOIN ") ++
-        where.build(join.filter).prepend(" ON ")
+      src.build(join.right).prepend(join.joinType match {
+        case InnerJoin => "INNER JOIN "
+        case LeftJoin => "LEFT JOIN "
+      }) ++
+        where.build(join.joinClause).prepend(" ON ")
     )
 
   implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_, _] with Tagging[_], HNil] =

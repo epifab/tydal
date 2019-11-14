@@ -6,8 +6,6 @@ import io.epifab.tydal.utils.{Appender, Bounded, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
-class Join[+S <: Selectable[_] with Tagging[_], +E <: BinaryExpr](val selectable: S, val filter: E)
-
 sealed trait SortOrder
 
 case class SortBy[+F <: Field[_] with Tagging[_]](field: F, sortOrder: SortOrder) {
@@ -124,8 +122,14 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
     NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY] =
       new NonEmptySelect($fields, f(this) :: HNil, $sources, $where, $having, $sortBy)
 
-  def innerJoin[NEW_SOURCE <: Selectable[_] with Tagging[_]](that: NEW_SOURCE): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, NEW_SOURCE] =
-    new JoinBuilder(this, that)
+  def innerJoin[RIGHT_SOURCE <: Selectable[_] with Tagging[_], RIGHT_FIELDS <: HList, RIGHT_ALIAS <: Tag]
+    (that: RIGHT_SOURCE)
+    (implicit
+     selectableFields: SelectableFields[RIGHT_SOURCE, RIGHT_FIELDS],
+     tagged: Tagged[RIGHT_SOURCE, RIGHT_ALIAS]): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, RIGHT_SOURCE, RIGHT_FIELDS, RIGHT_ALIAS] =
+    new JoinBuilder(this, that, selectableFields.fields(that), InnerJoin)
+
+//  def leftJoin[NEW_SOURCE <: Selectable[_] with Tagging[_], JOIN_FIELDS <: HList](that: NEW_SOURCE)(implicit fields: NullableFields[]
 
   def where[NEW_WHERE <: BinaryExpr]
     (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
@@ -148,25 +152,3 @@ class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE
 
 object Select extends EmptySelect
 
-class JoinBuilder[
-  FIELDS <: HList,
-  GROUP_BY <: HList,
-  SOURCES <: HList,
-  WHERE <: BinaryExpr,
-  HAVING <: BinaryExpr,
-  SORT_BY <: HList,
-  NEW_SOURCE <: Selectable[_] with Tagging[_]](select: Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], that: NEW_SOURCE) {
-  def on[JOIN_CLAUSE <: BinaryExpr, SOURCE_RESULTS <: HList]
-      (f: (NEW_SOURCE, SelectContext[FIELDS, SOURCES]) => JOIN_CLAUSE)
-      (implicit
-       appender: Appender.Aux[SOURCES, Join[NEW_SOURCE, JOIN_CLAUSE], SOURCE_RESULTS],
-       queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCE_RESULTS, WHERE, HAVING, SORT_BY] =
-    new NonEmptySelect(
-      select.$fields,
-      select.$groupBy,
-      appender.append(select.$sources, new Join(that, f(that, select))),
-      select.$where,
-      select.$having,
-      select.$sortBy
-    )
-}

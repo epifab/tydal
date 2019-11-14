@@ -2,7 +2,7 @@ package io.epifab.tydal.fields
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.tydal.{Tag, Tagged, Tagging}
+import io.epifab.tydal.{Tag, Tagged, Tagging, Untagged}
 
 import scala.annotation.implicitAmbiguous
 
@@ -127,13 +127,24 @@ sealed trait NullableField[F <: Field[_], G <: Field[_]] {
 }
 
 object NullableField {
-  implicit def nonOptional[F <: Field[_], T]
+  implicit def nonOptionalUntagged[F <: Field[_], T]
       (implicit
        fieldT: FieldT[F, T],
+       untagged: Untagged[F],
        nonOptional: Negative[IsOptional[F]],
        decoder: FieldDecoder[Option[T]]): NullableField[F, SoftCast[F, Option[T]]] =
     new NullableField[F, SoftCast[F, Option[T]]] {
       override def apply(f: F): SoftCast[F, Option[T]] = SoftCast[F, Option[T]](f)
+    }
+
+  implicit def nonOptionalTagged[F <: Field[_], T, A <: Tag]
+      (implicit
+       fieldT: FieldT[F, T],
+       tagged: Tagged[F, A],
+       nonOptional: Negative[IsOptional[F]],
+       decoder: FieldDecoder[Option[T]]): NullableField[F, SoftCast[F, Option[T]] with Tagging[A]] =
+    new NullableField[F, SoftCast[F, Option[T]] with Tagging[A]] {
+      override def apply(f: F): SoftCast[F, Option[T]] with Tagging[A] = SoftCast[F, Option[T]](f) as tagged.tag
     }
 
   implicit def optional[F <: Field[_], T]

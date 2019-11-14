@@ -1,8 +1,6 @@
 package io.epifab.tydal.utils
 
 import io.epifab.tydal._
-import io.epifab.tydal.fields.BinaryExpr
-import io.epifab.tydal.{Join, Selectable}
 import shapeless.{::, Generic, HList}
 
 import scala.annotation.implicitNotFound
@@ -48,7 +46,4 @@ object TaggedFinder {
       (implicit generic: Generic.Aux[CC, REPR],
        finder: TaggedFinder[T, X, REPR]): TaggedFinder[T, X, CC] =
     (cc: CC) => finder.find(generic.to(cc))
-
-  implicit def joinFinder[T <: Tag, X <: Selectable[_], E <: BinaryExpr, TAIL <: HList]: TaggedFinder[T, X, Join[X AS T, E] :: TAIL] =
-    (u: Join[X AS T, E] :: TAIL) => u.head.selectable
 }

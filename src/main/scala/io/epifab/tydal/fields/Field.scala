@@ -33,7 +33,7 @@ case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder
     }
 }
 
-case class SoftCast[+F <: Field[_], +T](field: F)(implicit val decoder: FieldDecoder[T])
+case class SoftCast[+F <: Field[_], +T] private[fields](field: F)(implicit val decoder: FieldDecoder[T])
   extends Field[T] {
   override def as[ALIAS <: Tag](alias: ALIAS): SoftCast[F, T] with Tagging[ALIAS] =
     new SoftCast[F, T](field) with Tagging[ALIAS] {

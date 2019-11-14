@@ -12,7 +12,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
   }
 
   it should "build a simple select query" in {
-    studentsQuery("ms").select.compile.query shouldBe (
+    studentsQuery("ms").right.select.compile.query shouldBe (
       "SELECT" +
         " e.student_id AS student_id," +
         " max(e.score) AS max_score," +

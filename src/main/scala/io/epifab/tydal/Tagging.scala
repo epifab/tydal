@@ -18,6 +18,14 @@ object Tagged {
   }
 }
 
+sealed trait Untagged[-F]
+
+object Untagged {
+  implicit def alwaysTagged[F, A]: Untagged[F] = new Untagged[F] { }
+  @implicitAmbiguous("${F} is actually tagged")
+  implicit def tagged[F, A <: Tag](implicit tagged: Tagged[F, A]): Untagged[F] = new Untagged[F] {}
+}
+
 @implicitNotFound("Cannot build a tagged list of ${NEEDLE} from ${HAYSTACK}")
 trait TagMap[+NEEDLE, HAYSTACK] {
   def toMap(list: HAYSTACK): Map[String, NEEDLE]
