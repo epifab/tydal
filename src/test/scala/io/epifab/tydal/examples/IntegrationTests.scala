@@ -4,6 +4,7 @@ import java.sql.Connection
 import java.time.{Instant, LocalDate}
 import java.util.concurrent.atomic.AtomicInteger
 
+import cats.effect.IO
 import io.epifab.tydal.examples.Model._
 import io.epifab.tydal.runner.{DataError, DriverError}
 import org.scalatest.Matchers._
@@ -42,7 +43,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     _ <- ExamsRepo.removeAll
     _ <- CoursesRepo.removeAll
     _ <- StudentsRepo.removeAll
-  } yield ()).transact(connection).unsafeRunSync()
+  } yield ()).transact[IO](connection).unsafeRunSync()
 
   def setUp(): Either[DataError, Unit] = (for {
     _ <- StudentsRepo.add(student1)
@@ -54,7 +55,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     _ <- ExamsRepo.add(exam1)
     _ <- ExamsRepo.add(exam2)
     _ <- ExamsRepo.add(exam3)
-  } yield ()).transact(connection).unsafeRunSync()
+  } yield ()).transact[IO](connection).unsafeRunSync()
 
   override def beforeAll(): Unit = {
     tearDown() shouldBe Symbol("Right")
@@ -68,7 +69,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
   private val connection: Connection = QueryRunnerFactories.connection
 
   it should "run a query successfully" in {
-    StudentsRepo.findStudentExams(Seq(2, 1)).transact(connection).unsafeRunSync() shouldBe Right(Seq(
+    StudentsRepo.findStudentExams(Seq(2, 1)).transact[IO](connection).unsafeRunSync() shouldBe Right(Seq(
       StudentExam(1, "John Doe", 24, exam1.timestamp, "Math"),
       StudentExam(2, "Jane Doe", 30, exam3.timestamp, "Astronomy"),
       StudentExam(2, "Jane Doe", 29, exam2.timestamp, "Math")
@@ -87,7 +88,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       maybeJim <- findStudent
       _ <- StudentsRepo.remove(john.id)
       maybeNobody <- findStudent
-    } yield (maybeJohn, maybeJim, maybeNobody)).transact(connection).unsafeRunSync()
+    } yield (maybeJohn, maybeJim, maybeNobody)).transact[IO](connection).unsafeRunSync()
 
     actualStudents shouldBe Right((Some(john), Some(jim), None))
   }
@@ -96,14 +97,14 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     (for {
       _ <- StudentsRepo.add(john)
       _ <- StudentsRepo.add(john)
-    } yield ()).transact(connection).unsafeRunSync() shouldBe Left(DriverError("ERROR: duplicate key value violates unique constraint \"students_pkey\"\n  Detail: Key (id)=(199) already exists."))
+    } yield ()).transact[IO](connection).unsafeRunSync() shouldBe Left(DriverError("ERROR: duplicate key value violates unique constraint \"students_pkey\"\n  Detail: Key (id)=(199) already exists."))
 
-    StudentsRepo.findById(john.id).transact(connection).unsafeRunSync() shouldBe Right(None)
+    StudentsRepo.findById(john.id).transact[IO](connection).unsafeRunSync() shouldBe Right(None)
   }
 
   it should "find a student by email" in {
     StudentsRepo.findAllBy(_.email, student1.email)
-      .transact(connection)
+      .transact[IO](connection)
       .unsafeRunSync() shouldBe Right(Seq(student1))
   }
 
@@ -152,7 +153,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       _ <- StudentsRepo.add(Student(newId, s"Jack $id Roe", Some(s"jack$id@tydal.com"), a23yo, None, Seq(Interest.Math)))
       _ <- StudentsRepo.add(Student(newId, s"John $id Roe", Some(s"john$id@tydal.com"), a22yo, None, Seq(Interest.Math)))
       _ <- StudentsRepo.add(Student(newId, s"Jane $id Roe", Some(s"jane$id@tydal.com"), a21yo, None, Seq(Interest.Math)))
-    } yield ()).transact(connection).unsafeRunSync() shouldBe Symbol("Right")
+    } yield ()).transact[IO](connection).unsafeRunSync() shouldBe Symbol("Right")
 
     val results = for {
       i1 <- StudentsRepo.findAllBy(
@@ -186,20 +187,20 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       ).map(_.length)
     } yield (i1, i2, i3, i4, i5)
 
-    results.transact(connection).unsafeRunSync() shouldBe Right((21, 12, 6, 4, 2))
+    results.transact[IO](connection).unsafeRunSync() shouldBe Right((21, 12, 6, 4, 2))
   }
 
   it should "filter students who have at least one good score" in {
     StudentsRepo
       .findStudentsWithAtLeast1ExamScore(28)
-      .transact(connection)
+      .transact[IO](connection)
       .unsafeRunSync() shouldBe Right(Set(student2))
   }
 
   it should "filter students having less than 2 exams" in {
     StudentsRepo
       .findStudentsWithAtLeast2Exams
-      .transact(connection)
+      .transact[IO](connection)
       .unsafeRunSync() shouldBe Right(Set(2 -> Some(29.5)))
   }
 
@@ -214,11 +215,11 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       _ <- ExamsRepo.add(jackExam1)
       _ <- ExamsRepo.add(jackExam2)
       _ <- ExamsRepo.add(jackExam3)
-    } yield ()).transact(connection).unsafeRunSync() shouldBe Symbol("Right")
+    } yield ()).transact[IO](connection).unsafeRunSync() shouldBe Symbol("Right")
 
     val bestStudentExams = StudentsRepo
       .findStudentsWithBestExam
-      .transact(connection)
+      .transact[IO](connection)
       .unsafeRunSync()
     bestStudentExams shouldBe Right(Seq(StudentExam(99, jack.name, 29, jackExam2.timestamp, course2.name)))
   }

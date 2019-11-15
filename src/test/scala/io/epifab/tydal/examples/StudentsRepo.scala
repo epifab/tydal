@@ -7,7 +7,7 @@ import io.epifab.tydal._
 import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.tydal.examples.Schema._
 import io.epifab.tydal.fields._
-import io.epifab.tydal.runner.TransactionIO
+import io.epifab.tydal.runner.Transaction
 
 object StudentsRepo {
   private val studentExamsQuery =
@@ -35,7 +35,7 @@ object StudentsRepo {
       .where(_("e", "score") >= "min_score"))
     .compile
 
-  def findById(id: Int): TransactionIO[Option[Student]] =
+  def findById(id: Int): Transaction[Option[Student]] =
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -45,14 +45,14 @@ object StudentsRepo {
       .mapTo[Student]
       .option
 
-  def findStudentsWithAtLeast1ExamScore(score: Int): TransactionIO[Set[Student]] = {
+  def findStudentsWithAtLeast1ExamScore(score: Int): Transaction[Set[Student]] = {
     studentsWithMinScore
       .withValues(Tuple1("min_score" ~~> score))
       .mapTo[Student]
       .as[Set]
   }
 
-  val findStudentsWithAtLeast2Exams: TransactionIO[Set[(Int, Option[Double])]] =
+  val findStudentsWithAtLeast2Exams: Transaction[Set[(Int, Option[Double])]] =
     Select
       .from(Students as "s")
       .innerJoin(Exams as "e").on(_("student_id") === _("s", "id"))
@@ -67,7 +67,7 @@ object StudentsRepo {
       .tuple
       .as[Set]
 
-  val findStudentsWithBestExam: TransactionIO[Seq[StudentExam]] =
+  val findStudentsWithBestExam: Transaction[Seq[StudentExam]] =
     Select
       .from(Students as "s")
       .innerJoin(
@@ -123,7 +123,7 @@ object StudentsRepo {
       (implicit
        fieldEncoder: FieldEncoder[T],
        fieldDecoder: FieldDecoder[T],
-       areComparable: AreComparable[C, NamedPlaceholder[T] with Tagging["x"]]): TransactionIO[Seq[Student]] = {
+       areComparable: AreComparable[C, NamedPlaceholder[T] with Tagging["x"]]): Transaction[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -140,7 +140,7 @@ object StudentsRepo {
                  name: Option[String] = None,
                  email: Option[String] = None,
                  interests: Option[Seq[Interest]] = None
-               ): TransactionIO[Seq[Student]] = {
+               ): Transaction[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -159,14 +159,14 @@ object StudentsRepo {
       .as[Vector]
   }
 
-  def findStudentExams(ids: Seq[Int]): TransactionIO[Seq[StudentExam]] = {
+  def findStudentExams(ids: Seq[Int]): Transaction[Seq[StudentExam]] = {
     studentExamsQuery
       .withValues(Tuple1("sids" ~~> ids))
       .mapTo[StudentExam]
       .as[Vector]
   }
 
-  def add(student: Student): TransactionIO[Int] = {
+  def add(student: Student): Transaction[Int] = {
     Insert
       .into(Students)
       .compile
@@ -182,7 +182,7 @@ object StudentsRepo {
       }
   }
 
-  def updateNameAndEmail(id: Int, name: String, email: Option[String]): TransactionIO[Int] =
+  def updateNameAndEmail(id: Int, name: String, email: Option[String]): Transaction[Int] =
     Update(Students)
       .fields(s => (s.name, s.email))
       .where(_.id === "id")
@@ -195,7 +195,7 @@ object StudentsRepo {
         )
       }
 
-  def remove(id: Int): TransactionIO[Int] =
+  def remove(id: Int): Transaction[Int] =
     Delete.from(Students)
       .where(_.id === "id")
       .compile
@@ -203,7 +203,7 @@ object StudentsRepo {
         Tuple1("id" ~~> id)
       }
 
-  lazy val removeAll: TransactionIO[Int] =
+  lazy val removeAll: Transaction[Int] =
     Delete
       .from(Students)
       .compile

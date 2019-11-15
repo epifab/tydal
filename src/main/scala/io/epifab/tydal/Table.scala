@@ -5,7 +5,7 @@ import io.epifab.tydal.utils.TaggedFinder
 import shapeless.Generic
 
 class TableBuilder[NAME <: Tag, SCHEMA](implicit name: ValueOf[NAME]) {
-  def as[ALIAS <: Singleton with String, REPR](alias: ALIAS)(implicit a: ValueOf[ALIAS], generic: Generic.Aux[SCHEMA, REPR], columnsBuilder: ColumnsBuilder[REPR]): Table[NAME, SCHEMA] with Tagging[ALIAS] =
+  def as[ALIAS <: Tag, REPR](alias: ALIAS)(implicit a: ValueOf[ALIAS], generic: Generic.Aux[SCHEMA, REPR], columnsBuilder: ColumnsBuilder[REPR]): Table[NAME, SCHEMA] with Tagging[ALIAS] =
     Table(name.value, generic.from(columnsBuilder.build(alias)), alias)
 }
 

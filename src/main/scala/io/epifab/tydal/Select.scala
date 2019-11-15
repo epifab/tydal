@@ -71,7 +71,7 @@ trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil]
   override val $having: AlwaysTrue = AlwaysTrue
   override val $sortBy: HNil = HNil
 
-  def from[T <: Selectable[_] with Tagging[_]](source: T)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil], HNil, HNil]): NonEmptySelect[HNil, HNil, T :: HNil, AlwaysTrue, AlwaysTrue, HNil] =
+  def from[S <: Selectable[_] with Tagging[_]](source: S)(implicit queryBuilder: QueryBuilder[Select[HNil, HNil, S :: HNil, AlwaysTrue, AlwaysTrue, HNil], HNil, HNil]): NonEmptySelect[HNil, HNil, S :: HNil, AlwaysTrue, AlwaysTrue, HNil] =
     new NonEmptySelect($fields, $groupBy, source :: HNil, $where, $having, $sortBy)
 }
 

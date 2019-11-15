@@ -2,34 +2,35 @@ package io.epifab.tydal.runner
 
 import java.sql.{Connection, PreparedStatement, ResultSet}
 
+import cats.Monad
 import cats.data.EitherT
-import cats.effect.IO
+import cats.effect.{IO, Sync}
 import io.epifab.tydal._
 import shapeless.{HList, HNil}
 
 import scala.util.Try
 import scala.util.control.NonFatal
 
-trait StatementExecutor[F[+_, +_], CONN, FIELDS <: HList, OUTPUT] {
-  def run(connection: CONN, statement: RunnableStatement[FIELDS]): F[DataError, OUTPUT]
+trait StatementExecutor[CONN, FIELDS <: HList, OUTPUT] {
+  def run[F[_]: Sync: Monad](connection: CONN, statement: RunnableStatement[FIELDS]): F[Either[DataError, OUTPUT]]
 }
 
-trait ReadStatementExecutor[F[+_, +_], CONN, FIELDS <: HList, ROW]
-  extends StatementExecutor[F, CONN, FIELDS, Iterator[Either[DecoderError, ROW]]]
+trait ReadStatementExecutor[CONN, FIELDS <: HList, ROW]
+  extends StatementExecutor[CONN, FIELDS, Iterator[Either[DecoderError, ROW]]]
 
-trait WriteStatementExecutor[F[+_, +_], CONN, FIELDS <: HList]
-  extends StatementExecutor[F, CONN, FIELDS, Int]
+trait WriteStatementExecutor[CONN, FIELDS <: HList]
+  extends StatementExecutor[CONN, FIELDS, Int]
 
 
 object ReadStatementExecutor {
   implicit def jdbcQuery[FIELDS <: HList, ROW]
-  (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, ROW]): ReadStatementExecutor[IOEither, Connection, FIELDS, ROW] =
+  (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, ROW]): ReadStatementExecutor[Connection, FIELDS, ROW] =
 
-    new ReadStatementExecutor[IOEither, Connection, FIELDS, ROW] {
-      override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
+    new ReadStatementExecutor[Connection, FIELDS, ROW] {
+      override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
         (for {
-          preparedStatement <- EitherT(IO(Jdbc.initStatement(connection, statement.sql, statement.input)))
-          results <- EitherT(IO(runStatement(preparedStatement, statement.fields)))
+          preparedStatement <- EitherT(Sync[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+          results <- EitherT(Sync[F].delay(runStatement(preparedStatement, statement.fields)))
         } yield results).value
 
       private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
@@ -55,12 +56,12 @@ object ReadStatementExecutor {
 }
 
 object StatementExecutor {
-  implicit def jdbcUpdate: WriteStatementExecutor[IOEither, Connection, HNil] =
-    new WriteStatementExecutor[IOEither, Connection, HNil] {
-      override def run(connection: Connection, statement: RunnableStatement[HNil]): IO[Either[DataError, Int]] =
+  implicit def jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
+    new WriteStatementExecutor[Connection, HNil] {
+      override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
         (for {
-          preparedStatement <- EitherT(IO(Jdbc.initStatement(connection, statement.sql, statement.input)))
-          results <- EitherT(IO(runStatement(preparedStatement)))
+          preparedStatement <- EitherT(Sync[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+          results <- EitherT(Sync[F].delay(runStatement(preparedStatement)))
         } yield results).value
 
       private def runStatement(preparedStatement: PreparedStatement): Either[DataError, Int] =

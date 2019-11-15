@@ -2,9 +2,11 @@ package io.epifab.tydal.runner
 
 import java.sql.Connection
 
-import cats.effect.IO
+import cats.implicits._
+import cats.Monad
+import cats.effect.{IO, Sync}
 import io.epifab.tydal._
-import io.epifab.tydal.fields.{FieldT, NamedPlaceholder, PlaceholderValueOption, PlaceholderValue}
+import io.epifab.tydal.fields.{FieldT, NamedPlaceholder, PlaceholderValue, PlaceholderValueOption}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -23,19 +25,19 @@ class WriteStatement[INPUT, FIELDS <: HList]
 (val query: String, toRunnable: INPUT => RunnableStatement[FIELDS]) {
   def withValues
   (values: INPUT)
-  (implicit statementExecutor: WriteStatementExecutor[IOEither, Connection, FIELDS]):
-  TransactionIO[Int] = TransactionIO(toRunnable(values))
+  (implicit statementExecutor: WriteStatementExecutor[Connection, FIELDS]):
+  Transaction[Int] = Transaction(toRunnable(values))
 }
 
 class ReadStatementStep1[INPUT, FIELDS <: HList]
 (val query: String, toRunnable: INPUT => RunnableStatement[FIELDS]) {
-  def withValues[RAW_OUTPUT <: HList](values: INPUT)(implicit statementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]): ReadStatementStep2[FIELDS, RAW_OUTPUT] =
+  def withValues[RAW_OUTPUT <: HList](values: INPUT)(implicit statementExecutor: ReadStatementExecutor[Connection, FIELDS, RAW_OUTPUT]): ReadStatementStep2[FIELDS, RAW_OUTPUT] =
     new ReadStatementStep2[FIELDS, RAW_OUTPUT](toRunnable(values))
 }
 
 class ReadStatementStep2[FIELDS <: HList, RAW_OUTPUT <: HList]
 (runnableStatement: RunnableStatement[FIELDS])
-(implicit readStatementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]) {
+(implicit readStatementExecutor: ReadStatementExecutor[Connection, FIELDS, RAW_OUTPUT]) {
   def mapTo[OUTPUT](implicit generic: Generic.Aux[OUTPUT, RAW_OUTPUT]): ReadStatementStep3[FIELDS, RAW_OUTPUT, OUTPUT] =
     new ReadStatementStep3(runnableStatement, generic.from)
 
@@ -46,11 +48,11 @@ class ReadStatementStep2[FIELDS <: HList, RAW_OUTPUT <: HList]
 
 class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
 (runnableStatement: RunnableStatement[FIELDS], toOutput: RAW_OUTPUT => OUTPUT)
-(implicit readStatementExecutor: ReadStatementExecutor[IOEither, Connection, FIELDS, RAW_OUTPUT]) {
-  def as[C[_]](implicit factory: Factory[OUTPUT, C[OUTPUT]]): TransactionIO[C[OUTPUT]] =
-    TransactionIO(runnableStatement) {
-      new StatementExecutor[IOEither, Connection, FIELDS, C[OUTPUT]] {
-        override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, C[OUTPUT]]] =
+(implicit readStatementExecutor: ReadStatementExecutor[Connection, FIELDS, RAW_OUTPUT]) {
+  def as[C[_]](implicit factory: Factory[OUTPUT, C[OUTPUT]]): Transaction[C[OUTPUT]] =
+    Transaction(runnableStatement) {
+      new StatementExecutor[Connection, FIELDS, C[OUTPUT]] {
+        override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, C[OUTPUT]]] =
           readStatementExecutor.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
@@ -64,10 +66,10 @@ class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
       }
     }
 
-  def option: TransactionIO[Option[OUTPUT]] =
-    TransactionIO(runnableStatement) {
-      new StatementExecutor[IOEither, Connection, FIELDS, Option[OUTPUT]] {
-        override def run(connection: Connection, statement: RunnableStatement[FIELDS]): IO[Either[DataError, Option[OUTPUT]]] =
+  def option: Transaction[Option[OUTPUT]] =
+    Transaction(runnableStatement) {
+      new StatementExecutor[Connection, FIELDS, Option[OUTPUT]] {
+        override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, Option[OUTPUT]]] =
           readStatementExecutor.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>

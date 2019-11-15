@@ -5,7 +5,7 @@ import java.time.{Instant, LocalDate}
 import io.epifab.tydal.Implicits._
 import io.epifab.tydal.examples.Schema._
 import io.epifab.tydal.fields._
-import io.epifab.tydal.runner.TransactionIO
+import io.epifab.tydal.runner.Transaction
 import io.epifab.tydal.{Delete, Select, Update}
 
 object SelectQueries {
@@ -50,7 +50,7 @@ object SelectQueries {
   val deleteStudentQuery = Delete.from(Students)
     .where(_.id === "id")
 
-  def getFields: TransactionIO[Seq[(Int, Seq[Double], Map[String, String], LocalDate, Instant)]] = {
+  def getFields: Transaction[Seq[(Int, Seq[Double], Map[String, String], LocalDate, Instant)]] = {
     implicit val mapEnc: FieldEncoder[Map[String, String]] = FieldEncoder.jsonEncoder[Map[String, String]]
     implicit val mapDec: FieldDecoder[Map[String, String]] = FieldDecoder.jsonDecoder[Map[String, String]]
 
