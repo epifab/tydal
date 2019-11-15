@@ -52,7 +52,7 @@ class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
   def as[C[_]](implicit factory: Factory[OUTPUT, C[OUTPUT]]): Transaction[C[OUTPUT]] =
     Transaction(runnableStatement) {
       new StatementExecutor[Connection, FIELDS, C[OUTPUT]] {
-        override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, C[OUTPUT]]] =
+        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, C[OUTPUT]]] =
           readStatementExecutor.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
@@ -69,7 +69,7 @@ class ReadStatementStep3[FIELDS <: HList, RAW_OUTPUT, OUTPUT]
   def option: Transaction[Option[OUTPUT]] =
     Transaction(runnableStatement) {
       new StatementExecutor[Connection, FIELDS, Option[OUTPUT]] {
-        override def run[F[_]: Sync: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, Option[OUTPUT]]] =
+        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, Option[OUTPUT]]] =
           readStatementExecutor.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>

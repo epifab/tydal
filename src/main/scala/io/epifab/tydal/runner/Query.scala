@@ -194,11 +194,11 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def fromJoin[S <: Selectable[_] with Tagging[_], WHERE <: BinaryExpr, P <: HList, Q <: HList, R <: HList]
+  implicit def fromJoin[S <: Selectable[_] with Tagging[_], WHERE <: BinaryExpr, FIELDS <: HList, A <: Tag, P <: HList, Q <: HList, R <: HList]
       (implicit
        src: QueryFragmentBuilder[FT_From, S, P],
        where: QueryFragmentBuilder[FT_Where, WHERE, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, _, _, WHERE], R] =
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, FIELDS, A, WHERE], R] =
     instance(join =>
       src.build(join.right).prepend(join.joinType match {
         case InnerJoin => "INNER JOIN "
@@ -378,7 +378,7 @@ object QueryFragmentBuilder {
 
   implicit def whereBinaryExpr1[E1 <: BinaryExpr, P <: HList]
       (implicit left: QueryFragmentBuilder[FT_Where, E1, P]): QueryFragmentBuilder[FT_Where, BinaryExpr1[E1], P] =
-    instance { (expr: BinaryExpr1[E1]) =>
+    instance { expr: BinaryExpr1[E1] =>
       val e1 = left.build(expr.expr)
       expr match {
         case _: IsDefined[_] => e1 ++ " IS NOT NULL"
