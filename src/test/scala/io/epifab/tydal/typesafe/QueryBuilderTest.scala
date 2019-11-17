@@ -63,7 +63,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
   }
 
   it should "build an update query without filter" in {
-    Update(Students).fields(s => (s.name, s.email)).compile.query shouldBe (
+    Update(Students).fields(s => (s("name"), s("email"))).compile.query shouldBe (
       "UPDATE students SET" +
         " name = ?::varchar," +
         " email = ?::varchar"

@@ -16,8 +16,8 @@ sealed trait SelectableFields[-S <: Selectable[_], FIELDS <: HList] {
 }
 
 object SelectableFields {
-  implicit def table[SCHEMA, FIELDS <: HList](implicit generic: Generic.Aux[SCHEMA, FIELDS]): SelectableFields[Table[_, SCHEMA], FIELDS] = new SelectableFields[Table[_, SCHEMA], FIELDS] {
-    override def fields(selectable: Table[_, SCHEMA]): FIELDS = generic.to(selectable.schema)
+  implicit def table[FIELDS <: HList]: SelectableFields[Table[_, FIELDS], FIELDS] = new SelectableFields[Table[_, FIELDS], FIELDS] {
+    override def fields(selectable: Table[_, FIELDS]): FIELDS = selectable.schema
   }
 
   implicit def subQuery[FIELDS <: HList]: SelectableFields[SelectSubQuery[FIELDS, _], FIELDS] = new SelectableFields[SelectSubQuery[FIELDS, _], FIELDS] {

@@ -118,22 +118,6 @@ object StudentsRepo {
       .mapTo[StudentExam]
       .as[Vector]
 
-  def findAllBy[C <: Column[_], T]
-      (column: StudentsSchema => C, value: T)
-      (implicit
-       fieldEncoder: FieldEncoder[T],
-       fieldDecoder: FieldDecoder[T],
-       areComparable: AreComparable[C, NamedPlaceholder[T] with Tagging["x"]]): Transaction[Seq[Student]] = {
-    Select
-      .from(Students as "s")
-      .take(_("s").*)
-      .where { $ => column($("s").schema) === NamedPlaceholder[T, "x"] }
-      .compile
-      .withValues(Tuple1("x" ~~> value))
-      .mapTo[Student]
-      .as[Vector]
-  }
-
   def findAllBy(
                  minAge: Option[Int] = None,
                  maxAge: Option[Int] = None,
@@ -175,7 +159,7 @@ object StudentsRepo {
           "id" ~~> student.id,
           "name" ~~> student.name,
           "email" ~~> student.email,
-          "date_of_birth" ~~> student.dateOfBirth,
+          "date_of_birth" ~~> student.date_of_birth,
           "address" ~~> student.address,
           "interests" ~~> student.interests
         )
@@ -184,8 +168,8 @@ object StudentsRepo {
 
   def updateNameAndEmail(id: Int, name: String, email: Option[String]): Transaction[Int] =
     Update(Students)
-      .fields(s => (s.name, s.email))
-      .where(_.id === "id")
+      .fields(s => (s("name"), s("email")))
+      .where(_("id") === "id")
       .compile
       .withValues {
         (
@@ -197,7 +181,7 @@ object StudentsRepo {
 
   def remove(id: Int): Transaction[Int] =
     Delete.from(Students)
-      .where(_.id === "id")
+      .where(_("id") === "id")
       .compile
       .withValues {
         Tuple1("id" ~~> id)

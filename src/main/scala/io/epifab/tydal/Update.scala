@@ -1,20 +1,20 @@
 package io.epifab.tydal
 
-import io.epifab.tydal.fields.{AlwaysTrue, BinaryExpr, ColumnsBuilder}
+import io.epifab.tydal.fields.{AlwaysTrue, BinaryExpr}
 import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class Update[NAME <: Tag, SCHEMA, FIELDS <: HList, E <: BinaryExpr]
-    (val table: Table[NAME, SCHEMA], val fields: FIELDS, val where: E) {
+class Update[NAME <: Tag, TABLE_FIELDS <: HList, FIELDS <: HList, WHERE <: BinaryExpr]
+    (val table: Table[NAME, TABLE_FIELDS], val $fields: FIELDS, val $where: WHERE) {
 
-  def fields[P, F <: HList]
-    (f: SCHEMA => P)
-    (implicit generic: Generic.Aux[P, F]): Update[NAME, SCHEMA, F, E] =
-    new Update(table, generic.to(f(table.schema)), where)
+  def fields[P, NEW_FIELDS <: HList]
+    (f: Selectable[TABLE_FIELDS] => P)
+    (implicit generic: Generic.Aux[P, NEW_FIELDS]): Update[NAME, TABLE_FIELDS, NEW_FIELDS, WHERE] =
+    new Update(table, generic.to(f(table)), $where)
 
-  def where[E2 <: BinaryExpr](f: SCHEMA => E2): Update[NAME, SCHEMA, FIELDS, E2] =
-    new Update(table, fields, f(table.schema))
+  def where[E2 <: BinaryExpr](f: Selectable[TABLE_FIELDS] => E2): Update[NAME, TABLE_FIELDS, FIELDS, E2] =
+    new Update(table, $fields, f(table))
 
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
       (implicit
@@ -30,8 +30,7 @@ object Update {
       (tableBuilder: TableBuilder[NAME, SCHEMA])
       (implicit
        name: ValueOf[NAME],
-       genericSchema: Generic.Aux[SCHEMA, FIELDS],
-       columnsBuilder: ColumnsBuilder[FIELDS]
-      ): Update[NAME, SCHEMA, FIELDS, AlwaysTrue] =
-    new Update(tableBuilder as name.value, columnsBuilder.build(name.value), AlwaysTrue)
+       schemaBuilder: SchemaBuilder[SCHEMA, FIELDS]
+      ): Update[NAME, FIELDS, FIELDS, AlwaysTrue] =
+    new Update(tableBuilder as name.value, schemaBuilder.build(name.value), AlwaysTrue)
 }

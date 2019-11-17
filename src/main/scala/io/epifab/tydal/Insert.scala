@@ -1,11 +1,10 @@
 package io.epifab.tydal
 
-import io.epifab.tydal.fields.ColumnsBuilder
 import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
-import shapeless.{Generic, HList, HNil}
+import shapeless.{HList, HNil}
 
-class Insert[NAME <: Tag, SCHEMA](val table: Table[NAME, SCHEMA]) {
+class Insert[NAME <: Tag, FIELDS <: HList](val table: Table[NAME, FIELDS]) {
   def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
       (implicit
        queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
@@ -20,8 +19,7 @@ object Insert {
       (tableBuilder: TableBuilder[NAME, SCHEMA])
       (implicit
        name: ValueOf[NAME],
-       genericSchema: Generic.Aux[SCHEMA, FIELDS],
-       columnsBuilder: ColumnsBuilder[FIELDS]
-      ): Insert[NAME, SCHEMA] =
+       schemaBuilder: SchemaBuilder[SCHEMA, FIELDS]
+      ): Insert[NAME, FIELDS] =
     new Insert(tableBuilder as name.value)
 }

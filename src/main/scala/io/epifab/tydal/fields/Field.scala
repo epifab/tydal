@@ -128,32 +128,6 @@ object PlaceholderValueOption {
     new PlaceholderValueOption(value.map(new PlaceholderValue(_)))(decoder.toOption, encoder)
 }
 
-@implicitNotFound("Could not build a schema for this table.\n" +
-  " Possible reasons:\n" +
-  " - your schema is invalid: ensure that all properties in your schema are of type Column[T] with Tag[A]" +
-  " for concrete T and A;\n" +
-  " - a FieldEncoder could not be found for one or more columns in your schema." +
-  " Ensure that a FieldEncoder[T] is in scope for every Column[T] in your schema.")
-trait ColumnsBuilder[+X] {
-  def build(ds: String): X
-}
-
-object ColumnsBuilder {
-  implicit def pure[TYPE, NAME <: Tag](implicit decoder: FieldDecoder[TYPE], name: ValueOf[NAME]): ColumnsBuilder[Column[TYPE] with Tagging[NAME]] =
-    (ds: String) => new Column[TYPE](name.value, ds) with Tagging[NAME] {
-      override def tagValue: String = name
-    }
-
-  implicit val hNil: ColumnsBuilder[HNil] =
-    (ds: String) => HNil
-
-  implicit def hCons[H, T <: HList]
-      (implicit
-       headTerm: ColumnsBuilder[H],
-       tailTerms: ColumnsBuilder[T]): ColumnsBuilder[H :: T] =
-    (ds: String) => headTerm.build(ds) :: tailTerms.build(ds)
-}
-
 trait FieldT[-F <: Field[_], T] {
   def get(f: F): Field[T]
 }

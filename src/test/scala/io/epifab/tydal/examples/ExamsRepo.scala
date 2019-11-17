@@ -12,11 +12,11 @@ object ExamsRepo {
       .into(Exams)
       .compile
       .withValues((
-        "student_id" ~~> exam.studentId,
-        "course_id" ~~> exam.courseId,
+        "student_id" ~~> exam.student_id,
+        "course_id" ~~> exam.course_id,
         "score" ~~> exam.score,
-        "exam_timestamp" ~~> exam.timestamp,
-        "registration_timestamp" ~~> exam.registration
+        "exam_timestamp" ~~> exam.exam_timestamp,
+        "registration_timestamp" ~~> exam.registration_timestamp
       ))
 
   lazy val removeAll: Transaction[Int] =

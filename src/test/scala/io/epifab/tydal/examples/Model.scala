@@ -26,14 +26,23 @@ object Model {
     id: Int,
     name: String,
     email: Option[String],
-    dateOfBirth: LocalDate,
+    date_of_birth: LocalDate,
     address: Option[Address],
     interests: Seq[Interest]
   )
 
   case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
 
-  case class Exam(studentId: Int, courseId: Int, score: Int, timestamp: Instant, registration: Option[Instant])
+  case class Exam(
+    student_id: Int,
+    course_id: Int,
+    score: Int,
+    exam_timestamp: Instant,
+    registration_timestamp: Option[Instant]
+  )
 
-  case class Course(id: Int, name: String)
+  case class Course(
+    id: Int,
+    name: String
+  )
 }

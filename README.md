@@ -72,42 +72,44 @@ In Scala:
 Select
   .from(Students as "s")
   .innerJoin(
+    // max score per student
     Select
       .from(Exams as "e1")
-      .take(ctx => (
-        ctx("e1").studentId as "sid",
-        Max(ctx("e1").score) as "score"
+      .take($ => (
+        $("e1", "student_id") as "sid",
+        Max($("e1", "score")) as "score"
       ))
-      .where(_("e1").examTimestamp > "exam_min_date")
-      .groupBy1(_("e1").studentId)
-      .as("se1")
+      .where(_("e1", "exam_timestamp") > "exam_min_date")
+      .groupBy1(_("e1", "student_id"))
+      .as("me1")
   )
-  .on(_("sid") === _("s").id)
+  .on(_("sid") === _("s", "id"))
   .innerJoin(
+    // select only the latest exam
     Select
       .from(Exams as "e2")
-      .take(ctx => (
-        ctx("e2").studentId as "sid",
-        ctx("e2").score as "score",
-        Max(ctx("e2").examTimestamp) as "etime"
+      .take($ => (
+        $("e2", "student_id") as "sid",
+        $("e2", "score") as "score",
+        Max($("e2", "exam_timestamp")) as "etime"
       ))
-      .groupBy(ctx => (ctx("e2").studentId, ctx("e2").score))
-      .as("se2")
+      .groupBy($ => ($("e2", "student_id"), $("e2", "score")))
+      .as("me2")
   )
-  .on((se2, ctx) => se2("sid") === ctx("se1", "sid") and (se2("score") === ctx("se1", "score")))
+  .on((me2, ctx) => me2("sid") === ctx("me1", "sid") and (me2("score") === ctx("me1", "score")))
   .innerJoin(Exams as "e")
-  .on((e, ctx) => e.examTimestamp === ctx("se2", "etime") and (e.studentId === ctx("se2", "sid")))
+  .on((e, ctx) => e("exam_timestamp") === ctx("me2", "etime") and (e("student_id") === ctx("me2", "sid")))
   .innerJoin(Courses as "c")
-  .on(_.id === _("e").courseId)
-  .take(ctx => (
-    ctx("s").id            as "sid",
-    ctx("s").name          as "sname",
-    ctx("e").score         as "escore",
-    ctx("e").examTimestamp as "etime",
-    ctx("c").name          as "cname"
+  .on(_("id") === _("e", "course_id"))
+  .take($ => (
+    $("s", "id")             as "sid",
+    $("s", "name")           as "sname",
+    $("e", "score")          as "score",
+    $("e", "exam_timestamp") as "etime",
+    $("c", "name")           as "cname"
   ))
-  .where(ctx => ctx("s").dateOfBirth > "student_min_dob" and (ctx("s").dateOfBirth < "student_max_dob"))
-  .sortBy(ctx => Descending(ctx("escore")) -> Ascending(ctx("sname")))
+  .where(ctx => ctx("s", "date_of_birth") > "student_min_dob" and (ctx("s", "date_of_birth") < "student_max_dob"))
+  .sortBy($ => Descending($("score")) -> Ascending($("sname")))
   .compile
   .withValues((
     "exam_min_date" ~~> Instant.parse("2010-01-01T00:00:00Z"),

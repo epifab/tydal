@@ -44,11 +44,11 @@ object SelectQueries {
       ))
 
   val updateStudentQuery = Update(Students)
-    .fields(s => (s.name, s.email))
-    .where(_.id === "id")
+    .fields(s => (s("name"), s("email")))
+    .where(_("id") === "id")
 
   val deleteStudentQuery = Delete.from(Students)
-    .where(_.id === "id")
+    .where(_("id") === "id")
 
   def getFields: Transaction[Seq[(Int, Seq[Double], Map[String, String], LocalDate, Instant)]] = {
     implicit val mapEnc: FieldEncoder[Map[String, String]] = FieldEncoder.jsonEncoder[Map[String, String]]

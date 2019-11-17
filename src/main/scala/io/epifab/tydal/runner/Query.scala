@@ -119,31 +119,30 @@ object QueryBuilder {
       ).get(select.$fields)
     )
 
-  implicit def insertQuery[NAME <: Tag, SCHEMA, COLUMNS <: HList, PLACEHOLDERS <: HList]
+  implicit def insertQuery[NAME <: Tag, COLUMNS <: HList, PLACEHOLDERS <: HList]
       (implicit
-       generic: Generic.Aux[SCHEMA, COLUMNS],
        names: QueryFragmentBuilder[FT_ColumnNameList, COLUMNS, HNil],
-       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, SCHEMA], PLACEHOLDERS, HNil] =
+       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, COLUMNS], PLACEHOLDERS, HNil] =
     QueryBuilder.instance(insert => {
-      val columns = generic.to(insert.table.schema)
+      val columns = insert.table.schema
       (names.build(columns).wrap("(", ")") ++
         " VALUES " ++
         placeholders.build(columns).wrap("(", ")")
       ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
     })
 
-  implicit def updateQuery[NAME <: Tag, SCHEMA, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, WHERE <: BinaryExpr]
+  implicit def updateQuery[NAME <: Tag, TABLE_FIELDS <: HList, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, WHERE <: BinaryExpr]
       (implicit
        placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, COLUMNS, P],
        where: QueryFragmentBuilder[FT_Where, WHERE, Q],
        concat: Concat.Aux[P, Q, R]
-      ): QueryBuilder[Update[NAME, SCHEMA, COLUMNS, WHERE], R, HNil] =
+      ): QueryBuilder[Update[NAME, TABLE_FIELDS, COLUMNS, WHERE], R, HNil] =
     QueryBuilder.instance(update => {
-      (placeholders.build(update.fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
-        where.build(update.where).prepend(" WHERE ")).get(HNil)
+      (placeholders.build(update.$fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
+        where.build(update.$where).prepend(" WHERE ")).get(HNil)
     })
 
-  implicit def deleteQuery[NAME <: Tag, SCHEMA, P <: HList, WHERE <: BinaryExpr]
+  implicit def deleteQuery[NAME <: Tag, SCHEMA <: HList, P <: HList, WHERE <: BinaryExpr]
       (implicit
        where: QueryFragmentBuilder[FT_Where, WHERE, P]
       ): QueryBuilder[Delete[NAME, SCHEMA, WHERE], P, HNil] =
