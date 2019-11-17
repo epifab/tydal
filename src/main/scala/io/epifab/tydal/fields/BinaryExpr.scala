@@ -66,5 +66,5 @@ case class Overlaps[+E1 <: Field[_], +E2 <: Field[_]](left: E1, right: E2)(impli
 case class IsIncluded[+E1 <: Field[_], +E2 <: Field[_]](left: E1, right: E2)(implicit canBeIncluded: CanBeIncluded[E1, E2])
   extends BinaryExpr2[E1, E2]
 
-case class InSubquery[+E1 <: Field[_], E2 <: Field[_], GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList](left: E1, right: Select[E2 :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY])(implicit areComparable: AreComparable[E1, E2])
-  extends BinaryExpr2[E1, Select[E2 :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]]
+case class InSubquery[+E1 <: Field[_], E2 <: Field[_], GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList](left: E1, right: Select[E2 :: HNil, GroupBy, Sources, Where, Having, Sort])(implicit areComparable: AreComparable[E1, E2])
+  extends BinaryExpr2[E1, Select[E2 :: HNil, GroupBy, Sources, Where, Having, Sort]]

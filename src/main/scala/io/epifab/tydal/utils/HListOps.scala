@@ -95,7 +95,7 @@ object HListOps {
     concat(l1, l2)
 }
 
-trait Bounded[+NEEDLE, HAYSTACK]
+trait Bounded[+Needle, Haystack]
 
 object Bounded {
   implicit def x[A]: Bounded[A, A] = new Bounded[A, A] {}

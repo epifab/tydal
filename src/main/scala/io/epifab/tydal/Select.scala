@@ -26,40 +26,40 @@ object Descending {
     SortBy(field, DescendingOrder)
 }
 
-trait SelectContext[FIELDS <: HList, SOURCES <: HList] extends FindContext[(FIELDS, SOURCES)] {
-  def $fields: FIELDS
-  def $sources: SOURCES
+trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fields, Sources)] {
+  def $fields: Fields
+  def $sources: Sources
 
-  override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, (FIELDS, SOURCES)]): X with Tagging[T] =
+  override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, (Fields, Sources)]): X with Tagging[T] =
     finder.find(($fields, $sources))
 
-  def apply[T1 <: Tag, T2 <: Tag, X2, HAYSTACK2]
+  def apply[T1 <: String with Singleton, T2 <: String with Singleton, X2, HAYSTACK2]
       (tag1: T1, tag2: T2)
       (implicit
-       finder1: TaggedFinder[T1, FindContext[HAYSTACK2], SOURCES],
+       finder1: TaggedFinder[T1, FindContext[HAYSTACK2], Sources],
        finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 AS T2 =
     finder1.find($sources).apply[T2, X2](tag2)
 }
 
-sealed trait Select[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList] extends SelectContext[FIELDS, SOURCES] { select =>
-  def $fields: FIELDS
-  def $groupBy: GROUP_BY
-  def $sources: SOURCES
-  def $where: WHERE
-  def $having: HAVING
-  def $sortBy: SORT_BY
+sealed trait Select[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList] extends SelectContext[Fields, Sources] { select =>
+  def $fields: Fields
+  def $groupBy: GroupBy
+  def $sources: Sources
+  def $where: Where
+  def $having: Having
+  def $sortBy: Sort
 
-  def as[T <: Tag with Singleton, SUBQUERY_FIELDS <: HList](tag: T)(implicit subQueryFields: SubQueryFields[FIELDS, SUBQUERY_FIELDS]): SelectSubQuery[SUBQUERY_FIELDS, Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY]] with Tagging[T] =
+  def as[T <: String with Singleton with Singleton, SubQueryFieldsRepr <: HList](tag: T)(implicit subQueryFields: SubQueryFields[Fields, SubQueryFieldsRepr]): SelectSubQuery[SubQueryFieldsRepr, Select[Fields, GroupBy, Sources, Where, Having, Sort]] with Tagging[T] =
     new SelectSubQuery(select, subQueryFields.build(tag, select.$fields)) with Tagging[T] {
       override def tagValue: String = tag
     }
 
-  def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
+  def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
-       queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, FIELDS],
-       statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, FIELDS],
-       tupler: Tupler.Aux[RAW_INPUT, INPUT]
-      ): ReadStatementStep1[INPUT, FIELDS] =
+       queryBuilder: QueryBuilder[this.type, Placeholders, Fields],
+       statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, Fields],
+       tupler: Tupler.Aux[InputRepr, Input]
+      ): ReadStatementStep1[Input, Fields] =
     statementBuilder.build(queryBuilder.build(this)).select
 }
 
@@ -75,78 +75,78 @@ trait EmptySelect extends Select[HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil]
     new NonEmptySelect($fields, $groupBy, source :: HNil, $where, $having, $sortBy)
 }
 
-class NonEmptySelect[FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList]
-    (override val $fields: FIELDS,
-     override val $groupBy: GROUP_BY,
-     override val $sources: SOURCES,
-     override val $where: WHERE,
-     override val $having: HAVING,
-     override val $sortBy: SORT_BY)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS])
-    extends Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] { Self =>
+class NonEmptySelect[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList]
+    (override val $fields: Fields,
+     override val $groupBy: GroupBy,
+     override val $sources: Sources,
+     override val $where: Where,
+     override val $having: Having,
+     override val $sortBy: Sort)
+    (implicit queryBuilder: QueryBuilder[Select[Fields, GroupBy, Sources, Where, Having, Sort], _, Fields])
+    extends Select[Fields, GroupBy, Sources, Where, Having, Sort] { Self =>
 
-  private val findContext: FindContext[FIELDS] = new FindContext[FIELDS] {
-    override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, FIELDS]): X with Tagging[T] =
+  private val findContext: FindContext[Fields] = new FindContext[Fields] {
+    override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Fields]): X with Tagging[T] =
       finder.find($fields)
   }
 
-  def take[P, NEW_FIELDS <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => P)
+  def take[P, NewFields <: HList]
+    (f: SelectContext[Fields, Sources] => P)
     (implicit
-     generic: Generic.Aux[P, NEW_FIELDS],
-     taggedListOfFields: TagMap[Field[_], NEW_FIELDS],
-     queryBuilder: QueryBuilder[Select[NEW_FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, NEW_FIELDS]):
-    NonEmptySelect[NEW_FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] =
+     generic: Generic.Aux[P, NewFields],
+     taggedListOfFields: TagMap[Field[_], NewFields],
+     queryBuilder: QueryBuilder[Select[NewFields, GroupBy, Sources, Where, Having, Sort], _, NewFields]):
+    NonEmptySelect[NewFields, GroupBy, Sources, Where, Having, Sort] =
       new NonEmptySelect(generic.to(f(this)), $groupBy, $sources, $where, $having, $sortBy)
 
   def take1[F <: Field[_] with Tagging[_]]
-    (f: SelectContext[FIELDS, SOURCES] => F)
+    (f: SelectContext[Fields, Sources] => F)
     (implicit
-     queryBuilder: QueryBuilder[Select[F :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], _, F :: HNil]):
-    NonEmptySelect[F :: HNil, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY] =
+     queryBuilder: QueryBuilder[Select[F :: HNil, GroupBy, Sources, Where, Having, Sort], _, F :: HNil]):
+    NonEmptySelect[F :: HNil, GroupBy, Sources, Where, Having, Sort] =
       new NonEmptySelect(f(this) :: HNil, $groupBy, $sources, $where, $having, $sortBy)
 
-  def groupBy[P, NEW_GROUPBY <: HList]
-    (f: SelectContext[FIELDS, SOURCES] => P)
+  def groupBy[P, NewGroup <: HList]
+    (f: SelectContext[Fields, Sources] => P)
     (implicit
-     generic: Generic.Aux[P, NEW_GROUPBY],
-     taggedListOfFields: TagMap[Field[_], NEW_GROUPBY],
-     queryBuilder: QueryBuilder[Select[FIELDS, NEW_GROUPBY, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS]):
-    NonEmptySelect[FIELDS, NEW_GROUPBY, SOURCES, WHERE, HAVING, SORT_BY] =
+     generic: Generic.Aux[P, NewGroup],
+     taggedListOfFields: TagMap[Field[_], NewGroup],
+     queryBuilder: QueryBuilder[Select[Fields, NewGroup, Sources, Where, Having, Sort], _, Fields]):
+    NonEmptySelect[Fields, NewGroup, Sources, Where, Having, Sort] =
       new NonEmptySelect($fields, generic.to(f(this)), $sources, $where, $having, $sortBy)
 
   def groupBy1[F <: Field[_] with Tagging[_]]
-    (f: SelectContext[FIELDS, SOURCES] => F)
+    (f: SelectContext[Fields, Sources] => F)
     (implicit
-     queryBuilder: QueryBuilder[Select[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY], _, FIELDS]):
-    NonEmptySelect[FIELDS, F :: HNil, SOURCES, WHERE, HAVING, SORT_BY] =
+     queryBuilder: QueryBuilder[Select[Fields, F :: HNil, Sources, Where, Having, Sort], _, Fields]):
+    NonEmptySelect[Fields, F :: HNil, Sources, Where, Having, Sort] =
       new NonEmptySelect($fields, f(this) :: HNil, $sources, $where, $having, $sortBy)
 
-  def innerJoin[RIGHT_SOURCE <: Selectable[_] with Tagging[_], RIGHT_FIELDS <: HList, RIGHT_ALIAS <: Tag]
-    (that: RIGHT_SOURCE)
+  def innerJoin[RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton]
+    (that: RightSource)
     (implicit
-     selectableFields: SelectableFields[RIGHT_SOURCE, RIGHT_FIELDS],
-     tagged: Tagged[RIGHT_SOURCE, RIGHT_ALIAS]): JoinBuilder[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY, RIGHT_SOURCE, RIGHT_FIELDS, RIGHT_ALIAS] =
+     selectableFields: SelectableFields[RightSource, RightFields],
+     tagged: Tagged[RightSource, RightAlias]): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, RightFields, RightAlias] =
     new JoinBuilder(this, that, selectableFields.fields(that), InnerJoin)
 
-//  def leftJoin[NEW_SOURCE <: Selectable[_] with Tagging[_], JOIN_FIELDS <: HList](that: NEW_SOURCE)(implicit fields: NullableFields[]
+//  def leftJoin[NEW_Source <: Selectable[_] with Tagging[_], JOIN_Fields <: HList](that: NEW_Source)(implicit fields: NullableFields[]
 
-  def where[NEW_WHERE <: BinaryExpr]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, NEW_WHERE, HAVING, SORT_BY] =
+  def where[NewWhere <: BinaryExpr]
+    (f: SelectContext[Fields, Sources] => NewWhere)
+    (implicit queryBuilder: QueryBuilder[Select[Fields, GroupBy, Sources, NewWhere, Having, Sort], _, Fields]): NonEmptySelect[Fields, GroupBy, Sources, NewWhere, Having, Sort] =
     new NonEmptySelect($fields, $groupBy, $sources, f(this), $having, $sortBy)
 
-  def having[NEW_WHERE <: BinaryExpr]
-    (f: SelectContext[FIELDS, SOURCES] => NEW_WHERE)
-    (implicit queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, NEW_WHERE, SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, WHERE, NEW_WHERE, SORT_BY] =
+  def having[NewWhere <: BinaryExpr]
+    (f: SelectContext[Fields, Sources] => NewWhere)
+    (implicit queryBuilder: QueryBuilder[Select[Fields, GroupBy, Sources, Where, NewWhere, Sort], _, Fields]): NonEmptySelect[Fields, GroupBy, Sources, Where, NewWhere, Sort] =
     new NonEmptySelect($fields, $groupBy, $sources, $where, f(this), $sortBy)
 
-  def sortBy[P, NEW_SORT_BY <: HList]
-    (f: FindContext[FIELDS] => P)
+  def sortBy[P, NewSort <: HList]
+    (f: FindContext[Fields] => P)
     (implicit
-     generic: Generic.Aux[P, NEW_SORT_BY],
-     taggedListOfSortByClauses: Bounded[SortBy[_], NEW_SORT_BY],
-     queryBuilder: QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, NEW_SORT_BY], _, FIELDS]): NonEmptySelect[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, NEW_SORT_BY] =
+     generic: Generic.Aux[P, NewSort],
+     taggedListOfSortByClauses: Bounded[SortBy[_], NewSort],
+     queryBuilder: QueryBuilder[Select[Fields, GroupBy, Sources, Where, Having, NewSort], _, Fields]): NonEmptySelect[Fields, GroupBy, Sources, Where, Having, NewSort] =
     new NonEmptySelect($fields, $groupBy, $sources, $where, $having, generic.to(f(findContext)))
 }
 

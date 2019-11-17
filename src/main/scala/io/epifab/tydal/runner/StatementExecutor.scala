@@ -10,36 +10,36 @@ import shapeless.{HList, HNil}
 import scala.util.Try
 import scala.util.control.NonFatal
 
-trait StatementExecutor[CONN, FIELDS <: HList, OUTPUT] {
-  def run[F[+_]: Eff: Monad](connection: CONN, statement: RunnableStatement[FIELDS]): F[Either[DataError, OUTPUT]]
+trait StatementExecutor[CONN, Fields <: HList, Output] {
+  def run[F[+_]: Eff: Monad](connection: CONN, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
 }
 
-trait ReadStatementExecutor[CONN, FIELDS <: HList, ROW]
-  extends StatementExecutor[CONN, FIELDS, Iterator[Either[DecoderError, ROW]]]
+trait ReadStatementExecutor[CONN, Fields <: HList, ROW]
+  extends StatementExecutor[CONN, Fields, Iterator[Either[DecoderError, ROW]]]
 
-trait WriteStatementExecutor[CONN, FIELDS <: HList]
-  extends StatementExecutor[CONN, FIELDS, Int]
+trait WriteStatementExecutor[CONN, Fields <: HList]
+  extends StatementExecutor[CONN, Fields, Int]
 
 
 object ReadStatementExecutor {
-  implicit def jdbcQuery[FIELDS <: HList, ROW]
-  (implicit dataExtractor: DataExtractor[ResultSet, FIELDS, ROW]): ReadStatementExecutor[Connection, FIELDS, ROW] =
+  implicit def jdbcQuery[Fields <: HList, ROW]
+  (implicit dataExtractor: DataExtractor[ResultSet, Fields, ROW]): ReadStatementExecutor[Connection, Fields, ROW] =
 
-    new ReadStatementExecutor[Connection, FIELDS, ROW] {
-      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[FIELDS]): F[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
+    new ReadStatementExecutor[Connection, Fields, ROW] {
+      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
         (for {
           preparedStatement <- EitherT(Eff[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
           results <- EitherT(Eff[F].delay(runStatement(preparedStatement, statement.fields)))
         } yield results).value
 
-      private def runStatement(preparedStatement: PreparedStatement, fields: FIELDS): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
+      private def runStatement(preparedStatement: PreparedStatement, fields: Fields): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
         Try(preparedStatement.executeQuery()).toEither match {
           case Right(resultSet) => Right(extract(fields, preparedStatement, resultSet))
           case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
           case Left(fatalError) => throw fatalError
         }
 
-      private def extract(fields: FIELDS, preparedStatement: PreparedStatement, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
+      private def extract(fields: Fields, preparedStatement: PreparedStatement, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
         new Iterator[Either[DecoderError, ROW]] {
           override def hasNext: Boolean = {
             if (!resultSet.next()) {

@@ -5,22 +5,22 @@ import io.epifab.tydal.utils.Concat
 import shapeless.{::, HList, HNil}
 
 
-sealed trait HSet[SRC <: HList, TARGET <: HList] {
-  def toSet(src: SRC): TARGET
+sealed trait HSet[Source <: HList, Target <: HList] {
+  def toSet(src: Source): Target
 }
 
 object HSet {
-  sealed trait RemoveElement[NEEDLE, HAYSTACK, RESULTS <: HList] {
-    def remove(haystack: HAYSTACK): RESULTS
+  sealed trait RemoveElement[Needle, Haystack, ResultSet <: HList] {
+    def remove(haystack: Haystack): ResultSet
   }
 
   object RemoveElement {
-    class PartiallyAppliedRemoveElement[NEEDLE] {
-      def apply[HAYSTACK, RESULTS <: HList](b: HAYSTACK)(implicit removeByTag: RemoveElement[NEEDLE, HAYSTACK, RESULTS]): RESULTS =
+    class PartiallyAppliedRemoveElement[Needle] {
+      def apply[Haystack, ResultSet <: HList](b: Haystack)(implicit removeByTag: RemoveElement[Needle, Haystack, ResultSet]): ResultSet =
         removeByTag.remove(b)
     }
 
-    def apply[NEEDLE]: PartiallyAppliedRemoveElement[NEEDLE] = new PartiallyAppliedRemoveElement[NEEDLE]
+    def apply[Needle]: PartiallyAppliedRemoveElement[Needle] = new PartiallyAppliedRemoveElement[Needle]
 
     sealed trait SameElement[+A, -B]
 
@@ -64,12 +64,12 @@ object HSet {
     }
   }
 
-  class PartiallyAppliedHSet[SRC <: HList](src: SRC) {
-    def get[TARGET <: HList](implicit hSet: HSet[SRC, TARGET]): TARGET =
+  class PartiallyAppliedHSet[Source <: HList](src: Source) {
+    def get[Target <: HList](implicit hSet: HSet[Source, Target]): Target =
       hSet.toSet(src)
   }
 
-  def apply[SRC <: HList](src: SRC): PartiallyAppliedHSet[SRC] = new PartiallyAppliedHSet(src)
+  def apply[Source <: HList](src: Source): PartiallyAppliedHSet[Source] = new PartiallyAppliedHSet(src)
 
   private def instance[A <: HList, B <: HList](f: A => B): HSet[A, B] = new HSet[A, B] {
     override def toSet(src: A): B = f(src)

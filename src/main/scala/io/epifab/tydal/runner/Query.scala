@@ -10,7 +10,7 @@ import shapeless.{::, Generic, HList, HNil}
 
 import scala.annotation.implicitNotFound
 
-case class Query[+PLACEHOLDERS <: HList, +FIELDS <: HList](sql: String, placeholders: PLACEHOLDERS, fields: FIELDS)
+case class Query[+Placeholders <: HList, +Fields <: HList](sql: String, placeholders: Placeholders, fields: Fields)
 
 case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
   def `++`(s: String): QueryFragment[P] =
@@ -54,13 +54,13 @@ case class QueryFragment[P <: HList](sql: Option[String], placeholders: P) {
       concat(placeholders, other.placeholders)
     )
 
-  def getOrElse[FIELDS <: HList](default: String, fields: FIELDS): Query[P, FIELDS] =
+  def getOrElse[Fields <: HList](default: String, fields: Fields): Query[P, Fields] =
     Query(sql.getOrElse(default), placeholders, fields)
 
   def orElse(s: Option[String]): QueryFragment[P] =
     new QueryFragment(sql.orElse(s), placeholders)
 
-  def get[FIELDS <: HList](fields: FIELDS): Query[P, FIELDS] =
+  def get[Fields <: HList](fields: Fields): Query[P, Fields] =
     Query(sql.get, placeholders, fields)
 }
 
@@ -92,63 +92,63 @@ object QueryBuilder {
     }
 
   implicit def selectQuery[
-    FIELDS <: HList, GROUP_BY <: HList, SOURCES <: HList, WHERE <: BinaryExpr, HAVING <: BinaryExpr, SORT_BY <: HList,
+    Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList,
     P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList,
     P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList, P10 <: HList, P11 <: HList
   ]
     (implicit
-     fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, FIELDS, P1],
-     from: QueryFragmentBuilder[FT_From, SOURCES, P2],
+     fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, Fields, P1],
+     from: QueryFragmentBuilder[FT_From, Sources, P2],
      concat1: Concat.Aux[P1, P2, P3],
-     where: QueryFragmentBuilder[FT_Where, WHERE, P4],
+     where: QueryFragmentBuilder[FT_Where, Where, P4],
      concat2: Concat.Aux[P3, P4, P5],
-     groupBy: QueryFragmentBuilder[FT_FieldExprList, GROUP_BY, P6],
+     groupBy: QueryFragmentBuilder[FT_FieldExprList, GroupBy, P6],
      concat3: Concat.Aux[P5, P6, P7],
-     having: QueryFragmentBuilder[FT_Where, HAVING, P8],
+     having: QueryFragmentBuilder[FT_Where, Having, P8],
      concat4: Concat.Aux[P7, P8, P9],
-     sortBy: QueryFragmentBuilder[FT_SortBy, SORT_BY, P10],
+     sortBy: QueryFragmentBuilder[FT_SortBy, Sort, P10],
      concat5: Concat.Aux[P9, P10, P11]
-    ): QueryBuilder[Select[FIELDS, GROUP_BY, SOURCES, WHERE, HAVING, SORT_BY], P11, FIELDS] =
+    ): QueryBuilder[Select[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
     QueryBuilder.instance(select =>
       (fields.build(select.$fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.$sources).prepend("FROM ") `+ +`
-        where.build(select.$where).prepend("WHERE ") `+ +`
+        where.build(select.$where).prepend("Where ") `+ +`
         groupBy.build(select.$groupBy).prepend("GROUP BY ") `+ +`
-        having.build(select.$having).prepend("HAVING ") `+ +`
+        having.build(select.$having).prepend("Having ") `+ +`
         sortBy.build(select.$sortBy).prepend("ORDER BY ")
       ).get(select.$fields)
     )
 
-  implicit def insertQuery[NAME <: Tag, COLUMNS <: HList, PLACEHOLDERS <: HList]
+  implicit def insertQuery[TableName <: String with Singleton, COLUMNS <: HList, Placeholders <: HList]
       (implicit
        names: QueryFragmentBuilder[FT_ColumnNameList, COLUMNS, HNil],
-       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, PLACEHOLDERS]): QueryBuilder[Insert[NAME, COLUMNS], PLACEHOLDERS, HNil] =
+       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, Placeholders]): QueryBuilder[Insert[TableName, COLUMNS], Placeholders, HNil] =
     QueryBuilder.instance(insert => {
-      val columns = insert.table.schema
+      val columns = insert.table.rightFields
       (names.build(columns).wrap("(", ")") ++
-        " VALUES " ++
+        " Values " ++
         placeholders.build(columns).wrap("(", ")")
       ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
     })
 
-  implicit def updateQuery[NAME <: Tag, TABLE_FIELDS <: HList, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, WHERE <: BinaryExpr]
+  implicit def updateQuery[TableName <: String with Singleton, TABLE_Fields <: HList, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, Where <: BinaryExpr]
       (implicit
        placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, COLUMNS, P],
-       where: QueryFragmentBuilder[FT_Where, WHERE, Q],
+       where: QueryFragmentBuilder[FT_Where, Where, Q],
        concat: Concat.Aux[P, Q, R]
-      ): QueryBuilder[Update[NAME, TABLE_FIELDS, COLUMNS, WHERE], R, HNil] =
+      ): QueryBuilder[Update[TableName, TABLE_Fields, COLUMNS, Where], R, HNil] =
     QueryBuilder.instance(update => {
       (placeholders.build(update.$fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
-        where.build(update.$where).prepend(" WHERE ")).get(HNil)
+        where.build(update.$where).prepend(" Where ")).get(HNil)
     })
 
-  implicit def deleteQuery[NAME <: Tag, SCHEMA <: HList, P <: HList, WHERE <: BinaryExpr]
+  implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: BinaryExpr]
       (implicit
-       where: QueryFragmentBuilder[FT_Where, WHERE, P]
-      ): QueryBuilder[Delete[NAME, SCHEMA, WHERE], P, HNil] =
+       where: QueryFragmentBuilder[FT_Where, Where, P]
+      ): QueryBuilder[Delete[TableName, Schema, Where], P, HNil] =
     QueryBuilder.instance(delete =>
       (QueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
-      where.build(delete.filter).prepend(" WHERE "))
+      where.build(delete.filter).prepend(" Where "))
           .get(HNil)
     )
 }
@@ -193,11 +193,11 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def fromJoin[S <: Selectable[_] with Tagging[_], WHERE <: BinaryExpr, FIELDS <: HList, A <: Tag, P <: HList, Q <: HList, R <: HList]
+  implicit def fromJoin[S <: Selectable[_] with Tagging[_], Where <: BinaryExpr, Fields <: HList, A <: String with Singleton, P <: HList, Q <: HList, R <: HList]
       (implicit
        src: QueryFragmentBuilder[FT_From, S, P],
-       where: QueryFragmentBuilder[FT_Where, WHERE, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, FIELDS, A, WHERE], R] =
+       where: QueryFragmentBuilder[FT_Where, Where, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, Fields, A, Where], R] =
     instance(join =>
       src.build(join.right).prepend(join.joinType match {
         case InnerJoin => "INNER JOIN "
@@ -209,8 +209,8 @@ object QueryFragmentBuilder {
   implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_, _] with Tagging[_], HNil] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def fromSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _, _, _], P <: HList]
-      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SUBQUERY_FIELDS, S] with Tagging[_], P] =
+  implicit def fromSubQuery[SubQueryFields <: HList, S <: Select[_, _, _, _, _, _], P <: HList]
+      (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SubQueryFields, S] with Tagging[_], P] =
     instance(subQuery =>
       QueryFragment(query.build(subQuery.select))
         .wrap("(", ") AS " + subQuery.tagValue)
@@ -324,7 +324,7 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }
 
-  implicit def columnPlaceholder[A <: Tag, T, PL <: HList]
+  implicit def columnPlaceholder[A <: String with Singleton, T, PL <: HList]
       (implicit
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],
@@ -345,7 +345,7 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+,+` tail.build(sources.tail)
     }
 
-  implicit def columnNameAndPlaceholder[A <: Tag, T, PL <: HList]
+  implicit def columnNameAndPlaceholder[A <: String with Singleton, T, PL <: HList]
       (implicit
        tag: ValueOf[A],
        fieldDecoder: FieldDecoder[T],

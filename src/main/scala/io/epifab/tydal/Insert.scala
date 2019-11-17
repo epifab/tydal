@@ -4,22 +4,22 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
-class Insert[NAME <: Tag, FIELDS <: HList](val table: Table[NAME, FIELDS]) {
-  def compile[PLACEHOLDERS <: HList, RAW_INPUT <: HList, INPUT]
+class Insert[TableName <: String with Singleton, Fields <: HList](val table: Table[TableName, Fields]) {
+  def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
-       queryBuilder: QueryBuilder[this.type, PLACEHOLDERS, HNil],
-       statementBuilder: StatementBuilder[PLACEHOLDERS, RAW_INPUT, INPUT, HNil],
-       tupler: Tupler.Aux[RAW_INPUT, INPUT]
-      ): WriteStatement[INPUT, HNil] =
+       queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
+       statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, HNil],
+       tupler: Tupler.Aux[InputRepr, Input]
+      ): WriteStatement[Input, HNil] =
     statementBuilder.build(queryBuilder.build(this)).update
 }
 
 object Insert {
-  def into[NAME <: Tag, SCHEMA, FIELDS <: HList]
-      (tableBuilder: TableBuilder[NAME, SCHEMA])
+  def into[TableName <: String with Singleton, Schema, Fields <: HList]
+      (tableBuilder: TableBuilder[TableName, Schema])
       (implicit
-       name: ValueOf[NAME],
-       schemaBuilder: SchemaBuilder[SCHEMA, FIELDS]
-      ): Insert[NAME, FIELDS] =
+       name: ValueOf[TableName],
+       schemaBuilder: SchemaBuilder[Schema, Fields]
+      ): Insert[TableName, Fields] =
     new Insert(tableBuilder as name.value)
 }

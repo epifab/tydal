@@ -4,20 +4,20 @@ import io.epifab.tydal.fields.{Column, Field}
 import io.epifab.tydal.utils.TaggedFinder
 import shapeless.{::, HList, HNil}
 
-class SelectSubQuery[SUBQUERY_FIELDS <: HList, S <: Select[_, _, _, _, _, _]]
-  (val select: S, override val schema: SUBQUERY_FIELDS)
-  extends Selectable[SUBQUERY_FIELDS] { self: Tagging[_] =>
-  override def apply[T <: Tag, X](tag: T)(implicit finder: TaggedFinder[T, X, SUBQUERY_FIELDS]): X with Tagging[T] =
-    finder.find(schema)
+class SelectSubQuery[SubQueryFields <: HList, S <: Select[_, _, _, _, _, _]]
+  (val select: S, override val rightFields: SubQueryFields)
+  extends Selectable[SubQueryFields] { self: Tagging[_] =>
+  override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, SubQueryFields]): X with Tagging[T] =
+    finder.find(rightFields)
 }
 
-trait SubQueryFields[-FIELDS, +SUBQUERY_FIELDS] {
-  def build(srcAlias: String, fields: FIELDS): SUBQUERY_FIELDS
+trait SubQueryFields[-Fields, +SubQueryFields] {
+  def build(srcAlias: String, fields: Fields): SubQueryFields
 }
 
 object SubQueryFields {
-  implicit def singleField[T, ALIAS <: Tag]: SubQueryFields[Field[T] with Tagging[ALIAS], Column[T] with Tagging[ALIAS]] =
-    (srcAlias: String, field: Field[T] with Tagging[ALIAS]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tagging[ALIAS] {
+  implicit def singleField[T, Alias <: String with Singleton]: SubQueryFields[Field[T] with Tagging[Alias], Column[T] with Tagging[Alias]] =
+    (srcAlias: String, field: Field[T] with Tagging[Alias]) => new Column(field.tagValue, srcAlias)(field.decoder) with Tagging[Alias] {
       override def tagValue: String = field.tagValue
     }
 

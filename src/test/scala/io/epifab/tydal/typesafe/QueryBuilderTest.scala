@@ -18,7 +18,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " WHERE e.registration_timestamp < ?::timestamp" +
+        " Where e.registration_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
       )
   }
@@ -39,7 +39,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " WHERE e.registration_timestamp < ?::timestamp" +
+        " Where e.registration_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
 
     studentsQuery.compile.query shouldBe (
@@ -51,7 +51,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " WHERE s.id = ?::int"
+        " Where s.id = ?::int"
     )
   }
 
@@ -75,7 +75,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       "UPDATE students SET" +
         " name = ?::varchar," +
         " email = ?::varchar" +
-        " WHERE students.id = ?::int"
+        " Where students.id = ?::int"
     )
   }
 
@@ -86,7 +86,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
 
   it should "build a delete query" in {
     deleteStudentQuery.compile.query shouldBe (
-      "DELETE FROM students WHERE" +
+      "DELETE FROM students Where" +
         " students.id = ?::int"
     )
   }
@@ -101,7 +101,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " s.address AS address," +
         " s.interests AS interests" +
         " FROM students AS s" +
-        " WHERE s.id IN (SELECT e.student_id AS student_id FROM exams AS e WHERE e.score >= ?::int)"
+        " Where s.id IN (SELECT e.student_id AS student_id FROM exams AS e Where e.score >= ?::int)"
     )
   }
 }

@@ -137,7 +137,7 @@ object NullableField {
       override def apply(f: F): SoftCast[F, Option[T]] = SoftCast[F, Option[T]](f)
     }
 
-  implicit def nonOptionalTagged[F <: Field[_], T, A <: Tag]
+  implicit def nonOptionalTagged[F <: Field[_], T, A <: String with Singleton]
       (implicit
        fieldT: FieldT[F, T],
        tagged: Tagged[F, A],

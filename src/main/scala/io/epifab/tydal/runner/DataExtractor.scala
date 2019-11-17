@@ -11,21 +11,21 @@ import scala.util.Try
 /**
  * Type class to extract data from a generic result set
  *
- * @tparam RS Result set
- * @tparam FIELDS Fields definitions
- * @tparam OUTPUT Data output
+ * @tparam ResultSet Result set
+ * @tparam Fields Fields definitions
+ * @tparam Output Data output
  */
-trait DataExtractor[RS, FIELDS, OUTPUT] {
-  def extract(resultSet: RS, fields: FIELDS): Either[DecoderError, OUTPUT]
+trait DataExtractor[ResultSet, Fields, Output] {
+  def extract(resultSet: ResultSet, fields: Fields): Either[DecoderError, Output]
 }
 
 object DataExtractor {
-  class Extractor[RESULTS, FIELDS](resultSet: RESULTS, fields: FIELDS) {
-    def as[OUTPUT](implicit dataExtractor: DataExtractor[RESULTS, FIELDS, OUTPUT]): Either[DecoderError, OUTPUT] =
+  class Extractor[RS, Fields](resultSet: RS, fields: Fields) {
+    def as[Output](implicit dataExtractor: DataExtractor[RS, Fields, Output]): Either[DecoderError, Output] =
       dataExtractor.extract(resultSet, fields)
   }
 
-  def apply[RESULTS, FIELDS](resultSet: RESULTS, fields: FIELDS): Extractor[RESULTS, FIELDS] =
+  def apply[RS, Fields](resultSet: RS, fields: Fields): Extractor[RS, Fields] =
     new Extractor(resultSet, fields)
 
   implicit def jdbcField[F <: Field[_] with Tagging[_], T](implicit fieldT: FieldT[F, T]): DataExtractor[ResultSet, F, T] =
@@ -59,7 +59,7 @@ object DataExtractor {
 
       override def extract(resultSet: ResultSet, field: F): Either[DecoderError, T] = {
         val decoder: FieldDecoder[T] = fieldT.get(field).decoder
-        decoder.decode(get(resultSet, decoder.dbType, field.tagValue).asInstanceOf[decoder.DBTYPE])
+        decoder.decode(get(resultSet, decoder.dbType, field.tagValue).asInstanceOf[decoder.DbType])
       }
     }
 
