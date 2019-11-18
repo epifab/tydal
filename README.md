@@ -20,17 +20,62 @@ Step 2. Add the dependency
 libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"	
 ```
 
+### A basic example
 
-### What does it look like?
+```scala
+import io.epifab.tydal._
+import io.epifab.tydal.fields.FieldDecoder
 
-In English:
+import java.time.LocalDate
+import java.util.UUID
+
+case class Address(postcode: String, line1: String, line2: Option[String])
+
+case class Student(
+  id: UUID,
+  name: String,
+  email: Option[String],
+  date_of_birth: LocalDate,
+  address: Option[Address]
+)
+
+object Students extends TableBuilder["students", Student]
+
+object Programme extends App {
+  import io.circe.generic.auto._
+  implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
+
+  val connection = PostgresConnection(PostgresConfig.fromEnv())
+
+  
+
+  val students: Either[DataError, Vector[Student]] = 
+    Select
+      .from(Students as "s")
+      .take(_("s").*)
+      .where(ctx => ctx("s", "email") like "email" and (ctx("date_of_birth") < "max_dob"))
+      .compile
+      .withValues((
+        "email" ~~> "%@tydal.io",
+        "max_dob" ~~> LocalDate.of(1986, 1, 1)
+      ))
+      .mapTo[Student]
+      .as[Vector]
+      .toIO(connection)
+      .unsafeRunSync()
+}
+```
+
+### A not-so-basic example
+
+**In English**
 
 ```
 Find all students born between 1994 and 1998 who have taken at least one exam since 2010.
 Also, find their best and most recent exam
 ```
 
-In SQL:
+**In SQL**
 
 ```sql
 SELECT
@@ -66,7 +111,7 @@ Where s.date_of_birth > '1994-01-01'::date AND s.date_of_birth < '1998-12-31'::d
 ORDER BY escore DESC, sname ASC
 ```
 
-In Scala:
+**In Scala**
 
 ```scala
 Select
@@ -116,8 +161,6 @@ Select
     "student_min_dob" ~~> LocalDate.of(1994, 1, 1),
     "student_max_dob" ~~> LocalDate.of(1998, 12, 31)
   ))
-  .mapTo[StudentExam]
-  .as[Vector]
 ```
 
 Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
