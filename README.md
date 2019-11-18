@@ -23,8 +23,11 @@ libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"
 ### A basic example
 
 ```scala
+import java.time.LocalDate
+import java.util.UUID
+
 import io.epifab.tydal._
-import io.epifab.tydal.fields.FieldDecoder
+import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
 
 import java.time.LocalDate
 import java.util.UUID
@@ -43,13 +46,24 @@ object Students extends TableBuilder["students", Student]
 
 object Programme extends App {
   import io.circe.generic.auto._
+  implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
 
   val connection = PostgresConnection(PostgresConfig.fromEnv())
 
-  
+  val createStudent =
+    Insert
+      .into(Students)
+      .compile
+      .withValues(Student(
+        UUID.randomUUID,
+        "Jack",
+        Some("jack@tydal.io"),
+        LocalDate.of(1970, 1, 1),
+        Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway")))
+      ))
 
-  val students: Either[DataError, Vector[Student]] = 
+  val findStudents = 
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -61,8 +75,13 @@ object Programme extends App {
       ))
       .mapTo[Student]
       .as[Vector]
-      .toIO(connection)
-      .unsafeRunSync()
+
+  val program = (for {
+    _ <- createStudent
+    students <- findStudents
+  } yield students).toIO(connection)
+
+  program.unsafeRunSync()
 }
 ```
 

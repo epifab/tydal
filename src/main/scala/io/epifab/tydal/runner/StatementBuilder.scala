@@ -21,12 +21,20 @@ class GenericStatement[InputRepr <: HList, Input, Fields <: HList]
     new ReadStatementStep1(query, (generic.to _).andThen(toRunnable))
 }
 
-class WriteStatement[Input, Fields <: HList]
-(val query: String, toRunnable: Input => RunnableStatement[Fields]) {
+class WriteStatement[InputTuple, Fields <: HList]
+(val query: String, toRunnable: InputTuple => RunnableStatement[Fields]) {
   def withValues
-  (values: Input)
+  (values: InputTuple)
   (implicit statementExecutor: WriteStatementExecutor[Connection, Fields]):
   Transaction[Int] = Transaction(toRunnable(values))
+
+  def withValues[P, InputRepr <: HList]
+  (values: P)
+  (implicit
+   statementExecutor: WriteStatementExecutor[Connection, Fields],
+   placeholderValuesBuilder: PlaceholderValuesBuilder[P, InputRepr],
+   tupler: Generic.Aux[InputTuple, InputRepr]):
+  Transaction[Int] = withValues(tupler.from(placeholderValuesBuilder.values(values)))
 }
 
 class ReadStatementStep1[Input, Fields <: HList]
@@ -41,7 +49,7 @@ class ReadStatementStep2[Fields <: HList, OutputRepr <: HList]
   def mapTo[Output](implicit generic: Generic.Aux[Output, OutputRepr]): ReadStatementStep3[Fields, OutputRepr, Output] =
     new ReadStatementStep3(runnableStatement, generic.from)
 
-  def tuple[TUPLE](implicit tupler: Tupler.Aux[OutputRepr, TUPLE], generic: Generic.Aux[TUPLE, OutputRepr]): ReadStatementStep3[Fields, OutputRepr, TUPLE] =
+  def tuple[Tuple](implicit tupler: Tupler.Aux[OutputRepr, Tuple], generic: Generic.Aux[Tuple, OutputRepr]): ReadStatementStep3[Fields, OutputRepr, Tuple] =
     new ReadStatementStep3(runnableStatement, generic.from)
 }
 

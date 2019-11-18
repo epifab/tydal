@@ -2,7 +2,6 @@ package io.epifab.tydal.examples
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.tydal.Implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.tydal.examples.Schema._
