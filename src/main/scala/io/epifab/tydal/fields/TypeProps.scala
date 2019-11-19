@@ -4,7 +4,7 @@ import java.time.{Instant, LocalDate}
 
 import io.epifab.tydal.{Tag, Tagged, Tagging, Untagged}
 
-import scala.annotation.implicitAmbiguous
+import scala.annotation.{implicitAmbiguous, implicitNotFound}
 
 sealed trait TypeProps
 
@@ -55,6 +55,7 @@ object IsDateTime {
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDateTime: IsDateTime[T]): IsDateTime[F] = new IsDateTime[F] {}
 }
 
+@implicitNotFound("${T} and ${U} are not comparable")
 sealed trait AreComparable[T, U] extends TypeProps
 
 object AreComparable {
@@ -72,6 +73,7 @@ object AreComparable {
 }
 
 sealed trait AreComparableSeq[T, U] extends TypeProps
+@implicitNotFound("${T} cannot be included in ${U}")
 sealed trait CanBeIncluded[T, U] extends TypeProps
 
 object AreComparableSeq {

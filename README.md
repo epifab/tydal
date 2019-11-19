@@ -139,9 +139,9 @@ Select
     // max score per student
     Select
       .from(Exams as "e1")
-      .take($ => (
-        $("e1", "student_id") as "sid",
-        Max($("e1", "score")) as "score"
+      .take(ctx => (
+        ctx("e1", "student_id") as "sid",
+        Max(ctx("e1", "score")) as "score"
       ))
       .where(_("e1", "exam_timestamp") > "exam_min_date")
       .groupBy1(_("e1", "student_id"))
@@ -152,12 +152,12 @@ Select
     // select only the latest exam
     Select
       .from(Exams as "e2")
-      .take($ => (
-        $("e2", "student_id") as "sid",
-        $("e2", "score") as "score",
-        Max($("e2", "exam_timestamp")) as "etime"
+      .take(ctx => (
+        ctx("e2", "student_id")          as "sid",
+        ctx("e2", "score")               as "score",
+        Max(ctx("e2", "exam_timestamp")) as "etime"
       ))
-      .groupBy($ => ($("e2", "student_id"), $("e2", "score")))
+      .groupBy(ctx => (ctx("e2", "student_id"), ctx("e2", "score")))
       .as("me2")
   )
   .on((me2, ctx) => me2("sid") === ctx("me1", "sid") and (me2("score") === ctx("me1", "score")))
@@ -165,15 +165,15 @@ Select
   .on((e, ctx) => e("exam_timestamp") === ctx("me2", "etime") and (e("student_id") === ctx("me2", "sid")))
   .innerJoin(Courses as "c")
   .on(_("id") === _("e", "course_id"))
-  .take($ => (
-    $("s", "id")             as "sid",
-    $("s", "name")           as "sname",
-    $("e", "score")          as "score",
-    $("e", "exam_timestamp") as "etime",
-    $("c", "name")           as "cname"
+  .take(ctx => (
+    ctx("s", "id")             as "sid",
+    ctx("s", "name")           as "sname",
+    ctx("e", "score")          as "score",
+    ctx("e", "exam_timestamp") as "etime",
+    ctx("c", "name")           as "cname"
   ))
   .where(ctx => ctx("s", "date_of_birth") > "student_min_dob" and (ctx("s", "date_of_birth") < "student_max_dob"))
-  .sortBy($ => Descending($("score")) -> Ascending($("sname")))
+  .sortBy(ctx => Descending(ctx("score")) -> Ascending(ctx("sname")))
   .compile
   .withValues((
     "exam_min_date" ~~> Instant.parse("2010-01-01T00:00:00Z"),
@@ -185,20 +185,62 @@ Select
 Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
 
 
-## More in-depth
+## Why Tydal
+
+This library has one job: bringing the compiler at your persistence layer service.  
+The objective is to make it as difficult as possible to build a syntactically invalid query.
+
+Typos:
+
+```scala
+Select.from(Students as "s").take(_("s", "asd"))
+// Field or relation "asd" could not be found
+```
+
+Incompatible SQL types:
+
+```scala
+Select.from(Students as "s").where(_("s", "date_of_birth") === PlaceholderValue("1999"))
+// Column[LocalDate] and PlaceholderValue[String] are not comparable
+
+Select.from(Students as "s").where(_("s", "date_of_birth") in PlaceholderValue(Seq("1999", "1998")))
+// Column[LocalDate] cannot be included in PlaceholderValue[Seq[String]]
+```
+
+Extract results to a non-matching target:
+
+```scala
+Select.from(Students as "s").take(_("s").*).mapTo[Exam]
+// Could not find implicit for parameter generic ...
+// ok, this last error message is not as specific as the ones above but it does the job
+```
+
+> *Warning*:  
+> SQL is complex, and although Tydal helps protecting against several common mistakes you might make
+it does not guarantee your query will run smoothly.
 
 
-### Query DSL
+### Features
 
-The idea behind this library is to provide a DSL as close as possible to the SQL language.
+#### DBMS
 
-Different features are supported although the library does not cover the entire SQL universe nor has the ambition to do so.
-You can explore some functionalities in the [examples package](src/main/scala/io/epifab/tydal/examples).
+The only supported DBMS is **PostgreSQL**.
+I have no plan to extend this to support any other DBMS.
 
 
-### Supported DBMS and data types
+#### SQL language
 
-Currently, the only supported DBMS is **PostgreSQL** with the following data types:
+SQL is huge, and Tydal covers only a handful of its features.
+You might (or might not) find this DSL limiting for your use-case.
+Most other libraries (Slick or Doobie for example) give you the alternative 
+of writing plain text queries, but Tydal doesn't, because that would defeat the purpose of it.   
+
+So, long story short, don't use it unless you're willing to contribute.
+
+
+#### Types
+
+Out of the box, the following field types are supported:
 
 Database type               | Scala type
 ---                         | ---
