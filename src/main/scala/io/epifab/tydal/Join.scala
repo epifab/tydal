@@ -18,14 +18,14 @@ class JoinBuilder[
   ](left: Select[Fields, GroupBy, Sources, Where, Having, Sort],
     right: RightSource,
     rightFields: RightFields,
-    joinType: JoinType)
-   (implicit tagged: Tagged[RightSource, RightAlias]) {
+    joinType: JoinType) {
 
-  def on[JoinClause <: BinaryExpr, Source_Results <: HList]
+  def on[JoinClause <: BinaryExpr, SourceResults <: HList]
   (f: (RightSource, SelectContext[Fields, Sources]) => JoinClause)
   (implicit
-   appender: Appender.Aux[Sources, Join[RightSource, RightFields, RightAlias, JoinClause], Source_Results],
-   queryBuilder: QueryBuilder[Select[Fields, GroupBy, Source_Results, Where, Having, Sort], _, Fields]): NonEmptySelect[Fields, GroupBy, Source_Results, Where, Having, Sort] =
+   alias: ValueOf[RightAlias],
+   appender: Appender.Aux[Sources, Join[RightSource, RightFields, RightAlias, JoinClause], SourceResults],
+   queryBuilder: QueryBuilder[Select[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): NonEmptySelect[Fields, GroupBy, SourceResults, Where, Having, Sort] =
     new NonEmptySelect(
       left.$fields,
       left.$groupBy,
@@ -45,8 +45,7 @@ trait NullableFields[-From, +To] {
 
 object NullableFields {
   implicit def singleField[F <: Field[_], G <: Field[_]]
-      (implicit
-       nullableField: NullableField[F, G]): NullableFields[F, G] =
+      (implicit nullableField: NullableField[F, G]): NullableFields[F, G] =
     (field: F) => nullableField(field)
 
   implicit def hNil: NullableFields[HNil, HNil] =
@@ -57,13 +56,13 @@ object NullableFields {
 }
 
 class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton, JoinClause <: BinaryExpr]
-  (val right: Right, override val rightFields: RightFields, val joinClause: JoinClause, val joinType: JoinType)
-  (implicit tagged: Tagged[Right, RightAlias]) extends Selectable[RightFields] with Tagging[RightAlias] {
+  (val right: Right, override val fields: RightFields, val joinClause: JoinClause, val joinType: JoinType)
+  (implicit alias: ValueOf[RightAlias]) extends Selectable[RightFields] with Tagging[RightAlias] {
 
   override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, RightFields]): X with Tagging[T] =
-    finder.find(rightFields)
+    finder.find(fields)
 
-  override def tagValue: String = tagged.tag
+  override def tagValue: String = alias.value
 }
 
 sealed trait JoinType

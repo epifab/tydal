@@ -119,24 +119,24 @@ object QueryBuilder {
       ).get(select.$fields)
     )
 
-  implicit def insertQuery[TableName <: String with Singleton, COLUMNS <: HList, Placeholders <: HList]
+  implicit def insertQuery[Columns <: HList, Placeholders <: HList]
       (implicit
-       names: QueryFragmentBuilder[FT_ColumnNameList, COLUMNS, HNil],
-       placeholders: QueryFragmentBuilder[FT_PlaceholderList, COLUMNS, Placeholders]): QueryBuilder[Insert[TableName, COLUMNS], Placeholders, HNil] =
+       names: QueryFragmentBuilder[FT_ColumnNameList, Columns, HNil],
+       placeholders: QueryFragmentBuilder[FT_PlaceholderList, Columns, Placeholders]): QueryBuilder[Insert[Columns], Placeholders, HNil] =
     QueryBuilder.instance(insert => {
-      val columns = insert.table.rightFields
+      val columns = insert.table.fields
       (names.build(columns).wrap("(", ")") ++
         " Values " ++
         placeholders.build(columns).wrap("(", ")")
       ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
     })
 
-  implicit def updateQuery[TableName <: String with Singleton, TABLE_Fields <: HList, COLUMNS <: HList, P <: HList, Q <: HList, R <: HList, Where <: BinaryExpr]
+  implicit def updateQuery[TableFields <: HList, Columns <: HList, P <: HList, Q <: HList, R <: HList, Where <: BinaryExpr]
       (implicit
-       placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, COLUMNS, P],
+       placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, Columns, P],
        where: QueryFragmentBuilder[FT_Where, Where, Q],
        concat: Concat.Aux[P, Q, R]
-      ): QueryBuilder[Update[TableName, TABLE_Fields, COLUMNS, Where], R, HNil] =
+      ): QueryBuilder[Update[TableFields, Columns, Where], R, HNil] =
     QueryBuilder.instance(update => {
       (placeholders.build(update.$fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
         where.build(update.$where).prepend(" Where ")).get(HNil)
@@ -145,7 +145,7 @@ object QueryBuilder {
   implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: BinaryExpr]
       (implicit
        where: QueryFragmentBuilder[FT_Where, Where, P]
-      ): QueryBuilder[Delete[TableName, Schema, Where], P, HNil] =
+      ): QueryBuilder[Delete[Schema, Where], P, HNil] =
     QueryBuilder.instance(delete =>
       (QueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
       where.build(delete.filter).prepend(" Where "))
@@ -206,7 +206,7 @@ object QueryFragmentBuilder {
         where.build(join.joinClause).prepend(" ON ")
     )
 
-  implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_, _] with Tagging[_], HNil] =
+  implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_] with Tagging[_], HNil] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
   implicit def fromSubQuery[SubQueryFields <: HList, S <: Select[_, _, _, _, _, _], P <: HList]

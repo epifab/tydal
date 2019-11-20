@@ -72,9 +72,8 @@ object AreComparable {
     new AreComparable[T, U] {}
 }
 
+@implicitNotFound("${T} and ${U} are not comparable")
 sealed trait AreComparableSeq[T, U] extends TypeProps
-@implicitNotFound("${T} cannot be included in ${U}")
-sealed trait CanBeIncluded[T, U] extends TypeProps
 
 object AreComparableSeq {
   implicit def pure[T]: AreComparableSeq[Seq[T], Seq[T]] = new AreComparableSeq[Seq[T], Seq[T]] {}
@@ -89,6 +88,9 @@ object AreComparableSeq {
        canOverlap: AreComparableSeq[T, U]): AreComparableSeq[F, G] =
     new AreComparableSeq[F, G] {}
 }
+
+@implicitNotFound("${T} cannot be included in ${U}")
+sealed trait CanBeIncluded[T, U] extends TypeProps
 
 object CanBeIncluded {
   implicit def pure[T]: CanBeIncluded[T, Seq[T]] = new CanBeIncluded[T, Seq[T]] {}

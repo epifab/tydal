@@ -5,10 +5,10 @@ import io.epifab.tydal.utils.TaggedFinder
 import shapeless.{::, HList, HNil}
 
 class SelectSubQuery[SubQueryFields <: HList, S <: Select[_, _, _, _, _, _]]
-  (val select: S, override val rightFields: SubQueryFields)
+  (val select: S, override val fields: SubQueryFields)
   extends Selectable[SubQueryFields] { self: Tagging[_] =>
   override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, SubQueryFields]): X with Tagging[T] =
-    finder.find(rightFields)
+    finder.find(fields)
 }
 
 trait SubQueryFields[-Fields, +SubQueryFields] {

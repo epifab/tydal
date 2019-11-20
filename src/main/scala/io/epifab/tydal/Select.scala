@@ -125,11 +125,17 @@ class NonEmptySelect[Fields <: HList, GroupBy <: HList, Sources <: HList, Where 
   def innerJoin[RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton]
     (that: RightSource)
     (implicit
-     selectableFields: SelectableFields[RightSource, RightFields],
+     selectableFields: FieldsOf[RightSource, RightFields],
      tagged: Tagged[RightSource, RightAlias]): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, RightFields, RightAlias] =
     new JoinBuilder(this, that, selectableFields.fields(that), InnerJoin)
 
-//  def leftJoin[NEW_Source <: Selectable[_] with Tagging[_], JOIN_Fields <: HList](that: NEW_Source)(implicit fields: NullableFields[]
+  def leftJoin[RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton, TargetFields <: HList]
+    (that: RightSource)
+    (implicit
+     selectableFields: FieldsOf[RightSource, RightFields],
+     nullableFields: NullableFields[RightFields, TargetFields],
+     tagged: Tagged[RightSource, RightAlias]): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, TargetFields, RightAlias] =
+    new JoinBuilder(this, that, nullableFields.build(selectableFields.fields(that)), LeftJoin)
 
   def where[NewWhere <: BinaryExpr]
     (f: SelectContext[Fields, Sources] => NewWhere)

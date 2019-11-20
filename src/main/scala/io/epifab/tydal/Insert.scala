@@ -4,7 +4,7 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
-class Insert[TableName <: String with Singleton, Fields <: HList](val table: Table[TableName, Fields]) {
+class Insert[Fields <: HList](val table: Table[Fields]) {
   def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
        queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
@@ -20,6 +20,6 @@ object Insert {
       (implicit
        name: ValueOf[TableName],
        schemaBuilder: SchemaBuilder[Schema, Fields]
-      ): Insert[TableName, Fields] =
+      ): Insert[Fields] =
     new Insert(tableBuilder as name.value)
 }
