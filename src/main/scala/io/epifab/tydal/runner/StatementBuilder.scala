@@ -32,9 +32,9 @@ class WriteStatement[InputTuple, Fields <: HList]
   (values: P)
   (implicit
    statementExecutor: WriteStatementExecutor[Connection, Fields],
-   placeholderValuesBuilder: PlaceholderValuesBuilder[P, InputRepr],
+   placeholderValues: PlaceholderValues[P, InputRepr],
    tupler: Generic.Aux[InputTuple, InputRepr]):
-  Transaction[Int] = withValues(tupler.from(placeholderValuesBuilder.values(values)))
+  Transaction[Int] = withValues(tupler.from(placeholderValues(values)))
 }
 
 class ReadStatementStep1[Input, Fields <: HList]

@@ -1,19 +1,23 @@
 package io.epifab.tydal
 
 import io.epifab.tydal.fields.{Column, FieldDecoder, FieldEncoder, PlaceholderValue}
-import shapeless.{::, HList, HNil, LabelledGeneric, labelled, tag}
+import shapeless.labelled.FieldType
+import shapeless.tag.@@
+import shapeless.{::, HList, HNil, LabelledGeneric}
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("Could not build a schema for this table.\n" +
+@implicitNotFound("Could not build a schema from ${T}.\n" +
   " Possible reason: a FieldEncoder could not be found for one or more columns in your schema." +
   " Ensure that a FieldEncoder[T] is in scope for every T in your schema.")
-trait SchemaBuilder[T, +Repr] {
-  def build(relationName: String): Repr
+trait SchemaBuilder[-T, +Repr] {
+  def apply(relationName: String): Repr
 }
 
 object SchemaBuilder {
-  implicit def head[T, A <: String with Singleton](implicit alias: ValueOf[A], fieldDecoder: FieldDecoder[T]): SchemaBuilder[T with labelled.KeyTag[Symbol with tag.Tagged[A], T], Column[T] with Tagging[A]] =
+  implicit def head[T, A <: String with Singleton](
+    implicit alias: ValueOf[A], fieldDecoder: FieldDecoder[T]
+  ): SchemaBuilder[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
     (relationAlias: String) =>
       new Column[T](alias.value, relationAlias) with Tagging[A] {
         override def tagValue: String = alias.value
@@ -22,36 +26,49 @@ object SchemaBuilder {
   implicit def hNil: SchemaBuilder[HNil, HNil] =
     (_: String) => HNil
 
-  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](implicit head: SchemaBuilder[Head, HeadRepr], tail: SchemaBuilder[Tail, TailRepr]): SchemaBuilder[Head :: Tail, HeadRepr :: TailRepr] =
-    (relationAlias: String) => head.build(relationAlias) :: tail.build(relationAlias)
+  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](
+    implicit
+    headBuilder: SchemaBuilder[Head, HeadRepr],
+    tailBuilder: SchemaBuilder[Tail, TailRepr]
+  ): SchemaBuilder[Head :: Tail, HeadRepr :: TailRepr] =
+    (relationAlias: String) => headBuilder(relationAlias) :: tailBuilder(relationAlias)
 
-  implicit def fromCaseClass[C, R1, Schema](implicit labelledGeneric: LabelledGeneric.Aux[C, R1], schemaBuilder: SchemaBuilder[R1, Schema]): SchemaBuilder[C, Schema] =
-    (relationName: String) => schemaBuilder.build(relationName)
+  implicit def fromCaseClass[CaseClass, IntermediateRepr, Repr](
+    implicit
+    generic: LabelledGeneric.Aux[CaseClass, IntermediateRepr],
+    schemaBuilder: SchemaBuilder[IntermediateRepr, Repr]
+  ): SchemaBuilder[CaseClass, Repr] =
+    (relationName: String) => schemaBuilder(relationName)
 }
 
 @implicitNotFound("The required placeholders for this query: ${Values} do not match with type ${T}.")
-trait PlaceholderValuesBuilder[-T, +Values] {
-  def values(v: T): Values
+trait PlaceholderValues[-T, +Values] {
+  def apply(v: T): Values
 }
 
-object PlaceholderValuesBuilder {
-  implicit def head[T, A <: String with Singleton]
-  (implicit
-   alias: ValueOf[A],
-   fieldEncoder: FieldEncoder[T],
-   fieldDecoder: FieldDecoder[T]
-  ): PlaceholderValuesBuilder[T with labelled.KeyTag[Symbol with tag.Tagged[A], T], PlaceholderValue[T] with Tagging[A]] =
-    (v: T with labelled.KeyTag[Symbol with tag.Tagged[A], T]) => PlaceholderValue(v.asInstanceOf[T]) as alias.value
+object PlaceholderValues {
+  implicit def head[T, A <: String with Singleton](
+    implicit
+    alias: ValueOf[A],
+    fieldEncoder: FieldEncoder[T],
+    fieldDecoder: FieldDecoder[T]
+  ): PlaceholderValues[FieldType[Symbol @@ A, T], PlaceholderValue[T] with Tagging[A]] =
+    (v: FieldType[Symbol @@ A, T]) => PlaceholderValue(v.asInstanceOf[T]) as alias.value
 
-  implicit def hNil: PlaceholderValuesBuilder[HNil, HNil] =
+  implicit def hNil: PlaceholderValues[HNil, HNil] =
     (_: HNil) => HNil
 
-  implicit def hCons[Head, HeadValuesRepr, Tail <: HList, TailValuesRepr <: HList]
-  (implicit
-   head: PlaceholderValuesBuilder[Head, HeadValuesRepr],
-   tail: PlaceholderValuesBuilder[Tail, TailValuesRepr]): PlaceholderValuesBuilder[Head :: Tail, HeadValuesRepr :: TailValuesRepr] =
-    (v: Head :: Tail) => head.values(v.head) :: tail.values(v.tail)
+  implicit def hCons[Head, HeadValuesRepr, Tail <: HList, TailValuesRepr <: HList](
+    implicit
+    headBuilder: PlaceholderValues[Head, HeadValuesRepr],
+    tailBuilder: PlaceholderValues[Tail, TailValuesRepr]
+  ): PlaceholderValues[Head :: Tail, HeadValuesRepr :: TailValuesRepr] =
+    (v: Head :: Tail) => headBuilder(v.head) :: tailBuilder(v.tail)
 
-  implicit def fromCaseClass[C, R1, Values](implicit labelledGeneric: LabelledGeneric.Aux[C, R1], schemaBuilder: PlaceholderValuesBuilder[R1, Values]): PlaceholderValuesBuilder[C, Values] =
-    (v: C) => schemaBuilder.values(labelledGeneric.to(v))
+  implicit def fromCaseClass[C, R1, Values](
+    implicit
+    labelledGeneric: LabelledGeneric.Aux[C, R1],
+    schemaBuilder: PlaceholderValues[R1, Values]
+  ): PlaceholderValues[C, Values] =
+    (v: C) => schemaBuilder(labelledGeneric.to(v))
 }

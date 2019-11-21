@@ -32,5 +32,5 @@ object Update {
        name: ValueOf[TableName],
        schemaBuilder: SchemaBuilder[Schema, Fields]
       ): Update[Fields, Fields, AlwaysTrue] =
-    new Update(tableBuilder as name.value, schemaBuilder.build(name.value), AlwaysTrue)
+    new Update(tableBuilder as name.value, schemaBuilder(name.value), AlwaysTrue)
 }
