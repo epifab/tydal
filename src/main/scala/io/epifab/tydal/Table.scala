@@ -5,7 +5,7 @@ import shapeless.HList
 import shapeless.ops.hlist.Tupler
 
 class TableBuilder[TableName <: String with Singleton, Schema](implicit name: ValueOf[TableName]) {
-  def as[Alias <: String with Singleton, Repr <: HList](alias: Alias)(implicit a: ValueOf[Alias], schemaBuilder: SchemaBuilder[Schema, Repr]): Table[Repr] with Tagging[Alias] =
+  def as[Alias <: String with Singleton, Repr <: HList](alias: Alias)(implicit schemaBuilder: SchemaBuilder[Schema, Repr]): Table[Repr] with Tagging[Alias] =
     Table(name.value, schemaBuilder(alias), alias)
 }
 

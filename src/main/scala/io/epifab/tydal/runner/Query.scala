@@ -108,7 +108,7 @@ object QueryBuilder {
      concat4: Concat.Aux[P7, P8, P9],
      sortBy: QueryFragmentBuilder[FT_SortBy, Sort, P10],
      concat5: Concat.Aux[P9, P10, P11]
-    ): QueryBuilder[Select[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
+    ): QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
     QueryBuilder.instance(select =>
       (fields.build(select.$fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.$sources).prepend("FROM ") `+ +`
@@ -209,7 +209,7 @@ object QueryFragmentBuilder {
   implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_] with Tagging[_], HNil] =
     QueryFragmentBuilder.instance(table => QueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def fromSubQuery[SubQueryFields <: HList, S <: Select[_, _, _, _, _, _], P <: HList]
+  implicit def fromSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _], P <: HList]
       (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SubQueryFields, S] with Tagging[_], P] =
     instance(subQuery =>
       QueryFragment(query.build(subQuery.select))
@@ -414,6 +414,6 @@ object QueryFragmentBuilder {
   implicit def whereField[P <: HList, F <: Field[_]](implicit field: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_Where, F, P] =
     instance(field.build)
 
-  implicit def whereSubQuery[P <: HList, S <: Select[_, _, _, _, _, _]](implicit subQuery: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_Where, S, P] =
+  implicit def whereSubQuery[P <: HList, S <: SelectQuery[_, _, _, _, _, _]](implicit subQuery: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_Where, S, P] =
     instance(s => QueryFragment(subQuery.build(s)))
 }

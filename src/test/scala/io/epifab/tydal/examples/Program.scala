@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 import io.epifab.tydal._
+import io.epifab.tydal.examples.Schema.Exams
 import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
 
 case class Address(postcode: String, line1: String, line2: Option[String])

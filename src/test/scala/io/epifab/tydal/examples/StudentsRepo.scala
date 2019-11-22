@@ -25,14 +25,15 @@ object StudentsRepo {
       .sortBy($ => Ascending($("sid")) -> Descending($("score")))
       .compile
 
-  val studentsWithMinScore = Select
-    .from(Students as "s")
-    .take(_ ("s").*)
-    .where($ => $("s", "id") in Select
-      .from(Exams as "e")
-      .take1(_("e", "student_id"))
-      .where(_("e", "score") >= "min_score"))
-    .compile
+  val studentsWithMinScore = 
+    Select
+      .from(Students as "s")
+      .take(_ ("s").*)
+      .where($ => $("s", "id") in Select
+        .from(Exams as "e")
+        .take1(_("e", "student_id"))
+        .where(_("e", "score") >= "min_score"))
+      .compile
 
   def findById(id: Int): Transaction[Option[Student]] =
     Select

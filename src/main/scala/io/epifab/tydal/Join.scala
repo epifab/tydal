@@ -15,7 +15,7 @@ class JoinBuilder[
     RightSource <: Selectable[_] with Tagging[_],
     RightFields <: HList,
     RightAlias <: String with Singleton
-  ](left: Select[Fields, GroupBy, Sources, Where, Having, Sort],
+  ](left: SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort],
     right: RightSource,
     rightFields: RightFields,
     joinType: JoinType) {
@@ -25,8 +25,8 @@ class JoinBuilder[
   (implicit
    alias: ValueOf[RightAlias],
    appender: Appender.Aux[Sources, Join[RightSource, RightFields, RightAlias, JoinClause], SourceResults],
-   queryBuilder: QueryBuilder[Select[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): NonEmptySelect[Fields, GroupBy, SourceResults, Where, Having, Sort] =
-    new NonEmptySelect(
+   queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort] =
+    new SelectQuery(
       left.$fields,
       left.$groupBy,
       appender.append(

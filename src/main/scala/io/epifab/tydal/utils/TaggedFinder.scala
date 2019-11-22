@@ -39,11 +39,14 @@ object TaggedFinder {
   implicit def headFinder[T <: String with Singleton, X, Tail <: HList]: TaggedFinder[T, X, (X AS T) :: Tail] =
     (u: (X AS T) :: Tail) => u.head
 
-  implicit def tailFinder[T <: String with Singleton, X, H, Tail <: HList](implicit finder: TaggedFinder[T, X, Tail]): TaggedFinder[T, X, H :: Tail] =
+  implicit def tailFinder[T <: String with Singleton, X, H, Tail <: HList]
+      (implicit finder: TaggedFinder[T, X, Tail])
+      : TaggedFinder[T, X, H :: Tail] =
     (u: H :: Tail) => finder.find(u.tail)
 
   implicit def caseClassFinder[T <: String with Singleton, X, CC, Repr]
       (implicit generic: Generic.Aux[CC, Repr],
-       finder: TaggedFinder[T, X, Repr]): TaggedFinder[T, X, CC] =
+       finder: TaggedFinder[T, X, Repr])
+      : TaggedFinder[T, X, CC] =
     (cc: CC) => finder.find(generic.to(cc))
 }

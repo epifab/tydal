@@ -1,6 +1,6 @@
 package io.epifab.tydal.fields
 
-import io.epifab.tydal.{Select, Tag, Tagging}
+import io.epifab.tydal.{SelectQuery, Tag, Tagging}
 import shapeless.{::, HList, HNil}
 
 import scala.annotation.implicitNotFound
@@ -179,7 +179,7 @@ object Field {
       Where <: BinaryExpr,
       Having <: BinaryExpr,
       Sort <: HList
-    ](subQuery: Select[F2 :: HNil, GroupBy, Sources, Where, Having, Sort])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort] =
+    ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort] =
       InSubquery(field1, subQuery)
 
     def ===[PlaceholderName <: String with Singleton, T]

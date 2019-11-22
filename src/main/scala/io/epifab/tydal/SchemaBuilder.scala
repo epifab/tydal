@@ -15,7 +15,7 @@ trait SchemaBuilder[-T, +Repr] {
 }
 
 object SchemaBuilder {
-  implicit def head[T, A <: String with Singleton](
+  implicit def labelled[T, A <: String with Singleton](
     implicit alias: ValueOf[A], fieldDecoder: FieldDecoder[T]
   ): SchemaBuilder[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
     (relationAlias: String) =>

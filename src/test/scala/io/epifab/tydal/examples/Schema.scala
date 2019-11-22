@@ -2,7 +2,7 @@ package io.epifab.tydal.examples
 
 import io.circe.generic.auto._
 import io.epifab.tydal._
-import io.epifab.tydal.examples.Model.{Address, Course, Exam, Interest, Student}
+import io.epifab.tydal.examples.Model._
 import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
 
 object Schema {

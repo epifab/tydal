@@ -109,7 +109,7 @@ INNER JOIN (
         e1.student_id AS sid,
         MAX(s1.score) AS score
     FROM exams AS e1
-    Where e1.exam_timestamp > '2010-01-01T00:00:00Z'::timestamp
+    WHERE e1.exam_timestamp > '2010-01-01T00:00:00Z'::timestamp
     GROUP BY e1.student_id
 ) AS se1
 ON se1.student_id = s.id
@@ -126,7 +126,7 @@ INNER JOIN exams AS e
 ON e.student_id = se2.student_id AND e.exam_timestamp = se2.etime
 INNER JOIN courses AS c
 ON c.id = e.course_id
-Where s.date_of_birth > '1994-01-01'::date AND s.date_of_birth < '1998-12-31'::date
+WHERE s.date_of_birth > '1994-01-01'::date AND s.date_of_birth < '1998-12-31'::date
 ORDER BY escore DESC, sname ASC
 ```
 
