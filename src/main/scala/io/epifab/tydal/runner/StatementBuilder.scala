@@ -96,12 +96,12 @@ class ReadStatementStep3[Fields <: HList, OutputRepr, Output]
 case class RunnableStatement[Fields <: HList](sql: String, input: Seq[PlaceholderValue[_]], fields: Fields)
 
 trait StatementBuilder[Placeholders <: HList, InputRepr <: HList, Input, Output <: HList] {
-  def build(query: Query[Placeholders, Output]): GenericStatement[InputRepr, Input, Output]
+  def build(query: CompiledQuery[Placeholders, Output]): GenericStatement[InputRepr, Input, Output]
 }
 
 object StatementBuilder {
   implicit def noPlaceholders[Output <: HList]: StatementBuilder[HNil, HNil, Unit, Output] =
-    (query: Query[HNil, Output]) =>
+    (query: CompiledQuery[HNil, Output]) =>
       new GenericStatement(query.sql, _ => RunnableStatement(query.sql, Seq.empty, query.fields))
 
   implicit def namedPlaceholder[P <: NamedPlaceholder[_] with Tagging[_], PTYPE, PTAG <: String with Singleton, Tail <: HList, TailInput <: HList, Output <: HList, InputTuple]
@@ -112,11 +112,11 @@ object StatementBuilder {
        tupler: Tupler.Aux[PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput, InputTuple],
        generic: Generic.Aux[InputTuple, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput]
       ): StatementBuilder[P :: Tail, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput, InputTuple, Output] =
-    (query: Query[P :: Tail, Output]) =>
+    (query: CompiledQuery[P :: Tail, Output]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
           query.sql,
           tail
-            .build(Query(query.sql, query.placeholders.tail, query.fields))
+            .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
             .toRunnable(values.tail)
             .input prepended values.head,
           query.fields
@@ -130,12 +130,12 @@ object StatementBuilder {
        tupler: Tupler.Aux[TailInput, InputTuple],
        generic: Generic.Aux[InputTuple, TailInput]
       ): StatementBuilder[P :: Tail, TailInput, InputTuple, Output] =
-    (query: Query[P :: Tail, Output]) =>
+    (query: CompiledQuery[P :: Tail, Output]) =>
       new GenericStatement(query.sql, values => {
         RunnableStatement(
           query.sql,
           tail
-            .build(Query(query.sql, query.placeholders.tail, query.fields))
+            .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
             .toRunnable(values)
             .input prepended query.placeholders.head,
           query.fields
@@ -149,10 +149,10 @@ object StatementBuilder {
        tupler: Tupler.Aux[TailInput, InputTuple],
        generic: Generic.Aux[InputTuple, TailInput]
       ): StatementBuilder[P :: Tail, TailInput, InputTuple, Output] =
-    (query: Query[P :: Tail, Output]) =>
+    (query: CompiledQuery[P :: Tail, Output]) =>
       new GenericStatement(query.sql, values => {
         val tailValues = tail
-          .build(Query(query.sql, query.placeholders.tail, query.fields))
+          .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
           .toRunnable(values)
           .input
 

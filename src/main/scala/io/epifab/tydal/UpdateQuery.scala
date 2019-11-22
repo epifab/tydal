@@ -5,16 +5,16 @@ import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-class Update[TableFields <: HList, FieldsToUpdate <: HList, Where <: BinaryExpr]
+final class UpdateQuery[TableFields <: HList, FieldsToUpdate <: HList, Where <: BinaryExpr]
     (val table: Table[TableFields], val $fields: FieldsToUpdate, val $where: Where) {
 
   def fields[P, NewFields <: HList]
     (f: Selectable[TableFields] => P)
-    (implicit generic: Generic.Aux[P, NewFields]): Update[TableFields, NewFields, Where] =
-    new Update(table, generic.to(f(table)), $where)
+    (implicit generic: Generic.Aux[P, NewFields]): UpdateQuery[TableFields, NewFields, Where] =
+    new UpdateQuery(table, generic.to(f(table)), $where)
 
-  def where[E2 <: BinaryExpr](f: Selectable[TableFields] => E2): Update[TableFields, FieldsToUpdate, E2] =
-    new Update(table, $fields, f(table))
+  def where[E2 <: BinaryExpr](f: Selectable[TableFields] => E2): UpdateQuery[TableFields, FieldsToUpdate, E2] =
+    new UpdateQuery(table, $fields, f(table))
 
   def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
@@ -31,6 +31,6 @@ object Update {
       (implicit
        name: ValueOf[TableName],
        schemaBuilder: SchemaBuilder[Schema, Fields]
-      ): Update[Fields, Fields, AlwaysTrue] =
-    new Update(tableBuilder as name.value, schemaBuilder(name.value), AlwaysTrue)
+      ): UpdateQuery[Fields, Fields, AlwaysTrue] =
+    new UpdateQuery(tableBuilder as name.value, schemaBuilder(name.value), AlwaysTrue)
 }

@@ -6,26 +6,6 @@ import io.epifab.tydal.utils.{Appender, Bounded, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
-sealed trait SortOrder
-
-case class SortBy[+F <: Field[_] with Tagging[_]](field: F, sortOrder: SortOrder) {
-  def alias: String = field.tagValue
-}
-
-object Ascending {
-  case object AscendingOrder extends SortOrder
-
-  def apply[F <: Field[_] with Tagging[_]](field: F): SortBy[F] =
-    SortBy(field, AscendingOrder)
-}
-
-object Descending {
-  case object DescendingOrder extends SortOrder
-
-  def apply[F <: Field[_] with Tagging[_]](field: F): SortBy[F] =
-    SortBy(field, DescendingOrder)
-}
-
 trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fields, Sources)] {
   protected[tydal] def $fields: Fields
   protected[tydal] def $sources: Sources
@@ -41,7 +21,7 @@ trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fiel
     finder1.find($sources).apply[T2, X2](tag2)
 }
 
-final class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList]
+sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList]
     (protected[tydal] val $fields: Fields,
      protected[tydal] val $groupBy: GroupBy,
      protected[tydal] val $sources: Sources,
