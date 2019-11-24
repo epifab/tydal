@@ -1,9 +1,9 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 import java.sql.{Connection, PreparedStatement}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
-import io.epifab.tydal.fields._
+import io.epifab.tydal.schema._
 
 import scala.util.Try
 import scala.util.control.NonFatal

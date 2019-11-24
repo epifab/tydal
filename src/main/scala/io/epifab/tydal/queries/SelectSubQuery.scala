@@ -1,6 +1,7 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields.{Column, Field}
+import io.epifab.tydal.Tagging
+import io.epifab.tydal.schema.{Column, Field}
 import io.epifab.tydal.utils.TaggedFinder
 import shapeless.{::, HList, HNil}
 

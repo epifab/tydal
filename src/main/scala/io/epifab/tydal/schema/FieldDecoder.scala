@@ -1,10 +1,10 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 import java.util.UUID
 
 import io.circe.{Decoder => JsonDecoder}
-import io.epifab.tydal.runner.{DecoderError, SqlDate, SqlDateTime}
+import io.epifab.tydal.runtime.{DecoderError, SqlDate, SqlDateTime}
 import io.epifab.tydal.utils.EitherSupport
 
 import scala.util.Try
@@ -38,6 +38,8 @@ trait FieldDecoder[+T] { baseDecoder =>
 
 object FieldDecoder {
   type Aux[+T, D] = FieldDecoder[T] { type DbType = D }
+
+  def apply[T](implicit decoder: FieldDecoder[T]): FieldDecoder[T] = decoder
 
   implicit val stringDecoder: FieldDecoder.Aux[String, String] = new FieldDecoder[String] {
     override type DbType = String
@@ -93,9 +95,9 @@ object FieldDecoder {
     override def decode(value: String): Either[DecoderError, A] = decodeFunction(value).left.map(DecoderError)
   }
 
-  implicit def seqDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] =
+  implicit def seqDecoder[T, U](implicit baseDecoder: => FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] =
     baseDecoder.toSeq
 
-  implicit def optionDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] =
+  implicit def optionDecoder[T, U](implicit baseDecoder: => FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] =
     baseDecoder.toOption
 }

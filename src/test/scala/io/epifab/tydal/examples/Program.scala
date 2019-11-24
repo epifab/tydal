@@ -4,8 +4,9 @@ import java.time.LocalDate
 import java.util.UUID
 
 import io.epifab.tydal._
-import io.epifab.tydal.examples.Schema.Exams
-import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.tydal.queries.{Insert, Select}
+import io.epifab.tydal.runtime.{PostgresConfig, PostgresConnection}
+import io.epifab.tydal.schema.{FieldDecoder, FieldEncoder, TableBuilder}
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -19,7 +20,7 @@ case class Student(
 
 object Students extends TableBuilder["students", Student]
 
-object Programme extends App {
+object Program extends App {
   import io.circe.generic.auto._
   implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]

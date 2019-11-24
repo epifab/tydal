@@ -1,7 +1,6 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.utils
 
 import io.epifab.tydal.Tagging
-import io.epifab.tydal.utils.Concat
 import shapeless.{::, HList, HNil}
 
 

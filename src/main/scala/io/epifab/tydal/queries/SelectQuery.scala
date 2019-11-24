@@ -1,8 +1,9 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields._
-import io.epifab.tydal.runner.{QueryBuilder, ReadStatementStep1, StatementBuilder}
-import io.epifab.tydal.utils.{Appender, Bounded, TaggedFinder}
+import io.epifab.tydal.schema._
+import io.epifab.tydal.runtime.{ReadStatementStep1, StatementBuilder}
+import io.epifab.tydal.utils.{Bounded, TaggedFinder}
+import io.epifab.tydal.{As, TagMap, Tagged, Tagging}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -17,7 +18,7 @@ trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fiel
       (tag1: T1, tag2: T2)
       (implicit
        finder1: TaggedFinder[T1, FindContext[HAYSTACK2], Sources],
-       finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 AS T2 =
+       finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 As T2 =
     finder1.find($sources).apply[T2, X2](tag2)
 }
 

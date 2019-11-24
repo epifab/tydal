@@ -1,9 +1,9 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 import java.sql.ResultSet
 
 import io.epifab.tydal.Tagging
-import io.epifab.tydal.fields._
+import io.epifab.tydal.schema._
 import shapeless.{::, HList, HNil}
 
 import scala.util.Try

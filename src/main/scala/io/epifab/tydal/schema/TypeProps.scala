@@ -1,4 +1,4 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
 import java.time.{Instant, LocalDate}
 

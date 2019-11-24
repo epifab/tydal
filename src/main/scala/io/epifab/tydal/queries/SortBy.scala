@@ -1,6 +1,7 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields.Field
+import io.epifab.tydal.Tagging
+import io.epifab.tydal.schema.Field
 
 sealed trait SortOrder
 

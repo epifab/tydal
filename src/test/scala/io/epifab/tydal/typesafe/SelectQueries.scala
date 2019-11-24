@@ -4,8 +4,9 @@ import java.time.{Instant, LocalDate}
 
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Schema._
-import io.epifab.tydal.fields._
-import io.epifab.tydal.runner.Transaction
+import io.epifab.tydal.schema._
+import io.epifab.tydal.queries.{Delete, Select, Update}
+import io.epifab.tydal.runtime.Transaction
 
 object SelectQueries {
   val studentsQuery = {

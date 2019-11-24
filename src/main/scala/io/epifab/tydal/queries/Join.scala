@@ -1,7 +1,7 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields.{BinaryExpr, Field, NullableField}
-import io.epifab.tydal.runner.QueryBuilder
+import io.epifab.tydal.Tagging
+import io.epifab.tydal.schema.{BinaryExpr, Field, NullableField}
 import io.epifab.tydal.utils.{Appender, TaggedFinder}
 import shapeless.{::, HList, HNil}
 

@@ -1,18 +1,18 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 import java.util.UUID
 
 import io.circe.{Encoder => JsonEncoder}
-import io.epifab.tydal.fields
-import io.epifab.tydal.runner.{DecoderError, SqlDate, SqlDateTime}
+import io.epifab.tydal.schema
+import io.epifab.tydal.runtime.{DecoderError, SqlDate, SqlDateTime}
 
 trait FieldEncoder[-T] { baseEncoder =>
   type DbType
   def dbType: FieldType[DbType]
   def encode(value: T): DbType
 
-  def toSeq: fields.FieldEncoder.Aux[Seq[T], Seq[DbType]] = new FieldEncoder[Seq[T]] {
+  def toSeq: schema.FieldEncoder.Aux[Seq[T], Seq[DbType]] = new FieldEncoder[Seq[T]] {
     override type DbType = Seq[baseEncoder.DbType]
     override def dbType: FieldType[Seq[baseEncoder.DbType]] = baseEncoder.dbType.toSeq
     override def encode(value: Seq[T]): DbType = value.map(baseEncoder.encode)
@@ -24,7 +24,7 @@ trait FieldEncoder[-T] { baseEncoder =>
     override def encode(value: Option[T]): DbType = value.map(baseEncoder.encode)
   }
 
-  def contramap[U](f: U => T): fields.FieldEncoder.Aux[U, DbType] = new FieldEncoder[U] {
+  def contramap[U](f: U => T): schema.FieldEncoder.Aux[U, DbType] = new FieldEncoder[U] {
     override type DbType = baseEncoder.DbType
     override def dbType: FieldType[DbType] = baseEncoder.dbType
     override def encode(value: U): FieldEncoder.this.DbType = baseEncoder.encode(f(value))

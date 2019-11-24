@@ -1,12 +1,12 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 import java.sql.Connection
 
-import cats.implicits._
 import cats.Monad
-import cats.effect.{IO, Sync}
+import cats.implicits._
 import io.epifab.tydal._
-import io.epifab.tydal.fields.{FieldT, NamedPlaceholder, PlaceholderValue, PlaceholderValueOption}
+import io.epifab.tydal.queries.CompiledQuery
+import io.epifab.tydal.schema._
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 

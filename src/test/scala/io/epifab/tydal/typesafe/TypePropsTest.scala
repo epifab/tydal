@@ -15,7 +15,7 @@ object SameType {
 }
 
 class TypePropsTest extends FunSuite {
-  import io.epifab.tydal.fields._
+  import io.epifab.tydal.schema._
 
   test("Negative type class") {
     the[SameType[Int, Int]]

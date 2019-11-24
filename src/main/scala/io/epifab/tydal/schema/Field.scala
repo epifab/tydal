@@ -1,9 +1,8 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
-import io.epifab.tydal.{SelectQuery, Tag, Tagging}
+import io.epifab.tydal.Tagging
+import io.epifab.tydal.queries.SelectQuery
 import shapeless.{::, HList, HNil}
-
-import scala.annotation.implicitNotFound
 
 sealed trait Field[+T] {
   def decoder: FieldDecoder[T]
@@ -33,7 +32,7 @@ case class Cast[+F <: Field[_], +U](field: F)(implicit val decoder: FieldDecoder
     }
 }
 
-case class SoftCast[+F <: Field[_], +T] private[fields](field: F)(implicit val decoder: FieldDecoder[T])
+case class SoftCast[+F <: Field[_], +T] private[schema](field: F)(implicit val decoder: FieldDecoder[T])
   extends Field[T] {
   override def as[Alias <: String with Singleton](alias: Alias): SoftCast[F, T] with Tagging[Alias] =
     new SoftCast[F, T](field) with Tagging[Alias] {

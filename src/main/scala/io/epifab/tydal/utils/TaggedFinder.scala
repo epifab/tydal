@@ -7,7 +7,7 @@ import scala.annotation.implicitNotFound
 
 @implicitNotFound("Field or relation ${T} could not be found")
 trait TaggedFinder[T <: String with Singleton, +X, Haystack] {
-  def find(u: Haystack): X AS T
+  def find(u: Haystack): X As T
 }
 
 object TaggedFinder {
@@ -36,8 +36,8 @@ object TaggedFinder {
       : TaggedFinder[T, X, (X1, X2, X3)] =
     (u: (X1, X2, X3)) => t3Finder.find(u._3)
 
-  implicit def headFinder[T <: String with Singleton, X, Tail <: HList]: TaggedFinder[T, X, (X AS T) :: Tail] =
-    (u: (X AS T) :: Tail) => u.head
+  implicit def headFinder[T <: String with Singleton, X, Tail <: HList]: TaggedFinder[T, X, (X As T) :: Tail] =
+    (u: (X As T) :: Tail) => u.head
 
   implicit def tailFinder[T <: String with Singleton, X, H, Tail <: HList]
       (implicit finder: TaggedFinder[T, X, Tail])

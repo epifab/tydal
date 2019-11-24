@@ -1,4 +1,4 @@
-package io.epifab.tydal
+package io.epifab.tydal.runtime
 
 import java.sql.{Connection, DriverManager}
 

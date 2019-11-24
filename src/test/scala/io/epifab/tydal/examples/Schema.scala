@@ -3,7 +3,7 @@ package io.epifab.tydal.examples
 import io.circe.generic.auto._
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Model._
-import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.tydal.schema.{FieldDecoder, FieldEncoder, TableBuilder}
 
 object Schema {
   implicit val interestDecoder: FieldDecoder.Aux[Interest, String] =

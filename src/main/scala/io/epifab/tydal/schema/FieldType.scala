@@ -1,4 +1,4 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
 sealed abstract class FieldType[+T](val sqlName: String) {
   def toSeq: FieldType[Seq[T]] = TypeSeq(this)

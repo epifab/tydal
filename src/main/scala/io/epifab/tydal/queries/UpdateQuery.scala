@@ -1,7 +1,7 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields.{AlwaysTrue, BinaryExpr}
-import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
+import io.epifab.tydal.schema.{AlwaysTrue, BinaryExpr, SchemaBuilder, Table, TableBuilder}
+import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 

@@ -1,6 +1,7 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
+import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
+import io.epifab.tydal.schema.{SchemaBuilder, Table, TableBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 

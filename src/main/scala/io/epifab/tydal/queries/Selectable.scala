@@ -1,7 +1,8 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
+import io.epifab.tydal.Tagging
 import io.epifab.tydal.utils.TaggedFinder
-import shapeless.{Generic, HList}
+import shapeless.HList
 
 trait FindContext[Haystack] {
   def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Haystack]): X with Tagging[T]

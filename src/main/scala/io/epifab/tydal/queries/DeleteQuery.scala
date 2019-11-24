@@ -1,13 +1,13 @@
-package io.epifab.tydal
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.fields.{AlwaysTrue, BinaryExpr}
-import io.epifab.tydal.runner.{QueryBuilder, StatementBuilder, WriteStatement}
+import io.epifab.tydal.schema._
+import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
-class Delete[Fields <: HList, E <: BinaryExpr](val table: Table[Fields], val filter: E) {
-  def where[E2 <: BinaryExpr](f: Selectable[Fields] => E2): Delete[Fields, E2] =
-    new Delete(table, f(table))
+final class DeleteQuery[Fields <: HList, E <: BinaryExpr](val table: Table[Fields], val filter: E) {
+  def where[E2 <: BinaryExpr](f: Selectable[Fields] => E2): DeleteQuery[Fields, E2] =
+    new DeleteQuery(table, f(table))
 
   def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
@@ -24,6 +24,6 @@ object Delete {
     (implicit
      name: ValueOf[TableName],
      schemaBuilder: SchemaBuilder[Schema, Fields]
-    ): Delete[Fields, AlwaysTrue] =
-    new Delete(tableBuilder as name.value, AlwaysTrue)
+    ): DeleteQuery[Fields, AlwaysTrue] =
+    new DeleteQuery(tableBuilder as name.value, AlwaysTrue)
 }

@@ -1,6 +1,8 @@
-package io.epifab.tydal
+package io.epifab.tydal.schema
 
+import io.epifab.tydal.queries.{FindContext, Selectable}
 import io.epifab.tydal.utils.TaggedFinder
+import io.epifab.tydal.Tagging
 import shapeless.HList
 import shapeless.ops.hlist.Tupler
 

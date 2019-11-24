@@ -1,6 +1,6 @@
-package io.epifab.tydal
+package io.epifab.tydal.schema
 
-import io.epifab.tydal.fields.{Column, FieldDecoder, FieldEncoder, PlaceholderValue}
+import io.epifab.tydal.Tagging
 import shapeless.labelled.FieldType
 import shapeless.tag.@@
 import shapeless.{::, HList, HNil, LabelledGeneric}
@@ -16,7 +16,9 @@ trait SchemaBuilder[-T, +Repr] {
 
 object SchemaBuilder {
   implicit def labelled[T, A <: String with Singleton](
-    implicit alias: ValueOf[A], fieldDecoder: FieldDecoder[T]
+    implicit
+    fieldDecoder: FieldDecoder[T],
+    alias: ValueOf[A]
   ): SchemaBuilder[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
     (relationAlias: String) =>
       new Column[T](alias.value, relationAlias) with Tagging[A] {

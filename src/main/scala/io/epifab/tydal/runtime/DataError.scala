@@ -1,4 +1,4 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 trait DataError extends RuntimeException
 

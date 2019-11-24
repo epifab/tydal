@@ -1,12 +1,10 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 import java.sql.Connection
 
 import cats.Monad
 import cats.effect.IO
 import cats.implicits._
-import io.epifab.tydal._
-import io.epifab.tydal.runner.Transaction.{FlatMapTransaction, MapTransaction}
 import shapeless.HList
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,10 +37,10 @@ trait Transaction[+Output] {
   protected def run[F[+_]: Eff: Monad](connection: Connection): F[Either[DataError, Output]]
 
   final def map[O2](f: Output => O2): Transaction[O2] =
-    new MapTransaction(this, f)
+    new Transaction.MapTransaction(this, f)
 
   final def flatMap[O2](f: Output => Transaction[O2]): Transaction[O2] =
-    new FlatMapTransaction(this, f)
+    new Transaction.FlatMapTransaction(this, f)
 }
 
 object Transaction {

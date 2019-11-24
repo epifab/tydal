@@ -1,12 +1,12 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.queries
 
-import io.epifab.tydal.Ascending.AscendingOrder
-import io.epifab.tydal.Descending.DescendingOrder
 import io.epifab.tydal._
-import io.epifab.tydal.fields._
-import io.epifab.tydal.runner.FragmentType._
+import io.epifab.tydal.queries.Ascending.AscendingOrder
+import io.epifab.tydal.queries.Descending.DescendingOrder
+import io.epifab.tydal.queries.FragmentType._
+import io.epifab.tydal.schema._
 import io.epifab.tydal.utils.Concat
-import shapeless.{::, Generic, HList, HNil}
+import shapeless.{::, HList, HNil}
 
 import scala.annotation.implicitNotFound
 
@@ -145,7 +145,7 @@ object QueryBuilder {
   implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: BinaryExpr]
       (implicit
        where: QueryFragmentBuilder[FT_Where, Where, P]
-      ): QueryBuilder[Delete[Schema, Where], P, HNil] =
+      ): QueryBuilder[DeleteQuery[Schema, Where], P, HNil] =
     QueryBuilder.instance(delete =>
       (CompiledQueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
       where.build(delete.filter).prepend(" Where "))

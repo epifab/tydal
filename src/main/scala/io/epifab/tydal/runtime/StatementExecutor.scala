@@ -1,4 +1,4 @@
-package io.epifab.tydal.runner
+package io.epifab.tydal.runtime
 
 import java.sql.{Connection, PreparedStatement, ResultSet}
 

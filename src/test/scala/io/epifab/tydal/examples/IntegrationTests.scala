@@ -5,8 +5,11 @@ import java.time.{Instant, LocalDate}
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.IO
+import io.epifab.tydal._
 import io.epifab.tydal.examples.Model._
-import io.epifab.tydal.runner.{DataError, DriverError}
+import io.epifab.tydal.schema.{FieldDecoder, NamedPlaceholder}
+import io.epifab.tydal.queries.Select
+import io.epifab.tydal.runtime.{DataError, DriverError}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -222,5 +225,36 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       .transact[IO](connection)
       .unsafeRunSync()
     bestStudentExams shouldBe Right(Seq(StudentExam(99, jack.name, 29, jackExam2.exam_timestamp, course2.name)))
+  }
+
+  it should "encode and decode a bunch of fields" in {
+    // todo: these two decoder should not be needed, but without them I get a divergent implicit expansion error
+    implicit val optionalSequence: FieldDecoder[Option[Seq[Int]]] = FieldDecoder[Seq[Int]].toOption
+    implicit def optionalOption[T](implicit b: FieldDecoder[T]): FieldDecoder[Option[Option[T]]] = b.toOption.toOption
+
+    val foo = Select
+      .take(_ => (
+        NamedPlaceholder[Seq[Int], "list"],
+        NamedPlaceholder[Option[Double], "double"],
+        NamedPlaceholder[Option[Seq[Int]], "maybelist"],
+        NamedPlaceholder[Option[Option[Seq[Int]]], "stupid"]
+      ))
+      .compile
+      .withValues((
+        "list" ~~> Seq(1, 2, 3),
+        "double" ~~> Some(3.14),
+        "maybelist" ~~> Some(Seq.empty),
+        "stupid" ~~> Some(None)
+      ))
+      .tuple
+      .as[Vector]
+      .sync(connection)
+
+    foo shouldBe Right(Vector((
+      Seq(1, 2, 3),
+      Some(3.14),
+      Some(Seq.empty),
+      None
+    )))
   }
 }

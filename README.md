@@ -23,11 +23,10 @@ libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"
 ### A basic example
 
 ```scala
-import java.time.LocalDate
-import java.util.UUID
-
 import io.epifab.tydal._
-import io.epifab.tydal.fields.{FieldDecoder, FieldEncoder}
+import io.epifab.tydal.queries._
+import io.epifab.tydal.schema._
+import io.epifab.tydal.runtime._
 
 import java.time.LocalDate
 import java.util.UUID
@@ -44,7 +43,7 @@ case class Student(
 
 object Students extends TableBuilder["students", Student]
 
-object Programme extends App {
+object Program extends App {
   import io.circe.generic.auto._
   implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]

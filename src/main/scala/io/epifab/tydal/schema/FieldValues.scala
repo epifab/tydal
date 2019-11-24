@@ -1,4 +1,4 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
 import io.epifab.tydal.{Tag, Tagged, Tagging}
 import shapeless.{::, Generic, HList, HNil}

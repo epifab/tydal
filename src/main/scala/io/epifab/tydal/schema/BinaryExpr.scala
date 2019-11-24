@@ -1,6 +1,6 @@
-package io.epifab.tydal.fields
+package io.epifab.tydal.schema
 
-import io.epifab.tydal.SelectQuery
+import io.epifab.tydal.queries.SelectQuery
 import shapeless.{::, HList, HNil}
 
 sealed trait AlwaysTrue extends BinaryExpr
