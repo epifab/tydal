@@ -1,46 +1,92 @@
 package io.epifab.tydal.schema
 
-import io.epifab.tydal.Tagging
+import io.epifab.tydal.{As, Tag, Tagging}
 import shapeless.labelled.FieldType
+import shapeless.ops.hlist.Tupler
 import shapeless.tag.@@
 import shapeless.{::, HList, HNil, LabelledGeneric}
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("Could not build a schema from ${T}.\n" +
-  " Possible reason: a FieldEncoder could not be found for one or more columns in your schema." +
-  " Ensure that a FieldEncoder[T] is in scope for every T in your schema.")
-trait SchemaBuilder[-T, +Repr] {
-  def apply(relationName: String): Repr
+@implicitNotFound("Could not build a schema for this table.\n" +
+  " Possible reasons:\n" +
+  " - your schema is invalid: ensure that all properties in your schema are of type Column[T] with Tag[A]" +
+  " for concrete T and A;\n" +
+  " - a FieldEncoder could not be found for one or more columns in your schema." +
+  " Ensure that a FieldEncoder[T] is in scope for every Column[T] in your schema.")
+trait Columns[+X] {
+  def apply(tableName: String): X
 }
 
-object SchemaBuilder {
-  implicit def labelled[T, A <: String with Singleton](
+object Columns {
+  implicit def pure[Type, Name <: String with Singleton](
     implicit
-    fieldDecoder: FieldDecoder[T],
-    alias: ValueOf[A]
-  ): SchemaBuilder[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
-    (relationAlias: String) =>
-      new Column[T](alias.value, relationAlias) with Tagging[A] {
-        override def tagValue: String = alias.value
-      }
+    decoder: FieldDecoder[Type],
+    name: ValueOf[Name]
+  ): Columns[Column[Type] with Tagging[Name]] =
+    (tableName: String) => new Column[Type](name.value, tableName) with Tagging[Name] {
+      override def tagValue: String = name
+    }
 
-  implicit def hNil: SchemaBuilder[HNil, HNil] =
+  implicit val hNil: Columns[HNil] =
     (_: String) => HNil
 
-  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](
+  implicit def hCons[H, T <: HList](
     implicit
-    headBuilder: SchemaBuilder[Head, HeadRepr],
-    tailBuilder: SchemaBuilder[Tail, TailRepr]
-  ): SchemaBuilder[Head :: Tail, HeadRepr :: TailRepr] =
-    (relationAlias: String) => headBuilder(relationAlias) :: tailBuilder(relationAlias)
+    headColumn: Columns[H],
+    tailColumns: Columns[T]
+  ): Columns[H :: T] =
+    (tableName: String) => headColumn(tableName) :: tailColumns(tableName)
+}
 
-  implicit def fromCaseClass[CaseClass, IntermediateRepr, Repr](
+@implicitNotFound("Could not build a schema for ${Schema}.\n" +
+  " Possible reason: a FieldEncoder could not be found for one or more columns in your schema." +
+  " Ensure that a FieldEncoder[T] is in scope for every T in your schema.")
+trait GenericSchema[Schema] {
+  type Repr
+}
+
+object GenericSchema {
+  type Aux[Schema, T] = GenericSchema[Schema] { type Repr = T }
+
+//  implicit def labelled[T, A <: String with Singleton](
+//    implicit
+//    fieldDecoder: FieldDecoder[T],
+//    alias: ValueOf[A]
+//  ): GenericSchema.Aux[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
+//    new GenericSchema[FieldType[Symbol @@ A, T]] {
+//      override type Repr = Column[T] with Tagging[A]
+//    }
+//
+//  implicit def hNil: GenericSchema.Aux[HNil, HNil] = new GenericSchema[HNil] {
+//    override type Repr = HNil
+//  }
+//
+//  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](
+//    implicit
+//    headBuilder: GenericSchema.Aux[Head, HeadRepr],
+//    tailBuilder: GenericSchema.Aux[Tail, TailRepr]
+//  ): GenericSchema.Aux[Head :: Tail, HeadRepr :: TailRepr] = new GenericSchema[Head :: Tail] {
+//    override type Repr = HeadRepr :: TailRepr
+//  }
+//
+//  implicit def serializableProduct[P <: Product with Serializable, IntermediateRepr <: HList, FinalRepr <: HList](
+//    implicit
+//    generic: LabelledGeneric.Aux[P, IntermediateRepr],
+//    schemaBuilder: GenericSchema.Aux[IntermediateRepr, FinalRepr]
+//  ): GenericSchema.Aux[P, FinalRepr] = new GenericSchema[P] {
+//    override type Repr = FinalRepr
+//  }
+
+  // This will become legacy as soon as the following gets fixed
+  // https://youtrack.jetbrains.com/issue/SCL-16639
+  implicit def hackForIntellij[P <: Product, FinalRepr <: HList](
     implicit
-    generic: LabelledGeneric.Aux[CaseClass, IntermediateRepr],
-    schemaBuilder: SchemaBuilder[IntermediateRepr, Repr]
-  ): SchemaBuilder[CaseClass, Repr] =
-    (relationName: String) => schemaBuilder(relationName)
+    tupler: Tupler.Aux[FinalRepr, P],
+    columns: Columns[FinalRepr]
+  ): GenericSchema.Aux[P, FinalRepr] = new GenericSchema[P] {
+    override type Repr = FinalRepr
+  }
 }
 
 @implicitNotFound("The required placeholders for this query: ${Values} do not match with type ${T}.")

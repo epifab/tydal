@@ -5,9 +5,9 @@ import java.time.{Instant, LocalDate}
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.tydal.examples.Schema._
-import io.epifab.tydal.schema._
-import io.epifab.tydal.queries.{Ascending, Delete, Descending, Insert, Select, Update}
+import io.epifab.tydal.queries._
 import io.epifab.tydal.runtime.Transaction
+import io.epifab.tydal.schema._
 
 object StudentsRepo {
   private val studentExamsQuery =

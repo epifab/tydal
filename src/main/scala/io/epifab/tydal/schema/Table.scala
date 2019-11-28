@@ -3,12 +3,22 @@ package io.epifab.tydal.schema
 import io.epifab.tydal.queries.{FindContext, Selectable}
 import io.epifab.tydal.utils.TaggedFinder
 import io.epifab.tydal.Tagging
-import shapeless.HList
+import shapeless.{Generic, HList}
 import shapeless.ops.hlist.Tupler
 
-class TableBuilder[TableName <: String with Singleton, Schema](implicit name: ValueOf[TableName]) {
-  def as[Alias <: String with Singleton, Repr <: HList](alias: Alias)(implicit schemaBuilder: SchemaBuilder[Schema, Repr]): Table[Repr] with Tagging[Alias] =
-    Table(name.value, schemaBuilder(alias), alias)
+class TableBuilder[TableName <: String with Singleton, Schema](
+  implicit
+  name: ValueOf[TableName],
+  genericSchema: GenericSchema[Schema]
+) {
+
+  def as[Alias <: String with Singleton, Repr <: HList](alias: Alias)(
+    implicit
+    genericSchema: GenericSchema.Aux[Schema, Repr],
+    columns: Columns[Repr]
+  ): Table[Repr] with Tagging[Alias] =
+    Table(name.value, columns(alias), alias)
+
 }
 
 class Table[Fields <: HList] private(val tableName: String, override val fields: Fields) extends Selectable[Fields] with FindContext[Fields] { self: Tagging[_] =>

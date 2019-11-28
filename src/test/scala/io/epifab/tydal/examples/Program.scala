@@ -6,7 +6,7 @@ import java.util.UUID
 import io.epifab.tydal._
 import io.epifab.tydal.queries.{Insert, Select}
 import io.epifab.tydal.runtime.{PostgresConfig, PostgresConnection}
-import io.epifab.tydal.schema.{FieldDecoder, FieldEncoder, TableBuilder}
+import io.epifab.tydal.schema.{Column, FieldDecoder, FieldEncoder, TableBuilder}
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -18,12 +18,18 @@ case class Student(
   address: Option[Address]
 )
 
-object Students extends TableBuilder["students", Student]
-
 object Program extends App {
   import io.circe.generic.auto._
   implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
+
+  object Students extends TableBuilder["students", (
+    Column[UUID] As "id",
+    Column[String] As "name",
+    Column[Option[String]] As "email",
+    Column[LocalDate] As "date_of_birth",
+    Column[Option[Address]] As "address",
+  )]
 
   val connection = PostgresConnection(PostgresConfig.fromEnv())
 

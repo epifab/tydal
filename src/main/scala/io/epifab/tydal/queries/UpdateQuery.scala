@@ -1,7 +1,7 @@
 package io.epifab.tydal.queries
 
-import io.epifab.tydal.schema.{AlwaysTrue, BinaryExpr, SchemaBuilder, Table, TableBuilder}
 import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
+import io.epifab.tydal.schema.{AlwaysTrue, BinaryExpr, Columns, GenericSchema, Table, TableBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
@@ -30,7 +30,8 @@ object Update {
       (tableBuilder: TableBuilder[TableName, Schema])
       (implicit
        name: ValueOf[TableName],
-       schemaBuilder: SchemaBuilder[Schema, Fields]
+       genericSchema: GenericSchema.Aux[Schema, Fields],
+       columns: Columns[Fields]
       ): UpdateQuery[Fields, Fields, AlwaysTrue] =
-    new UpdateQuery(tableBuilder as name.value, schemaBuilder(name.value), AlwaysTrue)
+    new UpdateQuery(tableBuilder as name.value, columns(name.value), AlwaysTrue)
 }

@@ -23,7 +23,8 @@ object Delete {
     (tableBuilder: TableBuilder[TableName, Schema])
     (implicit
      name: ValueOf[TableName],
-     schemaBuilder: SchemaBuilder[Schema, Fields]
+     genericSchema: GenericSchema.Aux[Schema, Fields],
+     columns: Columns[Fields]
     ): DeleteQuery[Fields, AlwaysTrue] =
     new DeleteQuery(tableBuilder as name.value, AlwaysTrue)
 }

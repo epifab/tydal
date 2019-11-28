@@ -1,7 +1,7 @@
 package io.epifab.tydal.queries
 
 import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
-import io.epifab.tydal.schema.{SchemaBuilder, Table, TableBuilder}
+import io.epifab.tydal.schema.{Columns, GenericSchema, Table, TableBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
@@ -20,7 +20,8 @@ object Insert {
       (tableBuilder: TableBuilder[TableName, Schema])
       (implicit
        name: ValueOf[TableName],
-       schemaBuilder: SchemaBuilder[Schema, Fields]
+       genericSchema: GenericSchema.Aux[Schema, Fields],
+       column: Columns[Fields]
       ): InsertQuery[Fields] =
     new InsertQuery(tableBuilder as name.value)
 }
