@@ -110,13 +110,13 @@ object QueryBuilder {
      concat5: Concat.Aux[P9, P10, P11]
     ): QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
     QueryBuilder.instance(select =>
-      (fields.build(select.$fields).orElse(Some("1")).prepend("SELECT ") `+ +`
-        from.build(select.$sources).prepend("FROM ") `+ +`
-        where.build(select.$where).prepend("Where ") `+ +`
-        groupBy.build(select.$groupBy).prepend("GROUP BY ") `+ +`
-        having.build(select.$having).prepend("Having ") `+ +`
-        sortBy.build(select.$sortBy).prepend("ORDER BY ")
-      ).get(select.$fields)
+      (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
+        from.build(select.sources).prepend("FROM ") `+ +`
+        where.build(select.where).prepend("Where ") `+ +`
+        groupBy.build(select.groupBy).prepend("GROUP BY ") `+ +`
+        having.build(select.having).prepend("Having ") `+ +`
+        sortBy.build(select.sortBy).prepend("ORDER BY ")
+      ).get(select.fields)
     )
 
   implicit def insertQuery[Columns <: HList, Placeholders <: HList]

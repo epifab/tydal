@@ -27,15 +27,15 @@ class JoinBuilder[
    appender: Appender.Aux[Sources, Join[RightSource, RightFields, RightAlias, JoinClause], SourceResults],
    queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort] =
     new SelectQuery(
-      left.$fields,
-      left.$groupBy,
+      left.fields,
+      left.groupBy,
       appender.append(
-        left.$sources,
+        left.sources,
         new Join(right, rightFields, f(right, left), joinType)
       ),
-      left.$where,
-      left.$having,
-      left.$sortBy
+      left.where,
+      left.having,
+      left.sortBy
     )
 }
 

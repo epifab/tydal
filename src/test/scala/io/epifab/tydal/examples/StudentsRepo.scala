@@ -120,12 +120,12 @@ object StudentsRepo {
       .as[Vector]
 
   def findAllBy(
-                 minAge: Option[Int] = None,
-                 maxAge: Option[Int] = None,
-                 name: Option[String] = None,
-                 email: Option[String] = None,
-                 interests: Option[Seq[Interest]] = None
-               ): Transaction[Seq[Student]] = {
+    minAge: Option[Int] = None,
+    maxAge: Option[Int] = None,
+    name: Option[String] = None,
+    email: Option[String] = None,
+    interests: Option[Seq[Interest]] = None
+  ): Transaction[Seq[Student]] = {
     Select
       .from(Students as "s")
       .take(_("s").*)

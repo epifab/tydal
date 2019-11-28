@@ -8,37 +8,37 @@ import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
 trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fields, Sources)] {
-  protected[tydal] def $fields: Fields
-  protected[tydal] def $sources: Sources
+  protected[tydal] def fields: Fields
+  protected[tydal] def sources: Sources
 
   override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, (Fields, Sources)]): X with Tagging[T] =
-    finder.find(($fields, $sources))
+    finder.find((fields, sources))
 
   def apply[T1 <: String with Singleton, T2 <: String with Singleton, X2, HAYSTACK2]
       (tag1: T1, tag2: T2)
       (implicit
        finder1: TaggedFinder[T1, FindContext[HAYSTACK2], Sources],
        finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 As T2 =
-    finder1.find($sources).apply[T2, X2](tag2)
+    finder1.find(sources).apply[T2, X2](tag2)
 }
 
 sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList]
-    (protected[tydal] val $fields: Fields,
-     protected[tydal] val $groupBy: GroupBy,
-     protected[tydal] val $sources: Sources,
-     protected[tydal] val $where: Where,
-     protected[tydal] val $having: Having,
-     protected[tydal] val $sortBy: Sort)
+    (protected[tydal] val fields: Fields,
+     protected[tydal] val groupBy: GroupBy,
+     protected[tydal] val sources: Sources,
+     protected[tydal] val where: Where,
+     protected[tydal] val having: Having,
+     protected[tydal] val sortBy: Sort)
     (implicit queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], _, Fields])
-    extends SelectContext[Fields, Sources] { Self =>
+    extends SelectContext[Fields, Sources] {
 
   private val findContext: FindContext[Fields] = new FindContext[Fields] {
     override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Fields]): X with Tagging[T] =
-      finder.find($fields)
+      finder.find(fields)
   }
 
   def as[T <: String with Singleton with Singleton, SubQueryFieldsRepr <: HList](tag: T)(implicit subQueryFields: SubQueryFields[Fields, SubQueryFieldsRepr]): SelectSubQuery[SubQueryFieldsRepr, SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort]] with Tagging[T] =
-    new SelectSubQuery(this, subQueryFields.build(tag, $fields)) with Tagging[T] {
+    new SelectSubQuery(this, subQueryFields.build(tag, fields)) with Tagging[T] {
       override def tagValue: String = tag
     }
 
@@ -56,7 +56,7 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      ev: Sources =:= HNil.type,
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, S :: HNil, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, S :: HNil, Where, Having, Sort] =
-    new SelectQuery($fields, $groupBy, source :: HNil, $where, $having, $sortBy)
+    new SelectQuery(fields, groupBy, source :: HNil, where, having, sortBy)
 
   def take[P, NewFields <: HList]
     (f: SelectContext[Fields, Sources] => P)
@@ -65,14 +65,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      taggedListOfFields: TagMap[Field[_], NewFields],
      queryBuilder: QueryBuilder[SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort], _, NewFields]
     ): SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort] =
-    new SelectQuery(generic.to(f(this)), $groupBy, $sources, $where, $having, $sortBy)
+    new SelectQuery(generic.to(f(this)), groupBy, sources, where, having, sortBy)
 
   def take1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[F :: HNil, GroupBy, Sources, Where, Having, Sort], _, F :: HNil]
     ): SelectQuery[F :: HNil, GroupBy, Sources, Where, Having, Sort] =
-    new SelectQuery(f(this) :: HNil, $groupBy, $sources, $where, $having, $sortBy)
+    new SelectQuery(f(this) :: HNil, groupBy, sources, where, having, sortBy)
 
   def groupBy[P, NewGroup <: HList]
     (f: SelectContext[Fields, Sources] => P)
@@ -81,14 +81,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      taggedListOfFields: TagMap[Field[_], NewGroup],
      queryBuilder: QueryBuilder[SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort] =
-    new SelectQuery($fields, generic.to(f(this)), $sources, $where, $having, $sortBy)
+    new SelectQuery(fields, generic.to(f(this)), sources, where, having, sortBy)
 
   def groupBy1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, F :: HNil, Sources, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, F :: HNil, Sources, Where, Having, Sort] =
-    new SelectQuery($fields, f(this) :: HNil, $sources, $where, $having, $sortBy)
+    new SelectQuery(fields, f(this) :: HNil, sources, where, having, sortBy)
 
   def innerJoin[H, T <: HList, RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton]
     (that: RightSource)
@@ -113,14 +113,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort] =
-    new SelectQuery($fields, $groupBy, $sources, f(this), $having, $sortBy)
+    new SelectQuery(fields, groupBy, sources, f(this), having, sortBy)
 
   def having[NewWhere <: BinaryExpr]
     (f: SelectContext[Fields, Sources] => NewWhere)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, NewWhere, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, Where, NewWhere, Sort] =
-    new SelectQuery($fields, $groupBy, $sources, $where, f(this), $sortBy)
+    new SelectQuery(fields, groupBy, sources, where, f(this), sortBy)
 
   def sortBy[P, NewSort <: HList]
     (f: FindContext[Fields] => P)
@@ -129,7 +129,7 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      taggedListOfSortByClauses: Bounded[SortBy[_], NewSort],
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort] =
-    new SelectQuery($fields, $groupBy, $sources, $where, $having, generic.to(f(findContext)))
+    new SelectQuery(fields, groupBy, sources, where, having, generic.to(f(findContext)))
 }
 
 object Select extends SelectQuery(HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil)
