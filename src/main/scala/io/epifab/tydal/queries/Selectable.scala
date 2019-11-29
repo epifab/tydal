@@ -13,11 +13,11 @@ trait Selectable[Fields] extends FindContext[Fields] { self: Tagging[_] =>
 }
 
 sealed trait FieldsOf[-S, +Fields <: HList] {
-  def fields(selectable: S): Fields
+  def apply(selectable: S): Fields
 }
 
 object FieldsOf {
   implicit def selectable[Fields <: HList]: FieldsOf[Selectable[Fields], Fields] = new FieldsOf[Selectable[Fields], Fields] {
-    override def fields(selectable: Selectable[Fields]): Fields = selectable.fields
+    override def apply(selectable: Selectable[Fields]): Fields = selectable.fields
   }
 }

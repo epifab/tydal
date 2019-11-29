@@ -193,11 +193,11 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def fromJoin[S <: Selectable[_] with Tagging[_], Where <: BinaryExpr, Fields <: HList, A <: String with Singleton, P <: HList, Q <: HList, R <: HList]
+  implicit def fromJoin[S <: Selectable[_] with Tagging[_], JoinClause <: BinaryExpr, Fields <: HList, A <: String with Singleton, P <: HList, Q <: HList, R <: HList]
       (implicit
        src: QueryFragmentBuilder[FT_From, S, P],
-       where: QueryFragmentBuilder[FT_Where, Where, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, Fields, A, Where], R] =
+       where: QueryFragmentBuilder[FT_Where, JoinClause, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_From, Join[S, Fields, JoinClause], R] =
     instance(join =>
       src.build(join.right).prepend(join.joinType match {
         case InnerJoin => "INNER JOIN "

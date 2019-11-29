@@ -94,19 +94,19 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     (that: RightSource)
     (implicit
      ev: Sources =:= (H :: T),
-     selectableFields: FieldsOf[RightSource, RightFields],
+     fieldsOf: FieldsOf[RightSource, RightFields],
      tagged: Tagged[RightSource, RightAlias]
     ): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, RightFields, RightAlias] =
-    new JoinBuilder(this, that, selectableFields.fields(that), InnerJoin)
+    new JoinBuilder(this, that, fieldsOf(that), InnerJoin)
 
   def leftJoin[RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton, TargetFields <: HList]
     (that: RightSource)
     (implicit
-     selectableFields: FieldsOf[RightSource, RightFields],
+     fieldsOf: FieldsOf[RightSource, RightFields],
      nullableFields: NullableFields[RightFields, TargetFields],
      tagged: Tagged[RightSource, RightAlias]
     ): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, TargetFields, RightAlias] =
-    new JoinBuilder(this, that, nullableFields.build(selectableFields.fields(that)), LeftJoin)
+    new JoinBuilder(this, that, nullableFields.build(fieldsOf(that)), LeftJoin)
 
   def where[NewWhere <: BinaryExpr]
     (f: SelectContext[Fields, Sources] => NewWhere)

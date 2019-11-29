@@ -1,6 +1,6 @@
 package io.epifab.tydal.queries
 
-import io.epifab.tydal.Tagging
+import io.epifab.tydal._
 import io.epifab.tydal.schema.{BinaryExpr, Field, NullableField}
 import io.epifab.tydal.utils.{Appender, TaggedFinder}
 import shapeless.{::, HList, HNil}
@@ -24,14 +24,16 @@ class JoinBuilder[
   (f: (RightSource, SelectContext[Fields, Sources]) => JoinClause)
   (implicit
    alias: ValueOf[RightAlias],
-   appender: Appender.Aux[Sources, Join[RightSource, RightFields, RightAlias, JoinClause], SourceResults],
+   appender: Appender.Aux[Sources, Join[RightSource, RightFields, JoinClause] As RightAlias, SourceResults],
    queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort] =
     new SelectQuery(
       left.fields,
       left.groupBy,
       appender.append(
         left.sources,
-        new Join(right, rightFields, f(right, left), joinType)
+        new Join(right, rightFields, f(right, left), joinType) with Tagging[RightAlias] {
+          override def tagValue: String = alias.value
+        }
       ),
       left.where,
       left.having,
@@ -55,14 +57,15 @@ object NullableFields {
     (list: H :: T) => headField.build(list.head) :: tailFields.build(list.tail)
 }
 
-class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton, JoinClause <: BinaryExpr]
-  (val right: Right, override val fields: RightFields, val joinClause: JoinClause, val joinType: JoinType)
-  (implicit alias: ValueOf[RightAlias]) extends Selectable[RightFields] with Tagging[RightAlias] {
+class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, JoinClause <: BinaryExpr](
+  val right: Right,
+  override val fields: RightFields,
+  val joinClause: JoinClause,
+  val joinType: JoinType
+) extends Selectable[RightFields] { Self: Tagging[_] =>
 
   override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, RightFields]): X with Tagging[T] =
     finder.find(fields)
-
-  override def tagValue: String = alias.value
 }
 
 sealed trait JoinType
