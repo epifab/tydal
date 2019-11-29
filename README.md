@@ -23,13 +23,13 @@ libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"
 ### A basic example
 
 ```scala
-import io.epifab.tydal._
-import io.epifab.tydal.queries._
-import io.epifab.tydal.schema._
-import io.epifab.tydal.runtime._
-
 import java.time.LocalDate
 import java.util.UUID
+
+import io.epifab.tydal._
+import io.epifab.tydal.queries._
+import io.epifab.tydal.runtime._
+import io.epifab.tydal.schema._
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -37,16 +37,23 @@ case class Student(
   id: UUID,
   name: String,
   email: Option[String],
-  date_of_birth: LocalDate,
+  dateOfBirth: LocalDate,
   address: Option[Address]
 )
 
-object Students extends TableBuilder["students", Student]
-
 object Program extends App {
   import io.circe.generic.auto._
+
   implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
+
+  object Students extends TableBuilder["students", (
+    "id" :=: UUID,
+    "name" :=: String,
+    "email" :=: Option[String],
+    "date_of_birth" :=: LocalDate,
+    "address" :=: Option[Address]
+  )]
 
   val connection = PostgresConnection(PostgresConfig.fromEnv())
 
@@ -59,10 +66,10 @@ object Program extends App {
         "Jack",
         Some("jack@tydal.io"),
         LocalDate.of(1970, 1, 1),
-        Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway")))
+        Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway"))),
       ))
 
-  val findStudents = 
+  val findStudents =
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -186,7 +193,7 @@ Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
 
 ## Why Tydal
 
-This library has one job: bringing the compiler at your persistence layer service.  
+The whole point of this library is to bring the compiler at your persistence layer service.  
 The objective is to make it as difficult as possible to build a syntactically invalid query.
 
 Typos:
