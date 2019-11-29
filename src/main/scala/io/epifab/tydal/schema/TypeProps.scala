@@ -2,11 +2,11 @@ package io.epifab.tydal.schema
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.tydal.{Tag, Tagged, Tagging, Untagged}
+import io.epifab.tydal.{Tagged, Tagging, Untagged}
 
 import scala.annotation.{implicitAmbiguous, implicitNotFound}
 
-sealed trait TypeProps
+trait TypeProps
 
 trait IsNumeric[T] extends TypeProps
 trait IsInteger[T] extends TypeProps
@@ -118,11 +118,24 @@ object IsOptional {
     new IsOptional[F] {}
 }
 
+sealed trait AnyOptional[F1, F2] extends TypeProps
+
+object AnyOptional {
+  implicit def first[F1, F2](implicit isOptional: IsOptional[F1], nonOptional: Negative[IsOptional[F2]]): AnyOptional[F1, F2] =
+    new AnyOptional[F1, F2] {}
+
+  implicit def second[F1, F2](implicit isOptional: IsOptional[F2], nonOptional: Negative[IsOptional[F1]]): AnyOptional[F1, F2] =
+    new AnyOptional[F1, F2] {}
+
+  implicit def both[F1, F2](implicit isOptional: IsOptional[F1], nonOptional: IsOptional[F2]): AnyOptional[F1, F2] =
+    new AnyOptional[F1, F2] {}
+}
+
 sealed trait Negative[A]
 
 object Negative {
   implicit def negative[T](implicit t: T): Negative[T] = new Negative[T] {}
-  @implicitAmbiguous("Cannot find a negative type class ${A}")
+  @implicitAmbiguous("Cannot negate ${T}")
   implicit def positive[T]: Negative[T] = new Negative[T] {}
 }
 

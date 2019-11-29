@@ -57,9 +57,6 @@ object Jdbc {
   @scala.annotation.tailrec
   private def setPlaceholder[U, X](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: X): Unit = {
     dbType match {
-      case TypeString | TypeDate | TypeDateTime | TypeJson | TypeEnum(_) | TypeGeography | TypeGeometry =>
-        statement.setObject(index, value)
-
       case TypeInt =>
         statement.setInt(index, value.asInstanceOf[Int])
 
@@ -74,6 +71,8 @@ object Jdbc {
           case Some(v) => setPlaceholder(connection, statement, index, innerDbType, v)
           case None => statement.setObject(index, null)
         }
+
+      case _ => statement.setObject(index, value)
     }
   }
 

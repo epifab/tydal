@@ -257,4 +257,33 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       None
     )))
   }
+
+  it should "encode and decode postgis fields" in {
+    import io.epifab.tydal.schema.Postgis._
+
+    val distances =
+      Select
+        .take(_ => Tuple1(
+          Distance.optional(
+            MakePoint.optional(
+              NamedPlaceholder[Option[Double], "lat1"],
+              NamedPlaceholder[Double, "lng1"]
+            ).castTo[Geography],
+            MakePoint(
+              NamedPlaceholder[Double, "lat2"],
+              NamedPlaceholder[Double, "lng2"]
+            ).castTo[Geography]
+          ) as "d"
+        ))
+        .compile
+        .withValues((
+          "lat1" ~~> Some(51.5432), "lng1" ~~> 0.1519,
+          "lat2" ~~> 51.4656, "lng2" ~~> 0.1150
+        ))
+        .tuple
+        .as[Vector]
+        .sync(connection)
+
+    distances shouldBe Right(Vector(Tuple1(Some(9553.50085968))))
+  }
 }

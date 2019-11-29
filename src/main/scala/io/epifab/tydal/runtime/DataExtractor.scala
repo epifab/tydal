@@ -39,9 +39,6 @@ object DataExtractor {
 
       def get[U](resultSet: ResultSet, dbType: FieldType[Any], fieldName: String): Any = {
         dbType match {
-          case TypeString | TypeDate | TypeDateTime | TypeJson | TypeEnum(_) | TypeGeography | TypeGeometry =>
-            resultSet.getObject(fieldName).toString
-
           case TypeInt =>
             resultSet.getInt(fieldName)
 
@@ -54,6 +51,8 @@ object DataExtractor {
           case TypeOption(innerDbType) =>
             Try(Option(resultSet.getObject(fieldName))).toOption.flatten
               .map(_ => get(resultSet, innerDbType, fieldName))
+
+          case _ => resultSet.getObject(fieldName).toString
         }
       }
 

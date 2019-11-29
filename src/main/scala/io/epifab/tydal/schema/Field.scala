@@ -136,6 +136,16 @@ object FieldT {
 }
 
 object Field {
+  implicit class ExtendedNonOptionalField[F1 <: Field[_]](field1: F1)(implicit nonOptional: Negative[IsOptional[F1]]) {
+    def castTo[U](implicit fieldDecoder: FieldDecoder[U], notNull: Negative[IsOptional[F1]]): Cast[F1, U] =
+      Cast(field1)
+  }
+
+  implicit class ExtendedOptionalField[F1 <: Field[_]](field1: F1)(implicit isOptional: IsOptional[F1]) {
+    def castTo[U](implicit fieldDecoder: FieldDecoder[U], isOptional: IsOptional[F1]): Cast[F1, Option[U]] =
+      Cast(field1)(fieldDecoder.toOption)
+  }
+
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {
     def ===[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): Equals[F1, F2] =
       Equals(field1, field2)
