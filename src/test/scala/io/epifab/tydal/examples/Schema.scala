@@ -21,24 +21,24 @@ object Schema {
     FieldEncoder.jsonEncoder[Address]
 
   object Students extends TableBuilder["students", (
-    "id" := Int,
-    "name" := String,
-    "email" := Option[String],
-    "date_of_birth" := LocalDate,
-    "address" := Option[Address],
-    "interests" := Seq[Interest],
+    "id" :=: Int,
+    "name" :=: String,
+    "email" :=: Option[String],
+    "date_of_birth" :=: LocalDate,
+    "address" :=: Option[Address],
+    "interests" :=: Seq[Interest],
   )]
 
   object Exams extends TableBuilder["exams", (
-    "student_id" := Int,
-    "course_id" := Int,
-    "score" := Int,
-    "exam_timestamp" := Instant,
-    "registration_timestamp" := Option[Instant],
+    "student_id" :=: Int,
+    "course_id" :=: Int,
+    "score" :=: Int,
+    "exam_timestamp" :=: Instant,
+    "registration_timestamp" :=: Option[Instant],
   )]
 
   object Courses extends TableBuilder["courses", (
-    "id" := Int,
-    "name" := String
+    "id" :=: Int,
+    "name" :=: String
   )]
 }

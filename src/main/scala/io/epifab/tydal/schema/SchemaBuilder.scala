@@ -1,6 +1,6 @@
 package io.epifab.tydal.schema
 
-import io.epifab.tydal.{As, Tag, Tagging}
+import io.epifab.tydal.Tagging
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Tupler
 import shapeless.tag.@@

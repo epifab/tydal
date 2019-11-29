@@ -109,9 +109,9 @@ object StatementBuilder {
        tagged: Tagged[P, PTAG],
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[Tail, TailInput, _, Output],
-       tupler: Tupler.Aux[PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput, InputTuple],
-       generic: Generic.Aux[InputTuple, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput]
-      ): StatementBuilder[P :: Tail, PlaceholderValue[PTYPE] with Tagging[PTAG] :: TailInput, InputTuple, Output] =
+       tupler: Tupler.Aux[(PTAG ~~> PTYPE) :: TailInput, InputTuple],
+       generic: Generic.Aux[InputTuple, (PTAG ~~> PTYPE) :: TailInput]
+      ): StatementBuilder[P :: Tail, (PTAG ~~> PTYPE) :: TailInput, InputTuple, Output] =
     (query: CompiledQuery[P :: Tail, Output]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
           query.sql,
