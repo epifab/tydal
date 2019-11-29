@@ -18,7 +18,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " Where e.registration_timestamp < ?::timestamp" +
+        " Where e.exam_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
       )
   }
@@ -39,7 +39,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " Where e.registration_timestamp < ?::timestamp" +
+        " Where e.exam_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
 
     studentsQuery.compile.query shouldBe (

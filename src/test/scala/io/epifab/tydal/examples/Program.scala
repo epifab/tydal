@@ -20,15 +20,16 @@ case class Student(
 
 object Program extends App {
   import io.circe.generic.auto._
+
   implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
 
   object Students extends TableBuilder["students", (
-    Column[UUID] As "id",
-    Column[String] As "name",
-    Column[Option[String]] As "email",
-    Column[LocalDate] As "date_of_birth",
-    Column[Option[Address]] As "address",
+    "id" :=: UUID,
+    "name" :=: String,
+    "email" :=: Option[String],
+    "date_of_birth" :=: LocalDate,
+    "address" :=: Option[Address]
   )]
 
   val connection = PostgresConnection(PostgresConfig.fromEnv())

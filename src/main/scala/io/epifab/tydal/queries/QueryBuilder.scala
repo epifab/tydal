@@ -126,9 +126,9 @@ object QueryBuilder {
     QueryBuilder.instance(insert => {
       val columns = insert.table.fields
       (names.build(columns).wrap("(", ")") ++
-        " Values " ++
+        " VALUES " ++
         placeholders.build(columns).wrap("(", ")")
-      ).prepend("INSERT INTO " + insert.table.tableName + " ").get(HNil)
+      ).prepend(s"INSERT INTO ${insert.table.tableName} ").get(HNil)
     })
 
   implicit def updateQuery[TableFields <: HList, Columns <: HList, P <: HList, Q <: HList, R <: HList, Where <: BinaryExpr]
