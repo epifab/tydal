@@ -7,9 +7,9 @@ import io.epifab.tydal.typesafe.SelectQueries._
 import org.scalatest.{FlatSpec, Matchers}
 
 class QueryBuilderTest extends FlatSpec with Matchers {
-  "The QueryBuilder" should "build the simplest select query" in {
-    Select.compile.query shouldBe "SELECT 1"
-  }
+//  "The QueryBuilder" should "build the simplest select query" in {
+//    Select.compile.query shouldBe "SELECT 1"
+//  }
 
   it should "build a simple select query" in {
     studentsQuery("ms").right.select.compile.query shouldBe (

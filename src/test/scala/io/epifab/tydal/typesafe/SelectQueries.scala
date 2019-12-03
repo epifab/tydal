@@ -64,7 +64,9 @@ object SelectQueries {
       .from(Students as "s")
       .take(_ => (int, listOfDouble, json, date, instant))
       .compile
-      .withValues(
+      .toTuple
+      .as[Vector]
+      .run(
         (
           "int" ~~> 1,
           "listOfDouble" ~~> Seq(3.0, 9.99),
@@ -73,7 +75,5 @@ object SelectQueries {
           "instant" ~~> Instant.parse("1986-03-08T09:00:00z"),
         )
       )
-      .tuple
-      .as[Vector]
   }
 }

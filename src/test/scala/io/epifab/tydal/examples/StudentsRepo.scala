@@ -42,15 +42,15 @@ object StudentsRepo {
       .take(_("s").*)
       .where(_("s", "id") === "student_id")
       .compile
-      .withValues(Tuple1("student_id" ~~> id))
-      .mapTo[Student]
-      .option
+      .to[Student]
+      .asOption
+      .run(Tuple1("student_id" ~~> id))
 
   def findStudentsWithAtLeast1ExamScore(score: Int): Transaction[Set[Student]] = {
     studentsWithMinScore
-      .withValues(Tuple1("min_score" ~~> score))
-      .mapTo[Student]
+      .to[Student]
       .as[Set]
+      .run(Tuple1("min_score" ~~> score))
   }
 
   val findStudentsWithAtLeast2Exams: Transaction[Set[(Int, Option[Double])]] =
@@ -64,9 +64,9 @@ object StudentsRepo {
       .groupBy1(_("s", "id"))
       .having(ctx => Count(ctx("e", "score")) >= "min_num_exams")
       .compile
-      .withValues(Tuple1("min_num_exams" ~~> 2))
-      .tuple
+      .toTuple
       .as[Set]
+      .run(Tuple1("min_num_exams" ~~> 2))
 
   val findStudentsWithBestExam: Transaction[Seq[StudentExam]] =
     Select
@@ -111,13 +111,13 @@ object StudentsRepo {
       .where(ctx => ctx("s", "date_of_birth") > "student_min_dob" and (ctx("s", "date_of_birth") < "student_max_dob"))
       .sortBy($ => Descending($("score")) -> Ascending($("sname")))
       .compile
-      .withValues((
+      .to[StudentExam]
+      .as[Vector]
+      .run((
         "exam_min_date" ~~> Instant.parse("2010-01-01T00:00:00Z"),
         "student_min_dob" ~~> LocalDate.of(1994, 1, 1),
         "student_max_dob" ~~> LocalDate.of(1998, 12, 31)
       ))
-      .mapTo[StudentExam]
-      .as[Vector]
 
   def findAllBy(
     minAge: Option[Int] = None,
@@ -130,32 +130,32 @@ object StudentsRepo {
       .from(Students as "s")
       .take(_("s").*)
       .where { $ =>
-        val minAgeFilter = $("s", "date_of_birth") <= PlaceholderValueOption(minAge.map(LocalDate.now.minusYears(_)))
-        val maxAgeFilter = $("s", "date_of_birth") >= PlaceholderValueOption(maxAge.map(LocalDate.now.minusYears(_)))
-        val nameFilter = $("s", "name") like PlaceholderValueOption(name)
-        val emailFilter = $("s", "email") like PlaceholderValueOption(email)
-        val interestsFilter = $("s", "interests") overlaps PlaceholderValueOption(interests)
+        val minAgeFilter = $("s", "date_of_birth") <= LiteralOption(minAge.map(LocalDate.now.minusYears(_)))
+        val maxAgeFilter = $("s", "date_of_birth") >= LiteralOption(maxAge.map(LocalDate.now.minusYears(_)))
+        val nameFilter = $("s", "name") like LiteralOption(name)
+        val emailFilter = $("s", "email") like LiteralOption(email)
+        val interestsFilter = $("s", "interests") overlaps LiteralOption(interests)
 
         minAgeFilter and maxAgeFilter and nameFilter and emailFilter and interestsFilter
       }
       .compile
-      .withValues(())
-      .mapTo[Student]
+      .to[Student]
       .as[Vector]
+      .run(())
   }
 
   def findStudentExams(ids: Seq[Int]): Transaction[Seq[StudentExam]] = {
     studentExamsQuery
-      .withValues(Tuple1("sids" ~~> ids))
-      .mapTo[StudentExam]
+      .to[StudentExam]
       .as[Vector]
+      .run(Tuple1("sids" ~~> ids))
   }
 
   def add(student: Student): Transaction[Int] = {
     Insert
       .into(Students)
       .compile
-      .withValues {
+      .run {
         (
           "id" ~~> student.id,
           "name" ~~> student.name,
@@ -172,7 +172,7 @@ object StudentsRepo {
       .fields(s => (s("name"), s("email")))
       .where(_("id") === "id")
       .compile
-      .withValues {
+      .run {
         (
           "name" ~~> name,
           "email" ~~> email,
@@ -184,7 +184,7 @@ object StudentsRepo {
     Delete.from(Students)
       .where(_("id") === "id")
       .compile
-      .withValues {
+      .run {
         Tuple1("id" ~~> id)
       }
 
@@ -192,5 +192,5 @@ object StudentsRepo {
     Delete
       .from(Students)
       .compile
-      .withValues(())
+      .run(())
 }

@@ -1,8 +1,10 @@
 package io.epifab.tydal.queries
 
+import java.sql.Connection
+
+import io.epifab.tydal.runtime.{ReadStatementExecutor, ReadStatementStep0, StatementBuilder, TagOutput}
 import io.epifab.tydal.schema._
-import io.epifab.tydal.runtime.{ReadStatementStep1, StatementBuilder}
-import io.epifab.tydal.utils.{Bounded, TaggedFinder}
+import io.epifab.tydal.utils.{Bounded, Concat, TaggedFinder}
 import io.epifab.tydal.{As, TagMap, Tagged, Tagging}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
@@ -32,6 +34,8 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     (implicit queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], _, Fields])
     extends SelectContext[Fields, Sources] {
 
+  def `*`[T](implicit tupler: Tupler.Aux[Fields, T]): T = tupler(fields)
+
   private val findContext: FindContext[Fields] = new FindContext[Fields] {
     override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Fields]): X with Tagging[T] =
       finder.find(fields)
@@ -42,12 +46,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
       override def tagValue: String = tag
     }
 
-  def compile[Placeholders <: HList, InputRepr <: HList, Input]
+  def compile[Placeholders <: HList, InputRepr <: HList, Input, OutputRepr <: HList, TaggedOutput <: HList]
     (implicit
      queryBuilder: QueryBuilder[this.type, Placeholders, Fields],
      statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, Fields],
-     tupler: Tupler.Aux[InputRepr, Input]
-    ): ReadStatementStep1[Input, Fields] =
+     tupler: Tupler.Aux[InputRepr, Input],
+     readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
+     taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
+    ): ReadStatementStep0[Input, Fields, OutputRepr, TaggedOutput] =
     statementBuilder.build(queryBuilder.build(this)).select
 
   def from[S <: Selectable[_] with Tagging[_]]
@@ -66,6 +72,16 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      queryBuilder: QueryBuilder[SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort], _, NewFields]
     ): SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort] =
     new SelectQuery(generic.to(f(this)), groupBy, sources, where, having, sortBy)
+
+  def alsoTake[P, NewFields <: HList, FinalFields <: HList]
+    (f: SelectContext[Fields, Sources] => P)
+    (implicit
+     generic: Generic.Aux[P, NewFields],
+     taggedListOfFields: TagMap[Field[_], NewFields],
+     concat: Concat.Aux[Fields, NewFields, FinalFields],
+     queryBuilder: QueryBuilder[SelectQuery[FinalFields, GroupBy, Sources, Where, Having, Sort], _, FinalFields]
+    ): SelectQuery[FinalFields, GroupBy, Sources, Where, Having, Sort] =
+    new SelectQuery(concat(fields, generic.to(f(this))), groupBy, sources, where, having, sortBy)
 
   def take1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)

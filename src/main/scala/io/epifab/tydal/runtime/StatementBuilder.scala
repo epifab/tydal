@@ -7,61 +7,109 @@ import cats.implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
+import io.epifab.tydal.utils.{Finder, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
 import scala.collection.{Factory, mutable}
 
-class GenericStatement[InputRepr <: HList, Input, Fields <: HList]
-(val query: String, val toRunnable: InputRepr => RunnableStatement[Fields])
-(implicit tupler: Tupler.Aux[InputRepr, Input], generic: Generic.Aux[Input, InputRepr]) {
+class GenericStatement[InputRepr <: HList, Input, Fields <: HList](
+  val query: String,
+  val toRunnable: InputRepr => RunnableStatement[Fields])(
+  implicit
+  tupler: Tupler.Aux[InputRepr, Input],
+  generic: Generic.Aux[Input, InputRepr]
+) {
+
   def update: WriteStatement[Input, Fields] =
     new WriteStatement(query, (generic.to _).andThen(toRunnable))
-  def select: ReadStatementStep1[Input, Fields] =
-    new ReadStatementStep1(query, (generic.to _).andThen(toRunnable))
+
+  def select[OutputRepr <: HList, TaggedOutput <: HList](
+    implicit
+    readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
+    taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
+  ): ReadStatementStep0[Input, Fields, OutputRepr, TaggedOutput] =
+    new ReadStatementStep0(query, (generic.to _).andThen(toRunnable))
 }
 
-class WriteStatement[InputTuple, Fields <: HList]
-(val query: String, toRunnable: InputTuple => RunnableStatement[Fields]) {
-  def withValues
-  (values: InputTuple)
-  (implicit statementExecutor: WriteStatementExecutor[Connection, Fields]):
-  Transaction[Int] = Transaction(toRunnable(values))
+class WriteStatement[InputTuple, Fields <: HList](
+  val query: String,
+  toRunnable: InputTuple => RunnableStatement[Fields]
+) {
 
-  def withValues[P, InputRepr <: HList]
-  (values: P)
-  (implicit
-   statementExecutor: WriteStatementExecutor[Connection, Fields],
-   placeholderValues: PlaceholderValues[P, InputRepr],
-   tupler: Generic.Aux[InputTuple, InputRepr]):
-  Transaction[Int] = withValues(tupler.from(placeholderValues(values)))
+  def run(
+    values: InputTuple)(
+    implicit
+    statementExecutor: WriteStatementExecutor[Connection, Fields]
+  ): Transaction[Int] = Transaction(toRunnable(values))
+
+  def run[P, InputRepr <: HList](
+    values: P)(
+    implicit
+    statementExecutor: WriteStatementExecutor[Connection, Fields],
+    placeholderValues: PlaceholderValues[P, InputRepr],
+    tupler: Generic.Aux[InputTuple, InputRepr]
+  ): Transaction[Int] = run(tupler.from(placeholderValues(values)))
+
 }
 
-class ReadStatementStep1[Input, Fields <: HList]
-(val query: String, toRunnable: Input => RunnableStatement[Fields]) {
-  def withValues[OutputRepr <: HList](values: Input)(implicit statementExecutor: ReadStatementExecutor[Connection, Fields, OutputRepr]): ReadStatementStep2[Fields, OutputRepr] =
-    new ReadStatementStep2[Fields, OutputRepr](toRunnable(values))
+trait TagOutput[Fields, OutputRepr, Tagged] {
+  def apply(outputRepr: OutputRepr): Tagged
 }
 
-class ReadStatementStep2[Fields <: HList, OutputRepr <: HList]
-(runnableStatement: RunnableStatement[Fields])
-(implicit readStatementExecutor: ReadStatementExecutor[Connection, Fields, OutputRepr]) {
-  def mapTo[Output](implicit generic: Generic.Aux[Output, OutputRepr]): ReadStatementStep3[Fields, OutputRepr, Output] =
-    new ReadStatementStep3(runnableStatement, generic.from)
+object TagOutput {
+  implicit def head[F <: Field[_] with Tagging[_], A <: String with Singleton, T, FTail <: HList, OTail <: HList, TaggedTail <: HList](
+    implicit
+    tagged: Tagged[F, A],
+    fieldT: FieldT[F, T],
+    tail: TagOutput[FTail, OTail, TaggedTail]
+  ): TagOutput[F :: FTail, T :: OTail, (T As A) :: TaggedTail] =
+    (o: T :: OTail) => o.head.asInstanceOf[T As A] :: tail(o.tail)
 
-  def tuple[Tuple](implicit tupler: Tupler.Aux[OutputRepr, Tuple], generic: Generic.Aux[Tuple, OutputRepr]): ReadStatementStep3[Fields, OutputRepr, Tuple] =
-    new ReadStatementStep3(runnableStatement, generic.from)
+  implicit val hNil: TagOutput[HNil, HNil, HNil] =
+    (_: HNil) => HNil
 }
 
+class ResultSet[TaggedOutput](output: TaggedOutput) {
+  def apply[A <: String with Singleton, T](a: A)(implicit finder: TaggedFinder[A, T, TaggedOutput]): T =
+    finder.find(output)
+}
 
-class ReadStatementStep3[Fields <: HList, OutputRepr, Output]
-(runnableStatement: RunnableStatement[Fields], toOutput: OutputRepr => Output)
-(implicit readStatementExecutor: ReadStatementExecutor[Connection, Fields, OutputRepr]) {
-  def as[C[_]](implicit factory: Factory[Output, C[Output]]): Transaction[C[Output]] =
-    Transaction(runnableStatement) {
+class ReadStatementStep0[Input, Fields <: HList, OutputRepr <: HList, TaggedOutput](
+  val query: String,
+  toRunnable: Input => RunnableStatement[Fields])(
+  implicit
+  readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
+  taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
+) {
+
+  def to[Output](implicit generic: Generic.Aux[Output, OutputRepr]): ReadStatementStep1[Input, Fields, OutputRepr, Output] =
+    new ReadStatementStep1(query, toRunnable, generic.from)
+
+  def toTuple[Tuple](implicit tupler: Tupler.Aux[OutputRepr, Tuple], generic: Generic.Aux[Tuple, OutputRepr]): ReadStatementStep1[Input, Fields, OutputRepr, Tuple] =
+    new ReadStatementStep1(query, toRunnable, generic.from)
+
+  def rawTo[Output](map: OutputRepr => Output): ReadStatementStep1[Input, Fields, OutputRepr, Output] =
+    new ReadStatementStep1(query, toRunnable, map)
+
+  def to[Output](map: ResultSet[TaggedOutput] => Output): ReadStatementStep1[Input, Fields, OutputRepr, Output] =
+    new ReadStatementStep1(query, toRunnable, outputRepr => map(new ResultSet(taggedOutput(outputRepr))))
+
+}
+
+class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
+  val query: String,
+  toRunnable: Input => RunnableStatement[Fields],
+  toOutput: OutputRepr => Output)(
+  implicit
+  readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr]
+) {
+
+  def as[C[_]](implicit factory: Factory[Output, C[Output]]): ReadStatement[Input, Output, C] = {
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
       new StatementExecutor[Connection, Fields, C[Output]] {
         override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] =
-          readStatementExecutor.run(connection, statement).map {
+          readStatement.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
               val errorOrBuilder = iterator.foldLeft[Either[DataError, mutable.Builder[Output, C[Output]]]](Right(factory.newBuilder)) {
@@ -74,11 +122,14 @@ class ReadStatementStep3[Fields <: HList, OutputRepr, Output]
       }
     }
 
-  def option: Transaction[Option[Output]] =
-    Transaction(runnableStatement) {
+    new ReadStatement(query, input => toTransaction(toRunnable(input)))
+  }
+
+  def asOption: ReadStatement[Input, Output, Option] = {
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
       new StatementExecutor[Connection, Fields, Option[Output]] {
         override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Option[Output]]] =
-          readStatementExecutor.run(connection, statement).map {
+          readStatement.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
               iterator.foldLeft[Either[DataError, Option[Output]]](Right(None)) {
@@ -91,9 +142,18 @@ class ReadStatementStep3[Fields <: HList, OutputRepr, Output]
           }
       }
     }
+
+    new ReadStatement(query, input => toTransaction(toRunnable(input)))
+  }
 }
 
-case class RunnableStatement[Fields <: HList](sql: String, input: Seq[PlaceholderValue[_]], fields: Fields)
+
+class ReadStatement[Input, Output, C[_]](val query: String, toTransaction: Input => Transaction[C[Output]]) {
+  def run(input: Input): Transaction[C[Output]] = toTransaction(input)
+}
+
+
+case class RunnableStatement[Fields <: HList](sql: String, input: Seq[Literal[_]], fields: Fields)
 
 trait StatementBuilder[Placeholders <: HList, InputRepr <: HList, Input, Output <: HList] {
   def build(query: CompiledQuery[Placeholders, Output]): GenericStatement[InputRepr, Input, Output]
@@ -123,7 +183,7 @@ object StatementBuilder {
         )
       )
 
-  implicit def value[P <: PlaceholderValue[_], PType, Tail <: HList, TailInput <: HList, Output <: HList, InputTuple]
+  implicit def value[P <: Literal[_], PType, Tail <: HList, TailInput <: HList, Output <: HList, InputTuple]
       (implicit
        fieldT: FieldT[P, PType],
        tail: StatementBuilder[Tail, TailInput, _, Output],
@@ -142,7 +202,7 @@ object StatementBuilder {
         )
       })
 
-  implicit def optionalValue[P <: PlaceholderValueOption[_], PTYPE, Tail <: HList, TailInput <: HList, Output <: HList, InputTuple]
+  implicit def optionalValue[P <: LiteralOption[_], PTYPE, Tail <: HList, TailInput <: HList, Output <: HList, InputTuple]
       (implicit
        fieldT: FieldT[P, PTYPE],
        tail: StatementBuilder[Tail, TailInput, _, Output],

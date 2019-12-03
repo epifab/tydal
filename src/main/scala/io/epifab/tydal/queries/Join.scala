@@ -3,6 +3,7 @@ package io.epifab.tydal.queries
 import io.epifab.tydal._
 import io.epifab.tydal.schema.{BinaryExpr, Field, NullableField}
 import io.epifab.tydal.utils.{Appender, TaggedFinder}
+import shapeless.ops.hlist.Tupler
 import shapeless.{::, HList, HNil}
 
 class JoinBuilder[
@@ -66,6 +67,9 @@ class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, JoinCla
 
   override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, RightFields]): X with Tagging[T] =
     finder.find(fields)
+
+  def `*`[T](implicit tupler: Tupler.Aux[RightFields, T]): T = tupler(fields)
+
 }
 
 sealed trait JoinType

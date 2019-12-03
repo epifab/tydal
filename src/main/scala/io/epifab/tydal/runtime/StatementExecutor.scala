@@ -22,25 +22,27 @@ trait WriteStatementExecutor[CONN, Fields <: HList]
 
 
 object ReadStatementExecutor {
-  implicit def jdbcQuery[Fields <: HList, ROW]
-  (implicit dataExtractor: DataExtractor[ResultSet, Fields, ROW]): ReadStatementExecutor[Connection, Fields, ROW] =
+  implicit def jdbcQuery[Fields <: HList, Row](
+    implicit
+    dataExtractor: DataExtractor[ResultSet, Fields, Row]
+  ): ReadStatementExecutor[Connection, Fields, Row] =
 
-    new ReadStatementExecutor[Connection, Fields, ROW] {
-      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Iterator[Either[DecoderError, ROW]]]] =
+    new ReadStatementExecutor[Connection, Fields, Row] {
+      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Iterator[Either[DecoderError, Row]]]] =
         (for {
           preparedStatement <- EitherT(Eff[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
           results <- EitherT(Eff[F].delay(runStatement(preparedStatement, statement.fields)))
         } yield results).value
 
-      private def runStatement(preparedStatement: PreparedStatement, fields: Fields): Either[DataError, Iterator[Either[DecoderError, ROW]]] =
+      private def runStatement(preparedStatement: PreparedStatement, fields: Fields): Either[DataError, Iterator[Either[DecoderError, Row]]] =
         Try(preparedStatement.executeQuery()).toEither match {
           case Right(resultSet) => Right(extract(fields, preparedStatement, resultSet))
           case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
           case Left(fatalError) => throw fatalError
         }
 
-      private def extract(fields: Fields, preparedStatement: PreparedStatement, resultSet: ResultSet): Iterator[Either[DecoderError, ROW]] = {
-        new Iterator[Either[DecoderError, ROW]] {
+      private def extract(fields: Fields, preparedStatement: PreparedStatement, resultSet: ResultSet): Iterator[Either[DecoderError, Row]] = {
+        new Iterator[Either[DecoderError, Row]] {
           override def hasNext: Boolean = {
             if (!resultSet.next()) {
               try { resultSet.close(); preparedStatement.close(); false }
@@ -48,7 +50,7 @@ object ReadStatementExecutor {
             }
             else true
           }
-          override def next(): Either[DecoderError, ROW] = dataExtractor.extract(resultSet, fields)
+          override def next(): Either[DecoderError, Row] = dataExtractor.extract(resultSet, fields)
         }
       }
     }

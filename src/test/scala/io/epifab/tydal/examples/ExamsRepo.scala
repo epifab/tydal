@@ -11,7 +11,7 @@ object ExamsRepo {
     Insert
       .into(Exams)
       .compile
-      .withValues((
+      .run((
         "student_id" ~~> exam.student_id,
         "course_id" ~~> exam.course_id,
         "score" ~~> exam.score,
@@ -23,5 +23,5 @@ object ExamsRepo {
     Delete
       .from(Exams)
       .compile
-      .withValues(())
+      .run(())
 }

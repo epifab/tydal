@@ -44,6 +44,15 @@ trait Transaction[+Output] {
 }
 
 object Transaction {
+  val unit: Transaction[Unit] = new PureTransaction(())
+
+  def pure[Output](value: Output): Transaction[Output] = new PureTransaction(value)
+
+  class PureTransaction[Output](output: Output) extends Transaction[Output] {
+    override protected def run[F[+ _] : Eff : Monad](connection: Connection): F[Either[DataError, Output]] =
+      Eff[F].pure(Right(output))
+  }
+
   class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: O1 => Output) extends Transaction[Output] {
     override def run[F[+_]: Eff: Monad](connection: Connection): F[Either[DataError, Output]] =
       transactionIO.run(connection).map(_.map(f))

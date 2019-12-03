@@ -10,8 +10,8 @@ sealed trait BinaryExpr {
   def or[E2 <: BinaryExpr](otherExpression: E2): Or[this.type, E2] = Or(this, otherExpression)
 }
 
-sealed trait BinaryExpr1[+E] extends BinaryExpr {
-  def expr: E
+sealed trait BinaryExpr1[+F] extends BinaryExpr {
+  def field: F
 }
 
 sealed trait BinaryExpr2[+E1, +E2] extends BinaryExpr {
@@ -21,11 +21,11 @@ sealed trait BinaryExpr2[+E1, +E2] extends BinaryExpr {
 
 case object AlwaysTrue extends AlwaysTrue
 
-case class IsDefined[+E <: Field[Option[_]]](expr: E)
-  extends BinaryExpr1[E]
+case class IsDefined[+F <: Field[_]](field: F)(implicit isOptional: IsOptional[F])
+  extends BinaryExpr1[F]
 
-case class IsNotDefined[+E <: Field[Option[_]]](expr: E)
-  extends BinaryExpr1[E]
+case class IsNotDefined[+F <: Field[_]](field: F)(implicit isOptional: IsOptional[F])
+  extends BinaryExpr1[F]
 
 case class And[+E1 <: BinaryExpr, +E2 <: BinaryExpr](left: E1, right: E2)
   extends BinaryExpr2[E1, E2]

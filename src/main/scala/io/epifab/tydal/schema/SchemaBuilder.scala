@@ -49,27 +49,36 @@ trait GenericSchema[Schema] {
 object GenericSchema {
   type Aux[Schema, T] = GenericSchema[Schema] { type Repr = T }
 
-//  implicit def labelled[T, A <: String with Singleton](
-//    implicit
-//    fieldDecoder: FieldDecoder[T],
-//    alias: ValueOf[A]
-//  ): GenericSchema.Aux[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
-//    new GenericSchema[FieldType[Symbol @@ A, T]] {
-//      override type Repr = Column[T] with Tagging[A]
-//    }
-//
-//  implicit def hNil: GenericSchema.Aux[HNil, HNil] = new GenericSchema[HNil] {
-//    override type Repr = HNil
-//  }
-//
-//  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](
-//    implicit
-//    headBuilder: GenericSchema.Aux[Head, HeadRepr],
-//    tailBuilder: GenericSchema.Aux[Tail, TailRepr]
-//  ): GenericSchema.Aux[Head :: Tail, HeadRepr :: TailRepr] = new GenericSchema[Head :: Tail] {
-//    override type Repr = HeadRepr :: TailRepr
-//  }
-//
+  implicit def labelled[T, A <: String with Singleton](
+    implicit
+    fieldDecoder: FieldDecoder[T],
+    alias: ValueOf[A]
+  ): GenericSchema.Aux[FieldType[Symbol @@ A, T], Column[T] with Tagging[A]] =
+    new GenericSchema[FieldType[Symbol @@ A, T]] {
+      override type Repr = Column[T] with Tagging[A]
+    }
+
+  implicit def pure[T, A <: String with Singleton](
+    implicit
+    fieldDecoder: FieldDecoder[T],
+    alias: ValueOf[A]
+  ): GenericSchema.Aux[Column[T] with Tagging[A], Column[T] with Tagging[A]] =
+    new GenericSchema[Column[T] with Tagging[A]] {
+      override type Repr = Column[T] with Tagging[A]
+    }
+
+  implicit def hNil: GenericSchema.Aux[HNil, HNil] = new GenericSchema[HNil] {
+    override type Repr = HNil
+  }
+
+  implicit def hCons[Head, HeadRepr, Tail <: HList, TailRepr <: HList](
+    implicit
+    headBuilder: GenericSchema.Aux[Head, HeadRepr],
+    tailBuilder: GenericSchema.Aux[Tail, TailRepr]
+  ): GenericSchema.Aux[Head :: Tail, HeadRepr :: TailRepr] = new GenericSchema[Head :: Tail] {
+    override type Repr = HeadRepr :: TailRepr
+  }
+
 //  implicit def serializableProduct[P <: Product with Serializable, IntermediateRepr <: HList, FinalRepr <: HList](
 //    implicit
 //    generic: LabelledGeneric.Aux[P, IntermediateRepr],
@@ -100,8 +109,8 @@ object PlaceholderValues {
     alias: ValueOf[A],
     fieldEncoder: FieldEncoder[T],
     fieldDecoder: FieldDecoder[T]
-  ): PlaceholderValues[FieldType[Symbol @@ A, T], PlaceholderValue[T] with Tagging[A]] =
-    (v: FieldType[Symbol @@ A, T]) => PlaceholderValue(v.asInstanceOf[T]) as alias.value
+  ): PlaceholderValues[FieldType[Symbol @@ A, T], Literal[T] with Tagging[A]] =
+    (v: FieldType[Symbol @@ A, T]) => Literal(v.asInstanceOf[T]) as alias.value
 
   implicit def hNil: PlaceholderValues[HNil, HNil] =
     (_: HNil) => HNil

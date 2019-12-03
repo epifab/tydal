@@ -11,7 +11,7 @@ object CoursesRepo {
     Insert
       .into(Courses)
       .compile
-      .withValues((
+      .run((
         "id" ~~> course.id,
         "name" ~~> course.name
       ))
@@ -20,5 +20,5 @@ object CoursesRepo {
     Delete
       .from(Courses)
       .compile
-      .withValues(())
+      .run(())
 }

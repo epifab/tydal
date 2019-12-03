@@ -92,39 +92,39 @@ object NamedPlaceholder {
     }
 }
 
-class PlaceholderValue[T](val value: T)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[T])
+class Literal[T](val value: T)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[T])
   extends Placeholder[T] {
   def dbValue: encoder.DbType = encoder.encode(value)
 
-  override def as[Alias <: String with Singleton](alias: Alias): PlaceholderValue[T] with Tagging[Alias] =
-    new PlaceholderValue[T](value) with Tagging[Alias] {
+  override def as[Alias <: String with Singleton](alias: Alias): Literal[T] with Tagging[Alias] =
+    new Literal[T](value) with Tagging[Alias] {
       override def tagValue: String = alias
     }
 }
 
-object PlaceholderValue {
-  def apply[Value]
-  (value: Value)
-  (implicit
-   encoder: FieldEncoder[Value],
-   decoder: FieldDecoder[Value]): PlaceholderValue[Value] =
-    new PlaceholderValue(value)
+object Literal {
+  def apply[Value](value: Value)(
+    implicit
+    encoder: FieldEncoder[Value],
+    decoder: FieldDecoder[Value]
+  ): Literal[Value] =
+    new Literal(value)
 }
 
-class PlaceholderValueOption[T] private(val value: Option[PlaceholderValue[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
+class LiteralOption[T] private(val value: Option[Literal[T]])(implicit val decoder: FieldDecoder[Option[T]], val encoder: FieldEncoder[T])
   extends Placeholder[Option[T]] {
-  override def as[Alias <: String with Singleton](alias: Alias): PlaceholderValueOption[T] with Tagging[Alias] = new PlaceholderValueOption(value) with Tagging[Alias] {
+  override def as[Alias <: String with Singleton](alias: Alias): LiteralOption[T] with Tagging[Alias] = new LiteralOption(value) with Tagging[Alias] {
     override def tagValue: String = alias
   }
 }
 
-object PlaceholderValueOption {
+object LiteralOption {
   def apply[T]
   (value: Option[T])
   (implicit
    decoder: FieldDecoder[T],
-   encoder: FieldEncoder[T]): PlaceholderValueOption[T] =
-    new PlaceholderValueOption(value.map(new PlaceholderValue(_)))(decoder.toOption, encoder)
+   encoder: FieldEncoder[T]): LiteralOption[T] =
+    new LiteralOption(value.map(new Literal(_)))(decoder.toOption, encoder)
 }
 
 trait FieldT[-F <: Field[_], T] {
@@ -144,6 +144,9 @@ object Field {
   implicit class ExtendedOptionalField[F1 <: Field[_]](field1: F1)(implicit isOptional: IsOptional[F1]) {
     def castTo[U](implicit fieldDecoder: FieldDecoder[U], isOptional: IsOptional[F1]): Cast[F1, Option[U]] =
       Cast(field1)(fieldDecoder.toOption)
+
+    def isDefined: IsDefined[F1] = IsDefined(field1)
+    def isNotDefined: IsNotDefined[F1] = IsNotDefined(field1)
   }
 
   implicit class ExtendedField[F1 <: Field[_]](field1: F1) {

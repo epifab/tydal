@@ -1,6 +1,7 @@
 package io.epifab.tydal.schema
 
 import java.time.{Instant, LocalDate}
+import java.util.UUID
 
 import io.epifab.tydal.{Tagged, Tagging, Untagged}
 
@@ -22,35 +23,36 @@ object IsNumeric {
 
 object IsInteger {
   implicit val int: IsInteger[Int] = new IsInteger[Int] {}
-  implicit val optional: IsInteger[Option[Int]] = new IsInteger[Option[Int]] {}
+  implicit def optional[T](implicit isInteger: IsInteger[T]): IsInteger[Option[T]] = new IsInteger[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isInteger: IsInteger[T]): IsInteger[F] = new IsInteger[F] {}
 }
 
 object IsDouble {
   implicit val double: IsDouble[Double] = new IsDouble[Double] {}
-  implicit val optional: IsDouble[Option[Double]] = new IsDouble[Option[Double]] {}
+  implicit def optional[T](implicit isOptional: IsDouble[T]): IsDouble[Option[T]] = new IsDouble[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDouble: IsDouble[T]): IsDouble[F] = new IsDouble[F] {}
 }
 
 object IsText {
   implicit val string: IsText[String] = new IsText[String] {}
-  implicit val optional: IsText[Option[String]] = new IsText[Option[String]] {}
+  implicit val uuid: IsText[UUID] = new IsText[UUID] {}
+  implicit def optional[T](implicit isOptional: IsText[T]): IsText[Option[T]] = new IsText[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isText: IsText[T]): IsText[F] = new IsText[F] {}
 }
 
 object IsDate {
   implicit val localDate: IsDate[LocalDate] = new IsDate[LocalDate] {}
-  implicit val optional: IsDate[Option[LocalDate]] = new IsDate[Option[LocalDate]] {}
+  implicit def optional[T](implicit isOptional: IsDate[T]): IsDate[Option[T]] = new IsDate[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDate: IsDate[T]): IsDate[F] = new IsDate[F] {}
 }
 
 object IsDateTime {
   implicit val instant: IsDateTime[Instant] = new IsDateTime[Instant] {}
-  implicit val optional: IsDateTime[Option[Instant]] = new IsDateTime[Option[Instant]] {}
+  implicit def optional[T](implicit isOptional: IsDateTime[T]): IsDateTime[Option[T]] = new IsDateTime[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isDateTime: IsDateTime[T]): IsDateTime[F] = new IsDateTime[F] {}
 }

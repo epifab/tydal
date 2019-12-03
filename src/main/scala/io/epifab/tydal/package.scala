@@ -1,6 +1,6 @@
 package io.epifab
 
-import io.epifab.tydal.schema.{Column, FieldDecoder, FieldEncoder, PlaceholderValue}
+import io.epifab.tydal.schema.{Column, FieldDecoder, FieldEncoder, Literal}
 
 package object tydal {
 
@@ -9,10 +9,10 @@ package object tydal {
   type As[+T, A <: String with Singleton] = T with Tagging[A]
 
   type :=:[A <: String with Singleton, T] = Column[T] with Tagging[A]
-  type ~~>[A <: String with Singleton, T] = PlaceholderValue[T] with Tagging[A]
+  type ~~>[A <: String with Singleton, T] = Literal[T] with Tagging[A]
 
   implicit class ExtendedTag[A <: String with Singleton](tag: A)(implicit valueOf: ValueOf[A]) {
-    def ~~>[T](value: T)(implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T]): PlaceholderValue[T] with Tagging[A] = PlaceholderValue(value).as(tag)
+    def ~~>[T](value: T)(implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T]): Literal[T] with Tagging[A] = Literal(value).as(tag)
   }
 
 }

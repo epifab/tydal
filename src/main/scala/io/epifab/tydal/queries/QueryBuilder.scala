@@ -299,10 +299,10 @@ object QueryFragmentBuilder {
   implicit def placeholder[P <: NamedPlaceholder[_]]: QueryFragmentBuilder[FT_FieldExprList, P, P :: HNil] =
     instance((f: P) => CompiledQueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def value[V <: PlaceholderValue[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
+  implicit def value[V <: Literal[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => CompiledQueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
 
-  implicit def optionalValue[V <: PlaceholderValueOption[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
+  implicit def optionalValue[V <: LiteralOption[_]]: QueryFragmentBuilder[FT_FieldExprList, V, V :: HNil] =
     instance((f: V) => CompiledQueryFragment(f.value.map(_ => s"?::${f.encoder.dbType.sqlName}"), f :: HNil))
 
   // ------------------------------
@@ -375,10 +375,10 @@ object QueryFragmentBuilder {
   implicit def whereAlwaysTrue: QueryFragmentBuilder[FT_Where, AlwaysTrue, HNil] =
     instance((_: AlwaysTrue) => CompiledQueryFragment.empty)
 
-  implicit def whereBinaryExpr1[E1 <: BinaryExpr, P <: HList]
+  implicit def whereBinaryExpr1[E1, P <: HList]
       (implicit left: QueryFragmentBuilder[FT_Where, E1, P]): QueryFragmentBuilder[FT_Where, BinaryExpr1[E1], P] =
     instance { expr: BinaryExpr1[E1] =>
-      val e1 = left.build(expr.expr)
+      val e1 = left.build(expr.field)
       expr match {
         case _: IsDefined[_] => e1 ++ " IS NOT NULL"
         case _: IsNotDefined[_] => e1 ++ " IS NULL"
@@ -395,7 +395,7 @@ object QueryFragmentBuilder {
       val e2 = right.build(expr.right)
       expr match {
         case _: And[_, _] => e1.concatenateOptional(e2, " AND ")
-        case _: Or[_, _] => e1.concatenateOptional(e2, " OR ")
+        case _: Or[_, _] => e1.concatenateOptional(e2, " OR ").wrap("(", ")")
         case _: Equals[_, _] => e1.concatenateRequired(e2, " = ")
         case _: NotEquals[_, _] => e1.concatenateRequired(e2, " != ")
         case _: GreaterThan[_, _] => e1.concatenateRequired(e2, " > ")

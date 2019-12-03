@@ -7,9 +7,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.effect.IO
 import io.epifab.tydal._
 import io.epifab.tydal.examples.Model._
-import io.epifab.tydal.schema.{FieldDecoder, NamedPlaceholder}
 import io.epifab.tydal.queries.Select
 import io.epifab.tydal.runtime.{DataError, DriverError}
+import io.epifab.tydal.schema.{FieldDecoder, NamedPlaceholder}
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
@@ -240,14 +240,14 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
         NamedPlaceholder[Option[Option[Seq[Int]]], "stupid"]
       ))
       .compile
-      .withValues((
+      .toTuple
+      .as[Vector]
+      .run((
         "list" ~~> Seq(1, 2, 3),
         "double" ~~> Some(3.14),
         "maybelist" ~~> Some(Seq.empty),
         "stupid" ~~> Some(None)
       ))
-      .tuple
-      .as[Vector]
       .sync(connection)
 
     foo shouldBe Right(Vector((
@@ -263,7 +263,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
 
     val distances =
       Select
-        .take(_ => Tuple1(
+        .take1(_ =>
           Distance.optional(
             MakePoint.optional(
               NamedPlaceholder[Option[Double], "lat1"],
@@ -274,14 +274,14 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
               NamedPlaceholder[Double, "lng2"]
             ).castTo[Geography]
           ) as "d"
-        ))
+        )
         .compile
-        .withValues((
+        .toTuple
+        .as[Vector]
+        .run((
           "lat1" ~~> Some(51.5432), "lng1" ~~> 0.1519,
           "lat2" ~~> 51.4656, "lng2" ~~> 0.1150
         ))
-        .tuple
-        .as[Vector]
         .sync(connection)
 
     distances shouldBe Right(Vector(Tuple1(Some(9553.50085968))))

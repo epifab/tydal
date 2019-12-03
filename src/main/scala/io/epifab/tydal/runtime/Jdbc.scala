@@ -33,7 +33,7 @@ object SqlDate {
 }
 
 object Jdbc {
-  def initStatement(connection: Connection, sql: String, placeholderValues: Seq[PlaceholderValue[_]]): Either[DriverError, PreparedStatement] =
+  def initStatement(connection: Connection, sql: String, placeholderValues: Seq[Literal[_]]): Either[DriverError, PreparedStatement] =
     Try(connection.prepareStatement(sql)).toEither match {
       case Right(preparedStatement) =>
         placeholderValues.zipWithIndex.foreach {

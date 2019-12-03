@@ -5,7 +5,7 @@ import io.epifab.tydal.schema.{Columns, GenericSchema, Table, TableBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
-final class InsertQuery[Fields <: HList](val table: Table[Fields]) {
+final class InsertQuery[Fields <: HList](private [tydal] val table: Table[Fields]) {
   def compile[Placeholders <: HList, InputRepr <: HList, Input]
       (implicit
        queryBuilder: QueryBuilder[this.type, Placeholders, HNil],

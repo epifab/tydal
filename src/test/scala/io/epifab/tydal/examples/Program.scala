@@ -38,7 +38,7 @@ object Program extends App {
     Insert
       .into(Students)
       .compile
-      .withValues(Student(
+      .run(Student(
         UUID.randomUUID,
         "Jack",
         Some("jack@tydal.io"),
@@ -52,12 +52,12 @@ object Program extends App {
       .take(_("s").*)
       .where(ctx => ctx("s", "email") like "email" and (ctx("date_of_birth") < "max_dob"))
       .compile
-      .withValues((
+      .to[Student]
+      .as[Vector]
+      .run((
         "email" ~~> "%@tydal.io",
         "max_dob" ~~> LocalDate.of(1986, 1, 1)
       ))
-      .mapTo[Student]
-      .as[Vector]
 
   val program = (for {
     _ <- createStudent
