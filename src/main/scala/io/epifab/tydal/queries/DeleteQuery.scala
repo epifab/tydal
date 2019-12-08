@@ -5,8 +5,8 @@ import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.{HList, HNil}
 
-final class DeleteQuery[Fields <: HList, E <: BinaryExpr](val table: Table[Fields], val filter: E) {
-  def where[E2 <: BinaryExpr](f: Selectable[Fields] => E2): DeleteQuery[Fields, E2] =
+final class DeleteQuery[Fields <: HList, E <: Filter](val table: Table[Fields], val filter: E) {
+  def where[E2 <: Filter](f: Selectable[Fields] => E2): DeleteQuery[Fields, E2] =
     new DeleteQuery(table, f(table))
 
   def compile[Placeholders <: HList, InputRepr <: HList, Input]

@@ -1,7 +1,7 @@
 package io.epifab.tydal.queries
 
 import io.epifab.tydal._
-import io.epifab.tydal.schema.{BinaryExpr, Field, NullableField}
+import io.epifab.tydal.schema.{Filter, Field, NullableField}
 import io.epifab.tydal.utils.{Appender, TaggedFinder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, HList, HNil}
@@ -10,8 +10,8 @@ class JoinBuilder[
     Fields <: HList,
     GroupBy <: HList,
     Sources <: HList,
-    Where <: BinaryExpr,
-    Having <: BinaryExpr,
+    Where <: Filter,
+    Having <: Filter,
     Sort <: HList,
     RightSource <: Selectable[_] with Tagging[_],
     RightFields <: HList,
@@ -21,7 +21,7 @@ class JoinBuilder[
     rightFields: RightFields,
     joinType: JoinType) {
 
-  def on[JoinClause <: BinaryExpr, SourceResults <: HList]
+  def on[JoinClause <: Filter, SourceResults <: HList]
   (f: (RightSource, SelectContext[Fields, Sources]) => JoinClause)
   (implicit
    alias: ValueOf[RightAlias],
@@ -58,7 +58,7 @@ object NullableFields {
     (list: H :: T) => headField.build(list.head) :: tailFields.build(list.tail)
 }
 
-class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, JoinClause <: BinaryExpr](
+class Join[Right <: Selectable[_] with Tagging[_], RightFields <: HList, JoinClause <: Filter](
   val right: Right,
   override val fields: RightFields,
   val joinClause: JoinClause,

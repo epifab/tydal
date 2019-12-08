@@ -130,11 +130,11 @@ object StudentsRepo {
       .from(Students as "s")
       .take(_("s").*)
       .where { $ =>
-        val minAgeFilter = minAge.map(years => $("s", "date_of_birth") <= Literal(LocalDate.now.minusYears(years))).toExpr
-        val maxAgeFilter = maxAge.map(years => $("s", "date_of_birth") >= Literal(LocalDate.now.minusYears(years))).toExpr
-        val nameFilter = name.map($("s", "name") like Literal(_)).toExpr
-        val emailFilter = email.map($("s", "email") like Literal(_)).toExpr
-        val interestsFilter = interests.map($("s", "interests") overlaps Literal(_)).toExpr
+        val minAgeFilter = minAge.map(years => $("s", "date_of_birth") <= Literal(LocalDate.now.minusYears(years))).toFilter
+        val maxAgeFilter = maxAge.map(years => $("s", "date_of_birth") >= Literal(LocalDate.now.minusYears(years))).toFilter
+        val nameFilter = name.map($("s", "name") like Literal(_)).toFilter
+        val emailFilter = email.map($("s", "email") like Literal(_)).toFilter
+        val interestsFilter = interests.map($("s", "interests") overlaps Literal(_)).toFilter
 
         minAgeFilter and maxAgeFilter and nameFilter and emailFilter and interestsFilter
       }

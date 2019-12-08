@@ -98,7 +98,7 @@ object QueryBuilder {
     }
 
   implicit def selectQuery[
-    Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList,
+    Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList,
     P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList,
     P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList, P10 <: HList, P11 <: HList
   ]
@@ -137,7 +137,7 @@ object QueryBuilder {
       ).prepend(s"INSERT INTO ${insert.table.tableName} ").get(HNil)
     })
 
-  implicit def updateQuery[TableFields <: HList, Columns <: HList, P <: HList, Q <: HList, R <: HList, Where <: BinaryExpr]
+  implicit def updateQuery[TableFields <: HList, Columns <: HList, P <: HList, Q <: HList, R <: HList, Where <: Filter]
       (implicit
        placeholders: QueryFragmentBuilder[FT_ColumnNameAndPlaceholderList, Columns, P],
        where: QueryFragmentBuilder[FT_Where, Where, Q],
@@ -148,7 +148,7 @@ object QueryBuilder {
         where.build(update.$where).prepend(" Where ")).get(HNil)
     })
 
-  implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: BinaryExpr]
+  implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: Filter]
       (implicit
        where: QueryFragmentBuilder[FT_Where, Where, P]
       ): QueryBuilder[DeleteQuery[Schema, Where], P, HNil] =
@@ -199,7 +199,7 @@ object QueryFragmentBuilder {
       head.build(sources.head) `+ +` tail.build(sources.tail)
     }
 
-  implicit def fromJoin[S <: Selectable[_] with Tagging[_], JoinClause <: BinaryExpr, Fields <: HList, A <: String with Singleton, P <: HList, Q <: HList, R <: HList]
+  implicit def fromJoin[S <: Selectable[_] with Tagging[_], JoinClause <: Filter, Fields <: HList, A <: String with Singleton, P <: HList, Q <: HList, R <: HList]
       (implicit
        src: QueryFragmentBuilder[FT_From, S, P],
        where: QueryFragmentBuilder[FT_Where, JoinClause, Q],
@@ -375,41 +375,41 @@ object QueryFragmentBuilder {
     }
 
   // ------------------------------
-  // Binary expressions
+  // Filters
   // ------------------------------
 
   implicit def whereAlwaysTrue: QueryFragmentBuilder[FT_Where, AlwaysTrue, HNil] =
     instance((_: AlwaysTrue) => CompiledQueryFragment.empty)
 
-  implicit def whereOptional[E <: BinaryExpr, P <: HList, Q <: HList](
+  implicit def whereFilterOption[F <: Filter, P <: HList, Q <: HList](
     implicit
-    where: QueryFragmentBuilder[FT_Where, E, P],
+    where: QueryFragmentBuilder[FT_Where, F, P],
     literalOptions: LiteralOptions[P, Q]
-  ): QueryFragmentBuilder[FT_Where, BinaryExprOption[E], Q] =
-    instance((filter: BinaryExprOption[E]) => filter.expr match {
+  ): QueryFragmentBuilder[FT_Where, FilterOption[F], Q] =
+    instance((filter: FilterOption[F]) => filter.filter match {
       case Some(e) => where.build(e).mapPlaceholders(literalOptions.build)
       case None => CompiledQueryFragment(None, literalOptions.empty)
     })
 
-  implicit def whereBinaryExpr1[E1, P <: HList]
-      (implicit left: QueryFragmentBuilder[FT_Where, E1, P]): QueryFragmentBuilder[FT_Where, BinaryExpr1[E1], P] =
-    instance { expr: BinaryExpr1[E1] =>
-      val e1 = left.build(expr.field)
-      expr match {
+  implicit def whereFilter1[F, P <: HList]
+      (implicit left: QueryFragmentBuilder[FT_Where, F, P]): QueryFragmentBuilder[FT_Where, Filter1[F], P] =
+    instance { filter: Filter1[F] =>
+      val e1 = left.build(filter.field)
+      filter match {
         case _: IsDefined[_] => e1 ++ " IS NOT NULL"
         case _: IsNotDefined[_] => e1 ++ " IS NULL"
       }
     }
 
-  implicit def whereBinaryExpr2[E1, E2, P <: HList, Q <: HList, R <: HList]
+  implicit def whereFilter2[F1, F2, P <: HList, Q <: HList, R <: HList]
       (implicit
-       left: QueryFragmentBuilder[FT_Where, E1, P],
-       right: QueryFragmentBuilder[FT_Where, E2, Q],
-       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_Where, BinaryExpr2[E1, E2], R] =
-    instance { expr: BinaryExpr2[E1, E2] =>
-      val e1 = left.build(expr.left)
-      val e2 = right.build(expr.right)
-      expr match {
+       left: QueryFragmentBuilder[FT_Where, F1, P],
+       right: QueryFragmentBuilder[FT_Where, F2, Q],
+       concat: Concat.Aux[P, Q, R]): QueryFragmentBuilder[FT_Where, Filter2[F1, F2], R] =
+    instance { filter: Filter2[F1, F2] =>
+      val e1 = left.build(filter.left)
+      val e2 = right.build(filter.right)
+      filter match {
         case _: And[_, _] => e1.concatenateOptional(e2, " AND ")
         case _: Or[_, _] => e1.concatenateOptional(e2, " OR ").wrap("(", ")")
         case _: Equals[_, _] => e1.concatenateRequired(e2, " = ")

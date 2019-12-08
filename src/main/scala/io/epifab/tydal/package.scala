@@ -1,6 +1,6 @@
 package io.epifab
 
-import io.epifab.tydal.schema.{BinaryExpr, BinaryExprOption, Column, FieldDecoder, FieldEncoder, Literal}
+import io.epifab.tydal.schema._
 
 package object tydal {
 
@@ -15,9 +15,9 @@ package object tydal {
     def ~~>[T](value: T)(implicit encoder: FieldEncoder[T], decoder: FieldDecoder[T]): Literal[T] with Tagging[A] = Literal(value).as(tag)
   }
 
-  implicit class ExtendedOptionBinaryExpr[+E <: BinaryExpr](val option: Option[E]) {
-    def toExpr: BinaryExprOption[E] = new BinaryExprOption[E] {
-      override def expr: Option[E] = option
+  implicit class ExtendedFilterOption[+E <: Filter](val option: Option[E]) {
+    def toFilter: FilterOption[E] = new FilterOption[E] {
+      override def filter: Option[E] = option
     }
   }
 }

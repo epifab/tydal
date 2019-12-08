@@ -24,7 +24,7 @@ trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fiel
     finder1.find(sources).apply[T2, X2](tag2)
 }
 
-sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: BinaryExpr, Having <: BinaryExpr, Sort <: HList]
+sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList]
     (protected[tydal] val fields: Fields,
      protected[tydal] val groupBy: GroupBy,
      protected[tydal] val sources: Sources,
@@ -124,14 +124,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     ): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, RightSource, TargetFields, RightAlias] =
     new JoinBuilder(this, that, nullableFields.build(fieldsOf(that)), LeftJoin)
 
-  def where[NewWhere <: BinaryExpr]
+  def where[NewWhere <: Filter]
     (f: SelectContext[Fields, Sources] => NewWhere)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort] =
     new SelectQuery(fields, groupBy, sources, f(this), having, sortBy)
 
-  def having[NewWhere <: BinaryExpr]
+  def having[NewWhere <: Filter]
     (f: SelectContext[Fields, Sources] => NewWhere)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, NewWhere, Sort], _, Fields]

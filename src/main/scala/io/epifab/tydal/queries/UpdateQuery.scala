@@ -1,11 +1,11 @@
 package io.epifab.tydal.queries
 
 import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
-import io.epifab.tydal.schema.{AlwaysTrue, BinaryExpr, Columns, GenericSchema, Table, TableBuilder}
+import io.epifab.tydal.schema.{AlwaysTrue, Filter, Columns, GenericSchema, Table, TableBuilder}
 import shapeless.ops.hlist.Tupler
 import shapeless.{Generic, HList, HNil}
 
-final class UpdateQuery[TableFields <: HList, FieldsToUpdate <: HList, Where <: BinaryExpr]
+final class UpdateQuery[TableFields <: HList, FieldsToUpdate <: HList, Where <: Filter]
     (val table: Table[TableFields], val $fields: FieldsToUpdate, val $where: Where) {
 
   def fields[P, NewFields <: HList]
@@ -13,7 +13,7 @@ final class UpdateQuery[TableFields <: HList, FieldsToUpdate <: HList, Where <: 
     (implicit generic: Generic.Aux[P, NewFields]): UpdateQuery[TableFields, NewFields, Where] =
     new UpdateQuery(table, generic.to(f(table)), $where)
 
-  def where[E2 <: BinaryExpr](f: Selectable[TableFields] => E2): UpdateQuery[TableFields, FieldsToUpdate, E2] =
+  def where[E2 <: Filter](f: Selectable[TableFields] => E2): UpdateQuery[TableFields, FieldsToUpdate, E2] =
     new UpdateQuery(table, $fields, f(table))
 
   def compile[Placeholders <: HList, InputRepr <: HList, Input]
