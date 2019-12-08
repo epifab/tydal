@@ -119,12 +119,55 @@ class LiteralOption[T] private(val value: Option[Literal[T]])(implicit val decod
 }
 
 object LiteralOption {
-  def apply[T]
-  (value: Option[T])
-  (implicit
-   decoder: FieldDecoder[T],
-   encoder: FieldEncoder[T]): LiteralOption[T] =
+  private[schema] def apply[T](value: Option[T])(
+    implicit
+    decoder: FieldDecoder[T],
+    encoder: FieldEncoder[T]
+  ): LiteralOption[T] =
     new LiteralOption(value.map(new Literal(_)))(decoder.toOption, encoder)
+}
+
+trait LiteralOptions[-T, +U] {
+  def build(t: T): U
+  def empty: U
+}
+
+object LiteralOptions {
+  implicit def literal[T](implicit fieldEncoder: FieldEncoder[T], fieldDecoder: FieldDecoder[T]): LiteralOptions[Literal[T], LiteralOption[T]] = new LiteralOptions[Literal[T], LiteralOption[T]] {
+    override def build(p: Literal[T]): LiteralOption[T] = LiteralOption[T](Some(p.value))
+    override def empty: LiteralOption[T] = LiteralOption[T](None)
+  }
+
+  implicit def literalOption[T](implicit fieldEncoder: FieldEncoder[T], fieldDecoder: FieldDecoder[T]): LiteralOptions[LiteralOption[T], LiteralOption[T]] =
+    new LiteralOptions[LiteralOption[T], LiteralOption[T]] {
+      override def build(p: LiteralOption[T]): LiteralOption[T] = p
+      override def empty: LiteralOption[T] = LiteralOption(None)
+    }
+
+  implicit def namedPlaceholder[T, A <: String with Singleton](
+    implicit
+    fieldEncoder: FieldEncoder[T],
+    fieldDecoder: FieldDecoder[T],
+    valueOf: ValueOf[A]
+  ): LiteralOptions[NamedPlaceholder[T] with Tagging[A], NamedPlaceholder[T] with Tagging[A]] =
+    new LiteralOptions[NamedPlaceholder[T] with Tagging[A], NamedPlaceholder[T] with Tagging[A]] {
+      override def build(p: NamedPlaceholder[T] with Tagging[A]): NamedPlaceholder[T] with Tagging[A] = p
+      override def empty: NamedPlaceholder[T] with Tagging[A] = NamedPlaceholder[T, A]
+    }
+
+  implicit val hNil: LiteralOptions[HNil, HNil] = new LiteralOptions[HNil, HNil] {
+    override def build(t: HNil): HNil = HNil
+    override def empty: HNil = HNil
+  }
+
+  implicit def hCons[H1, H2, T1 <: HList, T2 <: HList](
+    implicit
+    head: LiteralOptions[H1, H2],
+    tail: LiteralOptions[T1, T2]
+  ): LiteralOptions[H1 :: T1, H2 :: T2] = new LiteralOptions[H1 :: T1, H2 :: T2] {
+    override def build(p: H1 :: T1): H2 :: T2 = head.build(p.head) :: tail.build(p.tail)
+    override def empty: H2 :: T2 = head.empty :: tail.empty
+  }
 }
 
 trait FieldT[-F <: Field[_], T] {

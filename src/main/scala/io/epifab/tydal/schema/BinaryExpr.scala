@@ -3,11 +3,15 @@ package io.epifab.tydal.schema
 import io.epifab.tydal.queries.SelectQuery
 import shapeless.{::, HList, HNil}
 
-sealed trait AlwaysTrue extends BinaryExpr
-
 sealed trait BinaryExpr {
   def and[E2 <: BinaryExpr](otherExpression: E2): And[this.type, E2] = And(this, otherExpression)
   def or[E2 <: BinaryExpr](otherExpression: E2): Or[this.type, E2] = Or(this, otherExpression)
+}
+
+sealed trait AlwaysTrue extends BinaryExpr
+
+trait BinaryExprOption[+E <: BinaryExpr] extends BinaryExpr {
+  def expr: Option[E]
 }
 
 sealed trait BinaryExpr1[+F] extends BinaryExpr {

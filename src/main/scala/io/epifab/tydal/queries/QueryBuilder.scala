@@ -12,59 +12,10 @@ import scala.annotation.implicitNotFound
 
 case class CompiledQuery[+Placeholders <: HList, +Fields <: HList](sql: String, placeholders: Placeholders, fields: Fields)
 
-case class CompiledQueryFragment[P <: HList](sql: Option[String], placeholders: P) {
-  def `++`(s: String): CompiledQueryFragment[P] =
-    append(s)
-
-  def `++`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-    concatenateOptional(other, "")
-
-  def `+ +`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-    concatenateOptional(other, " ")
-
-  def `+,+`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-    concatenateOptional(other, ", ")
-
-  def wrap(before: String, after: String): CompiledQueryFragment[P] =
-    CompiledQueryFragment(sql.map(before + _ + after), placeholders)
-
-  def append(after: String): CompiledQueryFragment[P] =
-    CompiledQueryFragment(sql.map(_ + after), placeholders)
-
-  def prepend(before: String): CompiledQueryFragment[P] =
-    CompiledQueryFragment(sql.map(before + _), placeholders)
-
-  def map(f: String => String): CompiledQueryFragment[P] =
-    CompiledQueryFragment(sql.map(f), placeholders)
-
-  def concatenateOptional[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-    CompiledQueryFragment.apply(
-      Seq(sql, other.sql)
-        .flatten
-        .reduceOption(_ ++ separator ++ _),
-      concat(placeholders, other.placeholders)
-    )
-
-  def concatenateRequired[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-    CompiledQueryFragment.apply(
-      for {
-        s1 <- sql
-        s2 <- other.sql
-      } yield s1 + separator + s2,
-      concat(placeholders, other.placeholders)
-    )
-
-  def getOrElse[Fields <: HList](default: String, fields: Fields): CompiledQuery[P, Fields] =
-    CompiledQuery(sql.getOrElse(default), placeholders, fields)
-
-  def orElse(s: Option[String]): CompiledQueryFragment[P] =
-    new CompiledQueryFragment(sql.orElse(s), placeholders)
-
-  def get[Fields <: HList](fields: Fields): CompiledQuery[P, Fields] =
-    CompiledQuery(sql.get, placeholders, fields)
-}
+case class CompiledQueryFragment[+P <: HList](sql: Option[String], placeholders: P)
 
 object CompiledQueryFragment {
+
   def empty: CompiledQueryFragment[HNil] = CompiledQueryFragment(None, HNil)
 
   def apply[P <: HList](query: CompiledQuery[P, _]): CompiledQueryFragment[P] =
@@ -75,6 +26,61 @@ object CompiledQueryFragment {
 
   def apply[P <: Placeholder[_]](sql: String, placeholder: P): CompiledQueryFragment[P :: HNil] =
     CompiledQueryFragment(Some(sql), placeholder :: HNil)
+
+  implicit class ExtendedQueryFragment[P <: HList](queryFragment: CompiledQueryFragment[P]) {
+    def mapPlaceholders[Q <: HList](f: P => Q): CompiledQueryFragment[Q] =
+      CompiledQueryFragment(queryFragment.sql, f(queryFragment.placeholders))
+
+    def `++`(s: String): CompiledQueryFragment[P] =
+      append(s)
+
+    def `++`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
+      concatenateOptional(other, "")
+
+    def `+ +`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
+      concatenateOptional(other, " ")
+
+    def `+,+`[Q <: HList, R <: HList](other: CompiledQueryFragment[Q])(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
+      concatenateOptional(other, ", ")
+
+    def wrap(before: String, after: String): CompiledQueryFragment[P] =
+      CompiledQueryFragment(queryFragment.sql.map(before + _ + after), queryFragment.placeholders)
+
+    def append(after: String): CompiledQueryFragment[P] =
+      CompiledQueryFragment(queryFragment.sql.map(_ + after), queryFragment.placeholders)
+
+    def prepend(before: String): CompiledQueryFragment[P] =
+      CompiledQueryFragment(queryFragment.sql.map(before + _), queryFragment.placeholders)
+
+    def map(f: String => String): CompiledQueryFragment[P] =
+      CompiledQueryFragment(queryFragment.sql.map(f), queryFragment.placeholders)
+
+    def concatenateOptional[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
+      CompiledQueryFragment.apply(
+        Seq(queryFragment.sql, other.sql)
+          .flatten
+          .reduceOption(_ ++ separator ++ _),
+        concat(queryFragment.placeholders, other.placeholders)
+      )
+
+    def concatenateRequired[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
+      CompiledQueryFragment.apply(
+        for {
+          s1 <- queryFragment.sql
+          s2 <- other.sql
+        } yield s1 + separator + s2,
+        concat(queryFragment.placeholders, other.placeholders)
+      )
+
+    def getOrElse[Fields <: HList](default: String, fields: Fields): CompiledQuery[P, Fields] =
+      CompiledQuery(queryFragment.sql.getOrElse(default), queryFragment.placeholders, fields)
+
+    def orElse(s: Option[String]): CompiledQueryFragment[P] =
+      new CompiledQueryFragment(queryFragment.sql.orElse(s), queryFragment.placeholders)
+
+    def get[Fields <: HList](fields: Fields): CompiledQuery[P, Fields] =
+      CompiledQuery(queryFragment.sql.get, queryFragment.placeholders, fields)
+  }
 }
 
 @implicitNotFound("Could not find a query builder for ${X}")
@@ -374,6 +380,16 @@ object QueryFragmentBuilder {
 
   implicit def whereAlwaysTrue: QueryFragmentBuilder[FT_Where, AlwaysTrue, HNil] =
     instance((_: AlwaysTrue) => CompiledQueryFragment.empty)
+
+  implicit def whereOptional[E <: BinaryExpr, P <: HList, Q <: HList](
+    implicit
+    where: QueryFragmentBuilder[FT_Where, E, P],
+    literalOptions: LiteralOptions[P, Q]
+  ): QueryFragmentBuilder[FT_Where, BinaryExprOption[E], Q] =
+    instance((filter: BinaryExprOption[E]) => filter.expr match {
+      case Some(e) => where.build(e).mapPlaceholders(literalOptions.build)
+      case None => CompiledQueryFragment(None, literalOptions.empty)
+    })
 
   implicit def whereBinaryExpr1[E1, P <: HList]
       (implicit left: QueryFragmentBuilder[FT_Where, E1, P]): QueryFragmentBuilder[FT_Where, BinaryExpr1[E1], P] =
