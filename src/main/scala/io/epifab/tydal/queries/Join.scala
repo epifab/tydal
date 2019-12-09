@@ -38,7 +38,9 @@ class JoinBuilder[
       ),
       left.where,
       left.having,
-      left.sortBy
+      left.sortBy,
+      left.offset,
+      left.limit
     )
 }
 

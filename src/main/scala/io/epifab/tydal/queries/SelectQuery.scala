@@ -30,7 +30,9 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      protected[tydal] val sources: Sources,
      protected[tydal] val where: Where,
      protected[tydal] val having: Having,
-     protected[tydal] val sortBy: Sort)
+     protected[tydal] val sortBy: Sort,
+     protected[tydal] val offset: Option[Long],
+     protected[tydal] val limit: Option[Int])
     (implicit queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], _, Fields])
     extends SelectContext[Fields, Sources] {
 
@@ -62,7 +64,7 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      ev: Sources =:= HNil.type,
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, S :: HNil, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, S :: HNil, Where, Having, Sort] =
-    new SelectQuery(fields, groupBy, source :: HNil, where, having, sortBy)
+    new SelectQuery(fields, groupBy, source :: HNil, where, having, sortBy, offset, limit)
 
   def take[P, NewFields <: HList]
     (f: SelectContext[Fields, Sources] => P)
@@ -71,7 +73,7 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      taggedListOfFields: TagMap[Field[_], NewFields],
      queryBuilder: QueryBuilder[SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort], _, NewFields]
     ): SelectQuery[NewFields, GroupBy, Sources, Where, Having, Sort] =
-    new SelectQuery(generic.to(f(this)), groupBy, sources, where, having, sortBy)
+    new SelectQuery(generic.to(f(this)), groupBy, sources, where, having, sortBy, offset, limit)
 
   def alsoTake[P, NewFields <: HList, FinalFields <: HList]
     (f: SelectContext[Fields, Sources] => P)
@@ -81,14 +83,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      concat: Concat.Aux[Fields, NewFields, FinalFields],
      queryBuilder: QueryBuilder[SelectQuery[FinalFields, GroupBy, Sources, Where, Having, Sort], _, FinalFields]
     ): SelectQuery[FinalFields, GroupBy, Sources, Where, Having, Sort] =
-    new SelectQuery(concat(fields, generic.to(f(this))), groupBy, sources, where, having, sortBy)
+    new SelectQuery(concat(fields, generic.to(f(this))), groupBy, sources, where, having, sortBy, offset, limit)
 
   def take1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[F :: HNil, GroupBy, Sources, Where, Having, Sort], _, F :: HNil]
     ): SelectQuery[F :: HNil, GroupBy, Sources, Where, Having, Sort] =
-    new SelectQuery(f(this) :: HNil, groupBy, sources, where, having, sortBy)
+    new SelectQuery(f(this) :: HNil, groupBy, sources, where, having, sortBy, offset, limit)
 
   def groupBy[P, NewGroup <: HList]
     (f: SelectContext[Fields, Sources] => P)
@@ -97,14 +99,14 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
      taggedListOfFields: TagMap[Field[_], NewGroup],
      queryBuilder: QueryBuilder[SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort] =
-    new SelectQuery(fields, generic.to(f(this)), sources, where, having, sortBy)
+    new SelectQuery(fields, generic.to(f(this)), sources, where, having, sortBy, offset, limit)
 
   def groupBy1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, F :: HNil, Sources, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, F :: HNil, Sources, Where, Having, Sort] =
-    new SelectQuery(fields, f(this) :: HNil, sources, where, having, sortBy)
+    new SelectQuery(fields, f(this) :: HNil, sources, where, having, sortBy, offset, limit)
 
   def innerJoin[H, T <: HList, RightSource <: Selectable[_] with Tagging[_], RightFields <: HList, RightAlias <: String with Singleton]
     (that: RightSource)
@@ -129,23 +131,26 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, NewWhere, Having, Sort] =
-    new SelectQuery(fields, groupBy, sources, f(this), having, sortBy)
+    new SelectQuery(fields, groupBy, sources, f(this), having, sortBy, offset, limit)
 
   def having[NewWhere <: Filter]
     (f: SelectContext[Fields, Sources] => NewWhere)
     (implicit
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, NewWhere, Sort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, Where, NewWhere, Sort] =
-    new SelectQuery(fields, groupBy, sources, where, f(this), sortBy)
+    new SelectQuery(fields, groupBy, sources, where, f(this), sortBy, offset, limit)
 
   def sortBy[P, NewSort <: HList]
-    (f: FindContext[Fields] => P)
+    (f: SelectContext[Fields, Sources] => P)
     (implicit
      generic: Generic.Aux[P, NewSort],
      taggedListOfSortByClauses: Bounded[SortBy[_], NewSort],
      queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort], _, Fields]
     ): SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort] =
-    new SelectQuery(fields, groupBy, sources, where, having, generic.to(f(findContext)))
+    new SelectQuery(fields, groupBy, sources, where, having, generic.to(f(this)), offset, limit)
+
+  def inRange(newOffset: Long, newLimit: Int): SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort] =
+    new SelectQuery(fields, groupBy, sources, where, having, sortBy, Some(newOffset), Some(newLimit))
 }
 
-object Select extends SelectQuery(HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil)
+object Select extends SelectQuery(HNil, HNil, HNil, AlwaysTrue, AlwaysTrue, HNil, None, None)

@@ -92,6 +92,9 @@ class ReadStatementStep0[Input, Fields <: HList, OutputRepr <: HList, TaggedOutp
   def rawTo[Output](map: OutputRepr => Output): ReadStatementStep1[Input, Fields, OutputRepr, Output] =
     new ReadStatementStep1(query, toRunnable, map)
 
+  def head[Head, Tail <: HList](implicit head: OutputRepr =:= (Head :: Tail)): ReadStatementStep1[Input, Fields, OutputRepr, Head] =
+    new ReadStatementStep1(query, toRunnable, _.head)
+
   def to[Output](map: ResultSet[TaggedOutput] => Output): ReadStatementStep1[Input, Fields, OutputRepr, Output] =
     new ReadStatementStep1(query, toRunnable, outputRepr => map(new ResultSet(taggedOutput(outputRepr))))
 

@@ -11,14 +11,24 @@ class QueryBuilderTest extends FlatSpec with Matchers {
 //    Select.compile.query shouldBe "SELECT 1"
 //  }
 
+  it should "build a query with offset and limit" in {
+    queryWithRange.compile.query shouldBe (
+      "SELECT" +
+        " e.student_id AS sid" +
+        " FROM exams AS e" +
+        " OFFSET 5" +
+        " LIMIT 10"
+    )
+  }
+
   it should "build a simple select query" in {
-    studentsQuery("ms").right.select.compile.query shouldBe (
+    maxScoreSubQuery.compile.query shouldBe (
       "SELECT" +
         " e.student_id AS student_id," +
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " Where e.exam_timestamp < ?::timestamp" +
+        " WHERE e.exam_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
       )
   }
@@ -39,7 +49,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " max(e.score) AS max_score," +
         " min(e.course_id) AS course_id" +
         " FROM exams AS e" +
-        " Where e.exam_timestamp < ?::timestamp" +
+        " WHERE e.exam_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
 
     studentsQuery.compile.query shouldBe (
@@ -51,7 +61,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " Where s.id = ?::int"
+        " WHERE s.id = ?::int"
     )
   }
 
@@ -75,7 +85,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       "UPDATE students SET" +
         " name = ?::varchar," +
         " email = ?::varchar" +
-        " Where students.id = ?::int"
+        " WHERE students.id = ?::int"
     )
   }
 
@@ -86,7 +96,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
 
   it should "build a delete query" in {
     deleteStudentQuery.compile.query shouldBe (
-      "DELETE FROM students Where" +
+      "DELETE FROM students WHERE" +
         " students.id = ?::int"
     )
   }
@@ -101,7 +111,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " s.address AS address," +
         " s.interests AS interests" +
         " FROM students AS s" +
-        " Where s.id IN (SELECT e.student_id AS student_id FROM exams AS e Where e.score >= ?::int)"
+        " WHERE s.id IN (SELECT e.student_id AS student_id FROM exams AS e WHERE e.score >= ?::int)"
     )
   }
 }

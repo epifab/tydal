@@ -9,18 +9,24 @@ import io.epifab.tydal.queries.{Delete, Select, Update}
 import io.epifab.tydal.runtime.Transaction
 
 object SelectQueries {
-  val studentsQuery = {
-    val maxScoreSubQuery =
-      Select
-        .from(Exams as "e")
-        .groupBy1(_("e", "student_id"))
-        .where(_("e", "exam_timestamp") < "min_date")
-        .take($ => (
-          $("e", "student_id")      as "student_id",
-          Max($("e", "score"))    as "max_score",
-          Min($("e", "course_id")) as "course_id"
-        ))
+  val queryWithRange =
+    Select
+      .from(Exams as "e")
+      .take1(_("e", "student_id") as "sid")
+      .inRange(5, 10)
 
+  val maxScoreSubQuery =
+    Select
+      .from(Exams as "e")
+      .groupBy1(_("e", "student_id"))
+      .where(_("e", "exam_timestamp") < "min_date")
+      .take($ => (
+        $("e", "student_id")      as "student_id",
+        Max($("e", "score"))    as "max_score",
+        Min($("e", "course_id")) as "course_id"
+      ))
+
+  val studentsQuery =
     Select
       .from(Students as "s")
       .innerJoin(maxScoreSubQuery as "ms").on(_("student_id") === _("s", "id"))
@@ -32,7 +38,6 @@ object SelectQueries {
         Nullable($("cc", "name")) as "cname"
       ))
       .where(_("s", "id") === "student_id")
-  }
 
   val examsWithCourseQuery =
     Select

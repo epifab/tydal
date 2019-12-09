@@ -113,15 +113,18 @@ object QueryBuilder {
      having: QueryFragmentBuilder[FT_Where, Having, P8],
      concat4: Concat.Aux[P7, P8, P9],
      sortBy: QueryFragmentBuilder[FT_SortBy, Sort, P10],
-     concat5: Concat.Aux[P9, P10, P11]
+     concat5: Concat.Aux[P9, P10, P11],
+     trivialConcat: Concat.Aux[P11, HNil, P11]
     ): QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
     QueryBuilder.instance(select =>
       (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.sources).prepend("FROM ") `+ +`
-        where.build(select.where).prepend("Where ") `+ +`
+        where.build(select.where).prepend("WHERE ") `+ +`
         groupBy.build(select.groupBy).prepend("GROUP BY ") `+ +`
         having.build(select.having).prepend("Having ") `+ +`
-        sortBy.build(select.sortBy).prepend("ORDER BY ")
+        sortBy.build(select.sortBy).prepend("ORDER BY ") `+ +`
+        CompiledQueryFragment[HNil](select.offset.map(offset => s"OFFSET $offset"), HNil) `+ +`
+        CompiledQueryFragment[HNil](select.limit.map(limit => s"LIMIT $limit"), HNil)
       ).get(select.fields)
     )
 
@@ -145,7 +148,7 @@ object QueryBuilder {
       ): QueryBuilder[UpdateQuery[TableFields, Columns, Where], R, HNil] =
     QueryBuilder.instance(update => {
       (placeholders.build(update.$fields).prepend("UPDATE " + update.table.tableName + " SET ") ++
-        where.build(update.$where).prepend(" Where ")).get(HNil)
+        where.build(update.$where).prepend(" WHERE ")).get(HNil)
     })
 
   implicit def deleteQuery[TableName <: String with Singleton, Schema <: HList, P <: HList, Where <: Filter]
@@ -154,7 +157,7 @@ object QueryBuilder {
       ): QueryBuilder[DeleteQuery[Schema, Where], P, HNil] =
     QueryBuilder.instance(delete =>
       (CompiledQueryFragment(s"DELETE FROM ${delete.table.tableName}") ++
-      where.build(delete.filter).prepend(" Where "))
+      where.build(delete.filter).prepend(" WHERE "))
           .get(HNil)
     )
 }

@@ -44,13 +44,30 @@ trait Transaction[+Output] {
 }
 
 object Transaction {
-  val unit: Transaction[Unit] = new PureTransaction(())
+  val unit: Transaction[Unit] = new PureTransaction(Right(()))
 
-  def pure[Output](value: Output): Transaction[Output] = new PureTransaction(value)
+  def sequence[Output](transactions: Seq[Transaction[Output]]): Transaction[Seq[Output]] = {
+    new Transaction[Seq[Output]] {
+      override protected def run[F[+ _] : Eff : Monad](connection: Connection): F[Either[DataError, Seq[Output]]] = {
+        def recursive(ts: Seq[Transaction[Output]]): F[Either[DataError, Seq[Output]]] = ts match {
+          case empty if empty.isEmpty => Eff[F].pure(Right(Seq.empty[Output]))
+          case nonEmpty => nonEmpty.head.run(connection).flatMap {
+            case Left(error) => Eff[F].pure(Left(error))
+            case Right(result) => recursive(nonEmpty.tail).map(_.map(seq => result +: seq))
+          }
+        }
+        recursive(transactions)
+      }
+    }
+  }
 
-  class PureTransaction[Output](output: Output) extends Transaction[Output] {
+  def failed(error: DataError): Transaction[Nothing] = new PureTransaction(Left(error))
+
+  def successful[Output](value: Output): Transaction[Output] = new PureTransaction(Right(value))
+
+  class PureTransaction[Output](result: Either[DataError, Output]) extends Transaction[Output] {
     override protected def run[F[+ _] : Eff : Monad](connection: Connection): F[Either[DataError, Output]] =
-      Eff[F].pure(Right(output))
+      Eff[F].pure(result)
   }
 
   class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: O1 => Output) extends Transaction[Output] {
