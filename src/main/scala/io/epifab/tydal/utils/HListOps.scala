@@ -27,7 +27,7 @@ object Concat {
     override def apply(h: HNil, l: L): Out = l
   }
 
-  implicit def concatHCons[H, T <: HList, L <: HList, O <: HList](implicit tailConcat: => Concat.Aux[T, L, O]): Concat.Aux[H :: T, L, H :: O] = new Concat[H :: T, L] {
+  implicit def concatHCons[H, T <: HList, L <: HList, O <: HList](implicit tailConcat: Concat.Aux[T, L, O]): Concat.Aux[H :: T, L, H :: O] = new Concat[H :: T, L] {
     override type Out = H :: O
     override def apply(t: H :: T, u: L): Out = t.head :: tailConcat.apply(t.tail, u)
   }
@@ -62,7 +62,7 @@ object Appender {
     override def append(l: HNil, x: X): X :: HNil = x :: HNil
   }
 
-  implicit def hConsAppender[H, T <: HList, X, TAO <: HList](implicit tailAppender: => Appender.Aux[T, X, TAO]): Appender.Aux[H :: T, X, H :: TAO] = new Appender[H :: T, X] {
+  implicit def hConsAppender[H, T <: HList, X, TAO <: HList](implicit tailAppender: Appender.Aux[T, X, TAO]): Appender.Aux[H :: T, X, H :: TAO] = new Appender[H :: T, X] {
     override type Out = H :: TAO
     override def append(t: H :: T, x: X): Out = t.head :: tailAppender.append(t.tail, x)
   }

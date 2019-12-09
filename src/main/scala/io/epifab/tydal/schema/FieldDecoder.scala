@@ -95,9 +95,9 @@ object FieldDecoder {
     override def decode(value: String): Either[DecoderError, A] = decodeFunction(value).left.map(DecoderError)
   }
 
-  implicit def seqDecoder[T, U](implicit baseDecoder: => FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] =
+  implicit def seqDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Seq[T], Seq[U]] =
     baseDecoder.toSeq
 
-  implicit def optionDecoder[T, U](implicit baseDecoder: => FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] =
+  implicit def optionDecoder[T, U](implicit baseDecoder: FieldDecoder.Aux[T, U]): FieldDecoder.Aux[Option[T], Option[U]] =
     baseDecoder.toOption
 }
