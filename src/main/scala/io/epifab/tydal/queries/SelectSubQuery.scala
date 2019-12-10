@@ -2,14 +2,14 @@ package io.epifab.tydal.queries
 
 import io.epifab.tydal.Tagging
 import io.epifab.tydal.schema.{Column, Field}
-import io.epifab.tydal.utils.TaggedFinder
+import io.epifab.tydal.utils.TaggedFind
 import shapeless.{::, HList, HNil}
 
 class SelectSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _]]
   (val select: S, override val fields: SubQueryFields)
   extends Selectable[SubQueryFields] { self: Tagging[_] =>
-  override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, SubQueryFields]): X with Tagging[T] =
-    finder.find(fields)
+  override def apply[T <: String with Singleton, X](tag: T)(implicit find: TaggedFind[T, X, SubQueryFields]): X with Tagging[T] =
+    find(fields)
 }
 
 trait SubQueryFields[-Fields, +SubQueryFields] {

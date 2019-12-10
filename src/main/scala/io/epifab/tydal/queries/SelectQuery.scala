@@ -4,43 +4,43 @@ import java.sql.Connection
 
 import io.epifab.tydal.runtime.{ReadStatementExecutor, ReadStatementStep0, StatementBuilder, TagOutput}
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.{Bounded, Concat, TaggedFinder}
+import io.epifab.tydal.utils.{Bounded, Concat, TaggedFind}
 import io.epifab.tydal.{As, TagMap, Tagged, Tagging}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
 trait SelectContext[Fields <: HList, Sources <: HList] extends FindContext[(Fields, Sources)] {
-  protected[tydal] def fields: Fields
-  protected[tydal] def sources: Sources
+  private[tydal] def fields: Fields
+  private[tydal] def sources: Sources
 
-  override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, (Fields, Sources)]): X with Tagging[T] =
-    finder.find((fields, sources))
+  override def apply[T <: String with Singleton, X](tag: T)(implicit find: TaggedFind[T, X, (Fields, Sources)]): X with Tagging[T] =
+    find((fields, sources))
 
   def apply[T1 <: String with Singleton, T2 <: String with Singleton, X2, HAYSTACK2]
       (tag1: T1, tag2: T2)
       (implicit
-       finder1: TaggedFinder[T1, FindContext[HAYSTACK2], Sources],
-       finder2: TaggedFinder[T2, X2, HAYSTACK2]): X2 As T2 =
-    finder1.find(sources).apply[T2, X2](tag2)
+       find1: TaggedFind[T1, FindContext[HAYSTACK2], Sources],
+       find2: TaggedFind[T2, X2, HAYSTACK2]): X2 As T2 =
+    find1(sources).apply[T2, X2](tag2)
 }
 
 sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList]
-    (protected[tydal] val fields: Fields,
-     protected[tydal] val groupBy: GroupBy,
-     protected[tydal] val sources: Sources,
-     protected[tydal] val where: Where,
-     protected[tydal] val having: Having,
-     protected[tydal] val sortBy: Sort,
-     protected[tydal] val offset: Option[Long],
-     protected[tydal] val limit: Option[Int])
+    (private[tydal] val fields: Fields,
+     private[tydal] val groupBy: GroupBy,
+     private[tydal] val sources: Sources,
+     private[tydal] val where: Where,
+     private[tydal] val having: Having,
+     private[tydal] val sortBy: Sort,
+     private[tydal] val offset: Option[Long],
+     private[tydal] val limit: Option[Int])
     (implicit queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], _, Fields])
     extends SelectContext[Fields, Sources] {
 
   def `*`[T](implicit tupler: Tupler.Aux[Fields, T]): T = tupler(fields)
 
   private val findContext: FindContext[Fields] = new FindContext[Fields] {
-    override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Fields]): X with Tagging[T] =
-      finder.find(fields)
+    override def apply[T <: String with Singleton, X](tag: T)(implicit find: TaggedFind[T, X, Fields]): X with Tagging[T] =
+      find(fields)
   }
 
   def as[T <: String with Singleton with Singleton, SubQueryFieldsRepr <: HList](tag: T)(implicit subQueryFields: SubQueryFields[Fields, SubQueryFieldsRepr]): SelectSubQuery[SubQueryFieldsRepr, SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort]] with Tagging[T] =

@@ -1,9 +1,9 @@
 package io.epifab.tydal.schema
 
-import io.epifab.tydal.queries.{FindContext, Selectable}
-import io.epifab.tydal.utils.TaggedFinder
 import io.epifab.tydal.Tagging
-import shapeless.{Generic, HList}
+import io.epifab.tydal.queries.{FindContext, Selectable}
+import io.epifab.tydal.utils.TaggedFind
+import shapeless.HList
 import shapeless.ops.hlist.Tupler
 
 class TableBuilder[TableName <: String with Singleton, Schema](
@@ -22,8 +22,8 @@ class TableBuilder[TableName <: String with Singleton, Schema](
 }
 
 class Table[Fields <: HList] private(val tableName: String, override val fields: Fields) extends Selectable[Fields] with FindContext[Fields] { self: Tagging[_] =>
-  override def apply[T <: String with Singleton, X](tag: T)(implicit finder: TaggedFinder[T, X, Fields]): X with Tagging[T] =
-    finder.find(fields)
+  override def apply[T <: String with Singleton, X](tag: T)(implicit find: TaggedFind[T, X, Fields]): X with Tagging[T] =
+    find(fields)
 
   def `*`[T](implicit tupler: Tupler.Aux[Fields, T]): T = tupler(fields)
 }

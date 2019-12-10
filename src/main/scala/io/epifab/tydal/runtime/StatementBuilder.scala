@@ -7,7 +7,7 @@ import cats.implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.{Finder, TaggedFinder}
+import io.epifab.tydal.utils.{Finder, TaggedFind}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -71,8 +71,8 @@ object TagOutput {
 }
 
 class ResultSet[TaggedOutput](output: TaggedOutput) {
-  def apply[A <: String with Singleton, T](a: A)(implicit finder: TaggedFinder[A, T, TaggedOutput]): T =
-    finder.find(output)
+  def apply[A <: String with Singleton, T](a: A)(implicit find: TaggedFind[A, T, TaggedOutput]): T =
+    find(output)
 }
 
 class ReadStatementStep0[Input, Fields <: HList, OutputRepr <: HList, TaggedOutput](
