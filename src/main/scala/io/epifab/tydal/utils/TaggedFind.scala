@@ -5,9 +5,9 @@ import shapeless.{::, Generic, HList}
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("Field or relation ${T} could not be found")
-trait TaggedFind[T <: String with Singleton, +X, Haystack] {
-  def apply(u: Haystack): X As T
+@implicitNotFound("Field or relation ${A} could not be found")
+trait TaggedFind[A <: String with Singleton, +X, Haystack] {
+  def apply(u: Haystack): X As A
 }
 
 object TaggedFind {

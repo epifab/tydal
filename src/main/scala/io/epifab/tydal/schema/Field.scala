@@ -1,6 +1,6 @@
 package io.epifab.tydal.schema
 
-import io.epifab.tydal.Tagging
+import io.epifab.tydal.{As, Tagged, Tagging}
 import io.epifab.tydal.queries.SelectQuery
 import shapeless.{::, HList, HNil}
 
@@ -90,6 +90,35 @@ object NamedPlaceholder {
     new NamedPlaceholder(name.value)(decoder, encoder) with Tagging[Name] {
       override def tagValue: String = name
     }
+}
+
+trait NamedPlaceholders[Fields, Placeholders] {
+  def get: Placeholders
+}
+
+object NamedPlaceholders {
+  implicit def pure[F <: Field[_], T, A <: String with Singleton](
+    implicit
+    fieldT: FieldT[F, T],
+    tagged: Tagged[F, A],
+    fieldEncoder: FieldEncoder[T],
+    fieldDecoder: FieldDecoder[T],
+    alias: ValueOf[A]
+  ): NamedPlaceholders[F, NamedPlaceholder[T] As A] = new NamedPlaceholders[F, NamedPlaceholder[T] As A] {
+    override def get: As[NamedPlaceholder[T], A] = NamedPlaceholder[T, A]
+  }
+
+  implicit val hNil: NamedPlaceholders[HNil, HNil] = new NamedPlaceholders[HNil, HNil] {
+    override def get: HNil = HNil
+  }
+
+  implicit def hCons[FH, PH, FT <: HList, PT <: HList](
+    implicit
+    head: NamedPlaceholders[FH, PH],
+    tail: NamedPlaceholders[FT, PT]
+  ): NamedPlaceholders[FH :: FT, PH :: PT] = new NamedPlaceholders[FH :: FT, PH :: PT] {
+    override def get: PH :: PT = head.get :: tail.get
+  }
 }
 
 class Literal[T](val value: T)(implicit val decoder: FieldDecoder[T], val encoder: FieldEncoder[T])

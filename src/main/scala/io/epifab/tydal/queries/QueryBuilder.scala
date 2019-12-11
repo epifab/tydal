@@ -128,15 +128,14 @@ object QueryBuilder {
       ).get(select.fields)
     )
 
-  implicit def insertQuery[Columns <: HList, Placeholders <: HList]
+  implicit def insertQuery[Columns <: HList, Values <: HList, Placeholders <: HList]
       (implicit
        names: QueryFragmentBuilder[FT_ColumnNameList, Columns, HNil],
-       placeholders: QueryFragmentBuilder[FT_PlaceholderList, Columns, Placeholders]): QueryBuilder[InsertQuery[Columns], Placeholders, HNil] =
+       values: QueryFragmentBuilder[FT_FieldExprList, Values, Placeholders]): QueryBuilder[InsertQuery[Columns, Values], Placeholders, HNil] =
     QueryBuilder.instance(insert => {
-      val columns = insert.table.fields
-      (names.build(columns).wrap("(", ")") ++
+      (names.build(insert.table.fields).wrap("(", ")") ++
         " VALUES " ++
-        placeholders.build(columns).wrap("(", ")")
+        values.build(insert.values).wrap("(", ")")
       ).prepend(s"INSERT INTO ${insert.table.tableName} ").get(HNil)
     })
 
