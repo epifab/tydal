@@ -148,6 +148,25 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
     new ReadStatement(query, input => toTransaction(toRunnable(input)))
   }
+
+  def last(default: Output): ReadStatement[Input, Output, cats.Id] = {
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
+      new StatementExecutor[Connection, Fields, Output] {
+        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Output]] =
+          readStatement.run(connection, statement).map {
+            case Left(dataError) => Left(dataError)
+            case Right(iterator) =>
+              iterator.foldLeft[Either[DataError, Output]](Right(default)) {
+                case (Left(e), _) => Left(e)
+                case (_, Left(e)) => Left(e)
+                case (Right(_), Right(x)) => Right(toOutput(x))
+              }
+          }
+      }
+    }
+
+    new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))
+  }
 }
 
 

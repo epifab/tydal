@@ -60,6 +60,9 @@ object Jdbc {
       case TypeInt =>
         statement.setInt(index, value.asInstanceOf[Int])
 
+      case TypeLong =>
+        statement.setLong(index, value.asInstanceOf[Long])
+
       case TypeDouble =>
         statement.setDouble(index, value.asInstanceOf[Double])
 

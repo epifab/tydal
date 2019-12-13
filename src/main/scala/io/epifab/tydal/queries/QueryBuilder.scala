@@ -56,7 +56,7 @@ object CompiledQueryFragment {
       CompiledQueryFragment(queryFragment.sql.map(f), queryFragment.placeholders)
 
     def concatenateOptional[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-      CompiledQueryFragment.apply(
+      CompiledQueryFragment(
         Seq(queryFragment.sql, other.sql)
           .flatten
           .reduceOption(_ ++ separator ++ _),
@@ -64,7 +64,7 @@ object CompiledQueryFragment {
       )
 
     def concatenateRequired[Q <: HList, R <: HList](other: CompiledQueryFragment[Q], separator: String)(implicit concat: Concat.Aux[P, Q, R]): CompiledQueryFragment[R] =
-      CompiledQueryFragment.apply(
+      CompiledQueryFragment(
         for {
           s1 <- queryFragment.sql
           s2 <- other.sql

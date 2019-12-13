@@ -8,6 +8,7 @@ abstract class FieldType[+T](val sqlName: String) {
 case object TypeString extends FieldType[String]("varchar")
 
 case object TypeInt extends FieldType[Int]("int")
+case object TypeLong extends FieldType[Long]("bigint")
 case object TypeDouble extends FieldType[Double]("float")
 
 case object TypeDate extends FieldType[String]("date")

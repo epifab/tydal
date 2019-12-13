@@ -24,9 +24,9 @@ object Sum {
 }
 
 object Count {
-  final private class Count[+F <: Field[_]]() extends DbAggregationFunction[F, Int]("count")
+  final private class Count[+F <: Field[_]]() extends DbAggregationFunction[F, Long]("count")
 
-  def apply[F <: Field[_]](field: F)(implicit decoder: FieldDecoder[Int]): Aggregation[F, Int] =
+  def apply[F <: Field[_]](field: F)(implicit decoder: FieldDecoder[Long]): Aggregation[F, Long] =
     Aggregation(field, new Count[F])
 }
 

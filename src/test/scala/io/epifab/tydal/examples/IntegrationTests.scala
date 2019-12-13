@@ -264,8 +264,8 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
     val distances =
       Select
         .take1(_ =>
-          Distance.optional(
-            MakePoint.optional(
+          Distance(
+            MakePoint(
               NamedPlaceholder[Option[Double], "lat1"],
               NamedPlaceholder[Double, "lng1"]
             ).castTo[Geography],

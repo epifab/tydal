@@ -57,6 +57,12 @@ object FieldDecoder {
     override def decode(value: Int): Either[DecoderError, Int] = Right(value)
   }
 
+  implicit val longDecoder: FieldDecoder.Aux[Long, Long] = new FieldDecoder[Long] {
+    override type DbType = Long
+    override def dbType: FieldType[Long] = TypeLong
+    override def decode(value: Long): Either[DecoderError, Long] = Right(value)
+  }
+
   implicit val doubleDecoder: FieldDecoder.Aux[Double, Double] = new FieldDecoder[Double] {
     override type DbType = Double
     override def dbType: FieldType[Double] = TypeDouble

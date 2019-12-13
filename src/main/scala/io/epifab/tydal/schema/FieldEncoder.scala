@@ -49,6 +49,12 @@ object FieldEncoder {
     override def encode(value: Int): Int = value
   }
 
+  implicit val longEncoder: FieldEncoder.Aux[Long, Long] = new FieldEncoder[Long] {
+    override type DbType = Long
+    override def dbType: FieldType[Long] = TypeLong
+    override def encode(value: Long): Long = value
+  }
+
   implicit val doubleEncoder: FieldEncoder.Aux[Double, Double] = new FieldEncoder[Double] {
     override type DbType = Double
     override def dbType: FieldType[Double] = TypeDouble

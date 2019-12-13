@@ -23,6 +23,7 @@ object IsNumeric {
 
 object IsInteger {
   implicit val int: IsInteger[Int] = new IsInteger[Int] {}
+  implicit val long: IsInteger[Long] = new IsInteger[Long] {}
   implicit def optional[T](implicit isInteger: IsInteger[T]): IsInteger[Option[T]] = new IsInteger[Option[T]] {}
 
   implicit def field[F <: Field[_], T](implicit ft: FieldT[F, T], isInteger: IsInteger[T]): IsInteger[F] = new IsInteger[F] {}

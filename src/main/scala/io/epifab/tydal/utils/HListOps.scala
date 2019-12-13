@@ -29,7 +29,7 @@ object Concat {
 
   implicit def concatHCons[H, T <: HList, L <: HList, O <: HList](implicit tailConcat: Concat.Aux[T, L, O]): Concat.Aux[H :: T, L, H :: O] = new Concat[H :: T, L] {
     override type Out = H :: O
-    override def apply(t: H :: T, u: L): Out = t.head :: tailConcat.apply(t.tail, u)
+    override def apply(t: H :: T, u: L): Out = t.head :: tailConcat(t.tail, u)
   }
 
   def apply[A, B, AB](a: A, b: B)

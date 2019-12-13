@@ -42,6 +42,9 @@ object DataExtractor {
           case TypeInt =>
             resultSet.getInt(fieldName)
 
+          case TypeLong =>
+            resultSet.getLong(fieldName)
+
           case TypeDouble =>
             resultSet.getDouble(fieldName)
 
