@@ -3,6 +3,7 @@ package io.epifab.tydal.runtime
 import java.sql.Connection
 
 import cats.Monad
+import cats.effect.Sync
 import cats.implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
@@ -111,7 +112,7 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
   def as[C[_]](implicit factory: Factory[Output, C[Output]]): ReadStatement[Input, Output, C] = {
     val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
       new StatementExecutor[Connection, Fields, C[Output]] {
-        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] =
+        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] =
           readStatement.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
@@ -131,7 +132,7 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
   def asOption: ReadStatement[Input, Output, Option] = {
     val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
       new StatementExecutor[Connection, Fields, Option[Output]] {
-        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Option[Output]]] =
+        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Option[Output]]] =
           readStatement.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>
@@ -152,7 +153,7 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
   def last(default: Output): ReadStatement[Input, Output, cats.Id] = {
     val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
       new StatementExecutor[Connection, Fields, Output] {
-        override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Output]] =
+        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Output]] =
           readStatement.run(connection, statement).map {
             case Left(dataError) => Left(dataError)
             case Right(iterator) =>

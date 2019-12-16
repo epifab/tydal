@@ -1,12 +1,71 @@
 package io.epifab.tydal.schema
 
 import io.epifab.tydal.Tagging
+import io.epifab.tydal.utils.Concat
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Tupler
 import shapeless.tag.@@
 import shapeless.{::, HList, HNil, LabelledGeneric}
 
 import scala.annotation.implicitNotFound
+
+sealed trait GroupByColumns[-Fields, +Columns <: HList] {
+  def apply(fields: Fields): Columns
+}
+
+object GroupByColumns {
+  implicit def column[C <: Column[_]]: GroupByColumns[C, C :: HNil] = new GroupByColumns[C, C :: HNil] {
+    override def apply(fields: C): C :: HNil = fields :: HNil
+  }
+
+  implicit def aggregation: GroupByColumns[Aggregation[_, _], HNil] = new GroupByColumns[Aggregation[_, _], HNil] {
+    override def apply(fields: Aggregation[_, _]): HNil = HNil
+  }
+
+  implicit def cast[F <: Field[_], C <: HList](
+    implicit
+    extractColumns: GroupByColumns[F, C]
+  ): GroupByColumns[Cast[F, _], C] = new GroupByColumns[Cast[F, _], C] {
+    override def apply(fields: Cast[F, _]): C = extractColumns(fields.field)
+  }
+
+  implicit def softCast[F <: Field[_], C <: HList](
+    implicit
+    extractColumns: GroupByColumns[F, C]
+  ): GroupByColumns[SoftCast[F, _], C] = new GroupByColumns[SoftCast[F, _], C] {
+    override def apply(fields: SoftCast[F, _]): C = extractColumns(fields.field)
+  }
+
+  implicit def fieldExpr1[F <: Field[_], C <: HList](
+    implicit
+    extractColumns: GroupByColumns[F, C]
+  ): GroupByColumns[FieldExpr1[F, _], C] = new GroupByColumns[FieldExpr1[F, _], C] {
+    override def apply(fields: FieldExpr1[F, _]): C = extractColumns(fields.field)
+  }
+
+  implicit def fieldExpr2[F1 <: Field[_], F2 <: Field[_], C1 <: HList, C2 <: HList, C <: HList](
+    implicit
+    extractColumns1: GroupByColumns[F1, C1],
+    extractColumns2: GroupByColumns[F2, C2],
+    concat: Concat.Aux[C1, C2, C]
+  ): GroupByColumns[FieldExpr2[F1, F2, _], C] = new GroupByColumns[FieldExpr2[F1, F2, _], C] {
+    override def apply(fields: FieldExpr2[F1, F2, _]): C = concat(extractColumns1(fields.field1), extractColumns2(fields.field2))
+  }
+
+  implicit val hNil: GroupByColumns[HNil, HNil] = new GroupByColumns[HNil, HNil] {
+    override def apply(fields: HNil): HNil = HNil
+  }
+
+  implicit def hCons[FHead, CHead <: HList, FTail <: HList, CTail <: HList, C <: HList](
+    implicit
+    extractHead: GroupByColumns[FHead, CHead],
+    extractTail: GroupByColumns[FTail, CTail],
+    concat: Concat.Aux[CHead, CTail, C]
+  ): GroupByColumns[FHead :: FTail, C] = new GroupByColumns[FHead :: FTail, C] {
+    override def apply(fields: FHead :: FTail): C =
+      concat(extractHead(fields.head), extractTail(fields.tail))
+  }
+}
 
 @implicitNotFound("Could not build a schema for this table.\n" +
   " Possible reasons:\n" +

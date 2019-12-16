@@ -4,14 +4,14 @@ import java.sql.{Connection, PreparedStatement, ResultSet}
 
 import cats.Monad
 import cats.data.EitherT
-import io.epifab.tydal._
+import cats.effect.Sync
 import shapeless.{HList, HNil}
 
 import scala.util.Try
 import scala.util.control.NonFatal
 
 trait StatementExecutor[CONN, Fields <: HList, Output] {
-  def run[F[+_]: Eff: Monad](connection: CONN, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
+  def run[F[+_]: Sync : Monad](connection: CONN, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
 }
 
 trait ReadStatementExecutor[CONN, Fields <: HList, ROW]
@@ -28,10 +28,10 @@ object ReadStatementExecutor {
   ): ReadStatementExecutor[Connection, Fields, Row] =
 
     new ReadStatementExecutor[Connection, Fields, Row] {
-      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Iterator[Either[DecoderError, Row]]]] =
+      override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Iterator[Either[DecoderError, Row]]]] =
         (for {
-          preparedStatement <- EitherT(Eff[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
-          results <- EitherT(Eff[F].delay(runStatement(preparedStatement, statement.fields)))
+          preparedStatement <- EitherT(Sync[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+          results <- EitherT(Sync[F].delay(runStatement(preparedStatement, statement.fields)))
         } yield results).value
 
       private def runStatement(preparedStatement: PreparedStatement, fields: Fields): Either[DataError, Iterator[Either[DecoderError, Row]]] =
@@ -59,10 +59,10 @@ object ReadStatementExecutor {
 object StatementExecutor {
   implicit def jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
     new WriteStatementExecutor[Connection, HNil] {
-      override def run[F[+_]: Eff: Monad](connection: Connection, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
+      override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
         (for {
-          preparedStatement <- EitherT(Eff[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
-          results <- EitherT(Eff[F].delay(runStatement(preparedStatement)))
+          preparedStatement <- EitherT(Sync[F].delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+          results <- EitherT(Sync[F].delay(runStatement(preparedStatement)))
         } yield results).value
 
       private def runStatement(preparedStatement: PreparedStatement): Either[DataError, Int] =

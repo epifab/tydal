@@ -148,7 +148,7 @@ class LiteralOption[T] private(val value: Option[Literal[T]])(implicit val decod
 }
 
 object LiteralOption {
-  private[schema] def apply[T](value: Option[T])(
+  private[tydal] def apply[T](value: Option[T])(
     implicit
     decoder: FieldDecoder[T],
     encoder: FieldEncoder[T]

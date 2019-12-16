@@ -4,7 +4,7 @@ import java.sql.Connection
 
 import io.epifab.tydal.runtime.{ReadStatementExecutor, ReadStatementStep0, StatementBuilder, TagOutput}
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.{Bounded, Concat, TaggedFind}
+import io.epifab.tydal.utils.{Bounded, Concat, HSet, TaggedFind}
 import io.epifab.tydal.{As, TagMap, Tagged, Tagging}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
@@ -92,14 +92,15 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     ): SelectQuery[F :: HNil, GroupBy, Sources, Where, Having, Sort] =
     new SelectQuery(f(this) :: HNil, groupBy, sources, where, having, sortBy, offset, limit)
 
-  def groupBy[P, NewGroup <: HList]
+  def groupBy[P, RawGroup <: HList, Columns <: HList, NewGroup <: HList]
     (f: SelectContext[Fields, Sources] => P)
     (implicit
-     generic: Generic.Aux[P, NewGroup],
-     taggedListOfFields: TagMap[Field[_], NewGroup],
+     generic: Generic.Aux[P, RawGroup],
+     extractColumns: GroupByColumns[RawGroup, Columns],
+     hSet: HSet[Columns, NewGroup],
      queryBuilder: QueryBuilder[SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort], _, Fields]
     ): SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort] =
-    new SelectQuery(fields, generic.to(f(this)), sources, where, having, sortBy, offset, limit)
+    new SelectQuery(fields, hSet.toSet(extractColumns(generic.to(f(this)))), sources, where, having, sortBy, offset, limit)
 
   def groupBy1[F <: Field[_] with Tagging[_]]
     (f: SelectContext[Fields, Sources] => F)
