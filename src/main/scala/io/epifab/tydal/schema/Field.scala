@@ -262,8 +262,10 @@ object Field {
       Sources <: HList,
       Where <: Filter,
       Having <: Filter,
-      Sort <: HList
-    ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort] =
+      Sort <: HList,
+      Offset,
+      Limit
+    ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort, Offset, Limit] =
       InSubquery(field1, subQuery)
 
     def ===[PlaceholderName <: String with Singleton, T]

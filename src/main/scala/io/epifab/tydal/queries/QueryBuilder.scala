@@ -98,9 +98,10 @@ object QueryBuilder {
     }
 
   implicit def selectQuery[
-    Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList,
+    Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList, Offset, Limit,
     P1 <: HList, P2 <: HList, P3 <: HList, P4 <: HList, P5 <: HList,
-    P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList, P10 <: HList, P11 <: HList
+    P6 <: HList, P7 <: HList, P8 <: HList, P9 <: HList, P10 <: HList,
+    P11 <: HList, P12 <: HList, P13 <: HList, P14 <: HList, P15 <: HList
   ]
     (implicit
      fields: QueryFragmentBuilder[FT_FieldExprAndAliasList, Fields, P1],
@@ -114,17 +115,20 @@ object QueryBuilder {
      concat4: Concat.Aux[P7, P8, P9],
      sortBy: QueryFragmentBuilder[FT_SortBy, Sort, P10],
      concat5: Concat.Aux[P9, P10, P11],
-     trivialConcat: Concat.Aux[P11, HNil, P11]
-    ): QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort], P11, Fields] =
+     offset: QueryFragmentBuilder[FT_OffsetPlaceholder, Offset, P12],
+     concat6: Concat.Aux[P11, P12, P13],
+     limit: QueryFragmentBuilder[FT_LimitPlaceholder, Limit, P14],
+     concat7: Concat.Aux[P13, P14, P15]
+    ): QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit], P15, Fields] =
     QueryBuilder.instance(select =>
       (fields.build(select.fields).orElse(Some("1")).prepend("SELECT ") `+ +`
         from.build(select.sources).prepend("FROM ") `+ +`
         where.build(select.where).prepend("WHERE ") `+ +`
         groupBy.build(select.groupBy).prepend("GROUP BY ") `+ +`
-        having.build(select.having).prepend("Having ") `+ +`
+        having.build(select.having).prepend("HAVING ") `+ +`
         sortBy.build(select.sortBy).prepend("ORDER BY ") `+ +`
-        CompiledQueryFragment[HNil](select.offset.map(offset => s"OFFSET $offset"), HNil) `+ +`
-        CompiledQueryFragment[HNil](select.limit.map(limit => s"LIMIT $limit"), HNil)
+        offset.build(select.offset).prepend("OFFSET ") `+ +`
+        limit.build(select.limit).prepend("LIMIT ")
       ).get(select.fields)
     )
 
@@ -173,6 +177,8 @@ object FragmentType {
   type FT_Where = "FT_Where"
   type FT_AliasList = "AliasList"
   type FT_SortBy = "SortByList"
+  type FT_LimitPlaceholder = "FT_LimitPlaceholder"
+  type FT_OffsetPlaceholder = "FT_OffsetPlaceholder"
 }
 
 object QueryFragmentBuilder {
@@ -216,7 +222,7 @@ object QueryFragmentBuilder {
   implicit val fromTable: QueryFragmentBuilder[FT_From, Table[_] with Tagging[_], HNil] =
     QueryFragmentBuilder.instance(table => CompiledQueryFragment(table.tableName + " AS " + table.tagValue))
 
-  implicit def fromSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _], P <: HList]
+  implicit def fromSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _, _, _], P <: HList]
       (implicit query: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_From, SelectSubQuery[SubQueryFields, S] with Tagging[_], P] =
     instance(subQuery =>
       CompiledQueryFragment(query.build(subQuery.select))
@@ -399,13 +405,29 @@ object QueryFragmentBuilder {
         case _: IsSuperset[_, _] => e1.concatenateRequired(e2, " @> ")
         case _: Overlaps[_, _] => e1.concatenateRequired(e2, " && ")
         case _: IsIncluded[_, _] => e1.concatenateRequired(e2.wrap("(", ")"), " = ANY")
-        case _: InSubquery[_, _, _, _, _, _, _] => e1.concatenateRequired(e2.wrap("(", ")"), " IN ")
+        case _: InSubquery[_, _, _, _, _, _, _, _, _] => e1.concatenateRequired(e2.wrap("(", ")"), " IN ")
       }
     }
 
   implicit def whereField[P <: HList, F <: Field[_]](implicit field: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_Where, F, P] =
     instance(field.build)
 
-  implicit def whereSubQuery[P <: HList, S <: SelectQuery[_, _, _, _, _, _]](implicit subQuery: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_Where, S, P] =
+  implicit def whereSubQuery[P <: HList, S <: SelectQuery[_, _, _, _, _, _, _, _]](implicit subQuery: QueryBuilder[S, P, _]): QueryFragmentBuilder[FT_Where, S, P] =
     instance(s => CompiledQueryFragment(subQuery.build(s)))
+
+  // ------------------------------
+  // Offset and limit
+  // ------------------------------
+
+  implicit def offset[P <: NamedPlaceholder[_]]: QueryFragmentBuilder[FT_OffsetPlaceholder, P, P :: HNil] =
+    instance((f: P) => CompiledQueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
+
+  implicit val noOffset: QueryFragmentBuilder[FT_OffsetPlaceholder, HNil, HNil] =
+    instance(_ => CompiledQueryFragment.empty)
+
+  implicit def limit[P <: NamedPlaceholder[_]]: QueryFragmentBuilder[FT_LimitPlaceholder, P, P :: HNil] =
+    instance((f: P) => CompiledQueryFragment(s"?::${f.encoder.dbType.sqlName}", f))
+
+  implicit val noLimit: QueryFragmentBuilder[FT_LimitPlaceholder, HNil, HNil] =
+    instance(_ => CompiledQueryFragment.empty)
 }

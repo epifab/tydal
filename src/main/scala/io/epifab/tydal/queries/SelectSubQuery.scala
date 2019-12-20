@@ -5,7 +5,7 @@ import io.epifab.tydal.schema.{Column, Field}
 import io.epifab.tydal.utils.TaggedFind
 import shapeless.{::, HList, HNil}
 
-class SelectSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _]]
+class SelectSubQuery[SubQueryFields <: HList, S <: SelectQuery[_, _, _, _, _, _, _, _]]
   (val select: S, override val fields: SubQueryFields)
   extends Selectable[SubQueryFields] { self: Tagging[_] =>
   override def apply[T <: String with Singleton, X](tag: T)(implicit find: TaggedFind[T, X, SubQueryFields]): X with Tagging[T] =

@@ -13,10 +13,12 @@ class JoinBuilder[
     Where <: Filter,
     Having <: Filter,
     Sort <: HList,
+    Offset,
+    Limit,
     RightSource <: Selectable[_] with Tagging[_],
     RightFields <: HList,
     RightAlias <: String with Singleton
-  ](left: SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort],
+  ](left: SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit],
     right: RightSource,
     rightFields: RightFields,
     joinType: JoinType) {
@@ -26,7 +28,7 @@ class JoinBuilder[
   (implicit
    alias: ValueOf[RightAlias],
    appender: Appender.Aux[Sources, Join[RightSource, RightFields, JoinClause] As RightAlias, SourceResults],
-   queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort], _, Fields]): SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort] =
+   queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort, Offset, Limit], _, Fields]): SelectQuery[Fields, GroupBy, SourceResults, Where, Having, Sort, Offset, Limit] =
     new SelectQuery(
       left.fields,
       left.groupBy,

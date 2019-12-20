@@ -16,8 +16,8 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       "SELECT" +
         " e.student_id AS sid" +
         " FROM exams AS e" +
-        " OFFSET 5" +
-        " LIMIT 10"
+        " OFFSET ?::bigint" +
+        " LIMIT ?::int"
     )
   }
 

@@ -13,7 +13,7 @@ object SelectQueries {
     Select
       .from(Exams as "e")
       .take1(_("e", "student_id") as "sid")
-      .inRange(5, 10)
+      .inRange["offset", "limit"]
 
   val maxScoreSubQuery =
     Select
