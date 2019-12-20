@@ -1,5 +1,7 @@
 import sbt.Global
 
+addCompilerPlugin("io.leonard" %% "scalac-profiling" % "0.0.3")
+
 /*****************************************************************
  Global Settings & Configs
   *****************************************************************/
@@ -17,6 +19,12 @@ Global / scalacOptions ++= Seq(
   "-language:existentials",
   "-language:higherKinds",
   "-Ystatistics:typer",
+  "-P:scalac-profiling:no-profiledb",
+  "-P:scalac-profiling:show-profiles",
+  "-P:scalac-profiling:sourceroot:/home/epifab/Repos/tydal",
+//  "-Xshow-phases",
+//  "-Ydebug"
+  // "-Xlint:_,-missing-interpolator",
 )
 
 libraryDependencies ++= Seq(
