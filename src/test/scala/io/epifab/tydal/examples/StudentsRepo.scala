@@ -6,7 +6,7 @@ import io.epifab.tydal._
 import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
 import io.epifab.tydal.examples.Schema._
 import io.epifab.tydal.queries._
-import io.epifab.tydal.runtime.Transaction
+import io.epifab.tydal.runtime.{ReadStatement, Transaction}
 import io.epifab.tydal.schema._
 
 object StudentsRepo {
@@ -26,15 +26,18 @@ object StudentsRepo {
       .sortBy($ => Ascending($("sid")) -> Descending($("score")))
       .compile
 
-  val studentsWithMinScore = 
+  val studentsWithMinScore: ReadStatement[Tuple1[Literal[Int] with Tagging["min_score"]], Student, Set] =
     Select
       .from(Students as "s")
       .take(_ ("s").*)
       .where(_("s", "id") in Select
         .from(Exams as "e")
         .take1(_("e", "student_id"))
-        .where(_("e", "score") >= "min_score"))
+        .where(_("e", "score") >= "min_score")
+      )
       .compile
+      .to[Student]
+      .as[Set]
 
   def findById(id: Int): Transaction[Option[Student]] =
     Select
@@ -48,8 +51,6 @@ object StudentsRepo {
 
   def findStudentsWithAtLeast1ExamScore(score: Int): Transaction[Set[Student]] =
     studentsWithMinScore
-      .to[Student]
-      .as[Set]
       .run(Tuple1("min_score" ~~> score))
 
   val findStudentsWithAtLeast2Exams: Transaction[Set[(Int, Option[Double])]] =
@@ -92,7 +93,7 @@ object StudentsRepo {
             e2("score") as "score",
             Max(e2("exam_timestamp")) as "etime"
           ))
-          .groupBy($ => ($("e2", "student_id"), $("e2", "score")))
+          .focus("e2").groupBy(e2 => (e2("student_id"), e2("score")))
           .as("me2")
       )
       .on((me2, ctx) => me2("sid") === ctx("me1", "sid") and (me2("score") === ctx("me1", "score")))
@@ -127,7 +128,7 @@ object StudentsRepo {
   ): Transaction[Seq[Student]] = {
     Select
       .from(Students as "s")
-      .focus("s").take(_.*)
+      .take(_("s").*)
       .focus("s").where { s =>
         val minAgeFilter = minAge.map(years => s("date_of_birth") <= Literal(LocalDate.now.minusYears(years))).toFilter
         val maxAgeFilter = maxAge.map(years => s("date_of_birth") >= Literal(LocalDate.now.minusYears(years))).toFilter

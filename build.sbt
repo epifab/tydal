@@ -16,7 +16,7 @@ Global / scalacOptions ++= Seq(
   "-Xfatal-warnings",
   "-language:existentials",
   "-language:higherKinds",
-  // "-Xlint:_,-missing-interpolator",
+  "-Ystatistics:typer",
 )
 
 libraryDependencies ++= Seq(
