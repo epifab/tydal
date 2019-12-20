@@ -1,12 +1,12 @@
 package io.epifab.tydal.utils
 
 import io.epifab.tydal._
-import shapeless.{::, Generic, HList}
+import shapeless.{::, HList}
 
 import scala.annotation.implicitNotFound
 
 @implicitNotFound("Field or relation ${A} could not be found")
-trait TaggedFind[A <: String with Singleton, +X, Haystack] {
+trait TaggedFind[A <: String with Singleton, +X, -Haystack] {
   def apply(u: Haystack): X As A
 }
 
@@ -31,11 +31,4 @@ object TaggedFind {
     find: TaggedFind[T, X, Tail]
   ): TaggedFind[T, X, H :: Tail] =
     (u: H :: Tail) => find(u.tail)
-
-  implicit def caseClassFind[T <: String with Singleton, X, CC, Repr](
-    implicit
-    generic: Generic.Aux[CC, Repr],
-    find: TaggedFind[T, X, Repr]
-  ): TaggedFind[T, X, CC] =
-    (cc: CC) => find(generic.to(cc))
 }

@@ -20,10 +20,10 @@ object SelectQueries {
       .from(Exams as "e")
       .groupBy1(_("e", "student_id"))
       .where(_("e", "exam_timestamp") < "min_date")
-      .take($ => (
-        $("e", "student_id")      as "student_id",
-        Max($("e", "score"))    as "max_score",
-        Min($("e", "course_id")) as "course_id"
+      .focus("e").take(e => (
+        e("student_id")     as "student_id",
+        Max(e("score"))     as "max_score",
+        Min(e("course_id")) as "course_id"
       ))
 
   val studentsQuery =
@@ -31,12 +31,12 @@ object SelectQueries {
       .from(Students as "s")
       .innerJoin(maxScoreSubQuery as "ms").on(_("student_id") === _("s", "id"))
       .innerJoin(Courses as "cc").on(_("id") === _("ms", "course_id"))
-      .take($ => (
-        $("s", "id")              as "sid",
-        $("s", "name")            as "sname",
-        $("ms", "max_score")      as "score",
-        Nullable($("cc", "name")) as "cname"
-      ))
+      .focus("s", "ms", "cc").take { case (s, ms, cc) => (
+        s("id")              as "sid",
+        s("name")            as "sname",
+        ms("max_score")      as "score",
+        Nullable(cc("name")) as "cname"
+      )}
       .where(_("s", "id") === "student_id")
 
   val examsWithCourseQuery =

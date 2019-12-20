@@ -15,13 +15,13 @@ object StudentsRepo {
       .from(Students as "s")
       .innerJoin(Exams as "e").on(_("student_id") === _("s", "id"))
       .innerJoin(Courses as "c").on(_("id") === _("e", "course_id"))
-      .take($ => (
-        $("s", "id")             as "sid",
-        $("s", "name")           as "sname",
-        $("e", "score")          as "score",
-        $("e", "exam_timestamp") as "etime",
-        $("c", "name")           as "cname"
-      ))
+      .focus("s", "e", "c").take { case (s, e, c) => (
+        s("id")             as "sid",
+        s("name")           as "sname",
+        e("score")          as "score",
+        e("exam_timestamp") as "etime",
+        c("name")           as "cname"
+      )}
       .where(_("s", "id") in "sids")
       .sortBy($ => Ascending($("sid")) -> Descending($("score")))
       .compile
@@ -30,7 +30,7 @@ object StudentsRepo {
     Select
       .from(Students as "s")
       .take(_ ("s").*)
-      .where($ => $("s", "id") in Select
+      .where(_("s", "id") in Select
         .from(Exams as "e")
         .take1(_("e", "student_id"))
         .where(_("e", "score") >= "min_score"))
@@ -46,21 +46,20 @@ object StudentsRepo {
       .asOption
       .run(Tuple1("student_id" ~~> id))
 
-  def findStudentsWithAtLeast1ExamScore(score: Int): Transaction[Set[Student]] = {
+  def findStudentsWithAtLeast1ExamScore(score: Int): Transaction[Set[Student]] =
     studentsWithMinScore
       .to[Student]
       .as[Set]
       .run(Tuple1("min_score" ~~> score))
-  }
 
   val findStudentsWithAtLeast2Exams: Transaction[Set[(Int, Option[Double])]] =
     Select
       .from(Students as "s")
       .innerJoin(Exams as "e").on(_("student_id") === _("s", "id"))
-      .take(ctx => (
-        ctx("s", "id") as "sid",
-        Avg(ctx("e", "score")) as "score_avg"
-      ))
+      .focus("s", "e").take { case (s, e) => (
+        s("id") as "sid",
+        Avg(e("score")) as "score_avg"
+      )}
       .groupBy1(_("s", "id"))
       .having(ctx => Count(ctx("e", "score")) >= "min_num_exams")
       .compile
@@ -75,9 +74,9 @@ object StudentsRepo {
         // max score per student
         Select
           .from(Exams as "e1")
-          .take($ => (
-            $("e1", "student_id") as "sid",
-            Max($("e1", "score")) as "score"
+          .focus("e1").take(e1 => (
+            e1("student_id") as "sid",
+            Max(e1("score")) as "score"
           ))
           .where(_("e1", "exam_timestamp") > "exam_min_date")
           .groupBy1(_("e1", "student_id"))
@@ -88,10 +87,10 @@ object StudentsRepo {
         // select only the latest exam
         Select
           .from(Exams as "e2")
-          .take($ => (
-            $("e2", "student_id") as "sid",
-            $("e2", "score") as "score",
-            Max($("e2", "exam_timestamp")) as "etime"
+          .focus("e2").take(e2 => (
+            e2("student_id") as "sid",
+            e2("score") as "score",
+            Max(e2("exam_timestamp")) as "etime"
           ))
           .groupBy($ => ($("e2", "student_id"), $("e2", "score")))
           .as("me2")
@@ -101,14 +100,14 @@ object StudentsRepo {
       .on((e, ctx) => e("exam_timestamp") === ctx("me2", "etime") and (e("student_id") === ctx("me2", "sid")))
       .innerJoin(Courses as "c")
       .on(_("id") === _("e", "course_id"))
-      .take($ => (
-        $("s", "id")             as "sid",
-        $("s", "name")           as "sname",
-        $("e", "score")          as "score",
-        $("e", "exam_timestamp") as "etime",
-        $("c", "name")           as "cname"
-      ))
-      .where(ctx => ctx("s", "date_of_birth") > "student_min_dob" and (ctx("s", "date_of_birth") < "student_max_dob"))
+      .focus("s", "e", "c").take { case (s, e, c) => (
+        s("id")             as "sid",
+        s("name")           as "sname",
+        e("score")          as "score",
+        e("exam_timestamp") as "etime",
+        c("name")           as "cname"
+      )}
+      .focus("s").where(s => s("date_of_birth") > "student_min_dob" and (s("date_of_birth") < "student_max_dob"))
       .sortBy($ => Descending($("score")) -> Ascending($("sname")))
       .compile
       .to[StudentExam]
@@ -128,13 +127,13 @@ object StudentsRepo {
   ): Transaction[Seq[Student]] = {
     Select
       .from(Students as "s")
-      .take(_("s").*)
-      .where { $ =>
-        val minAgeFilter = minAge.map(years => $("s", "date_of_birth") <= Literal(LocalDate.now.minusYears(years))).toFilter
-        val maxAgeFilter = maxAge.map(years => $("s", "date_of_birth") >= Literal(LocalDate.now.minusYears(years))).toFilter
-        val nameFilter = name.map($("s", "name") like Literal(_)).toFilter
-        val emailFilter = email.map($("s", "email") like Literal(_)).toFilter
-        val interestsFilter = interests.map($("s", "interests") overlaps Literal(_)).toFilter
+      .focus("s").take(_.*)
+      .focus("s").where { s =>
+        val minAgeFilter = minAge.map(years => s("date_of_birth") <= Literal(LocalDate.now.minusYears(years))).toFilter
+        val maxAgeFilter = maxAge.map(years => s("date_of_birth") >= Literal(LocalDate.now.minusYears(years))).toFilter
+        val nameFilter = name.map(s("name") like Literal(_)).toFilter
+        val emailFilter = email.map(s("email") like Literal(_)).toFilter
+        val interestsFilter = interests.map(s("interests") overlaps Literal(_)).toFilter
 
         minAgeFilter and maxAgeFilter and nameFilter and emailFilter and interestsFilter
       }
@@ -169,7 +168,7 @@ object StudentsRepo {
 
   def updateNameAndEmail(id: Int, name: String, email: Option[String]): Transaction[Int] =
     Update(Students)
-      .fields(s => (s("name"), s("email")))
+      .fields(s => s("name") -> s("email"))
       .where(_("id") === "id")
       .compile
       .run {

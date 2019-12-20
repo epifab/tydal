@@ -49,7 +49,7 @@ object Program extends App {
   val findStudents =
     Select
       .from(Students as "s")
-      .take(_("s").*)
+      .focus("s").take(_.*)
       .where(ctx => ctx("s", "email") like "email" and (ctx("date_of_birth") < "max_dob"))
       .compile
       .to[Student]
