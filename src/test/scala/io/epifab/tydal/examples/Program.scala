@@ -6,7 +6,7 @@ import java.util.UUID
 import io.epifab.tydal._
 import io.epifab.tydal.queries.{Insert, Select}
 import io.epifab.tydal.runtime.{PostgresConfig, PostgresConnection}
-import io.epifab.tydal.schema.{Column, FieldDecoder, FieldEncoder, TableBuilder}
+import io.epifab.tydal.schema._
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -38,7 +38,7 @@ object Program extends App {
     Insert
       .into(Students)
       .compile
-      .run(Student(
+      .runP(Student(
         UUID.randomUUID,
         "Jack",
         Some("jack@tydal.io"),

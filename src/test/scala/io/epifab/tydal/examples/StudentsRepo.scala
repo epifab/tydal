@@ -8,6 +8,7 @@ import io.epifab.tydal.examples.Schema._
 import io.epifab.tydal.queries._
 import io.epifab.tydal.runtime.{ReadStatement, Transaction}
 import io.epifab.tydal.schema._
+import shapeless.{::, HNil}
 
 object StudentsRepo {
   private val studentExamsQuery =
@@ -26,7 +27,7 @@ object StudentsRepo {
       .sortBy($ => Ascending($("sid")) -> Descending($("score")))
       .compile
 
-  val studentsWithMinScore: ReadStatement[Tuple1[Literal[Int] with Tagging["min_score"]], Student, Set] =
+  val studentsWithMinScore: ReadStatement[("min_score" ~~> Int) :: HNil, Student, Set] =
     Select
       .from(Students as "s")
       .take(_ ("s").*)
@@ -66,7 +67,7 @@ object StudentsRepo {
       .compile
       .toTuple
       .as[Set]
-      .run(Tuple1("min_num_exams" ~~> 2))
+      .run("min_num_exams" ~~> 2L :: HNil)
 
   val findStudentsWithBestExam: Transaction[Seq[StudentExam]] =
     Select

@@ -9,12 +9,11 @@ final class DeleteQuery[Fields <: HList, E <: Filter](val table: Table[Fields], 
   def where[E2 <: Filter](f: Selectable[Fields] => E2): DeleteQuery[Fields, E2] =
     new DeleteQuery(table, f(table))
 
-  def compile[Placeholders <: HList, InputRepr <: HList, Input]
+  def compile[Placeholders <: HList, InputRepr <: HList]
       (implicit
        queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
-       statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, HNil],
-       tupler: Tupler.Aux[InputRepr, Input]
-      ): WriteStatement[Input, HNil] =
+       statementBuilder: StatementBuilder[Placeholders, InputRepr, HNil],
+      ): WriteStatement[InputRepr, HNil] =
     statementBuilder.build(queryBuilder.build(this)).update
 }
 

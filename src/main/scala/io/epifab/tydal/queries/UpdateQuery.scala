@@ -30,12 +30,11 @@ final class UpdateQuery[Fields <: HList, Values <: HList, Where <: Filter](
   def where[E2 <: Filter](f: Selectable[Fields] => E2): UpdateQuery[Fields, Values, E2] =
     new UpdateQuery(table, values, f(table))
 
-  def compile[Placeholders <: HList, InputRepr <: HList, Input](
+  def compile[Placeholders <: HList, InputRepr <: HList](
     implicit
     queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
-    statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, HNil],
-    tupler: Tupler.Aux[InputRepr, Input]
-  ): WriteStatement[Input, HNil] =
+    statementBuilder: StatementBuilder[Placeholders, InputRepr, HNil]
+  ): WriteStatement[InputRepr, HNil] =
     statementBuilder.build(queryBuilder.build(this)).update
 }
 

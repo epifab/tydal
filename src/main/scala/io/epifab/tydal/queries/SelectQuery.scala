@@ -137,14 +137,13 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
       override def tagValue: String = tag
     }
 
-  def compile[Placeholders <: HList, InputRepr <: HList, Input, OutputRepr <: HList, TaggedOutput <: HList](
+  def compile[Placeholders <: HList, InputRepr <: HList, OutputRepr <: HList, TaggedOutput <: HList](
     implicit
     queryBuilder: QueryBuilder[this.type, Placeholders, Fields],
-    statementBuilder: StatementBuilder[Placeholders, InputRepr, Input, Fields],
-    tupler: Tupler.Aux[InputRepr, Input],
+    statementBuilder: StatementBuilder[Placeholders, InputRepr, Fields],
     readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
     taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
-  ): ReadStatementStep0[Input, Fields, OutputRepr, TaggedOutput] =
+  ): ReadStatementStep0[InputRepr, Fields, OutputRepr, TaggedOutput] =
     statementBuilder.build(queryBuilder.build(this)).select
 
   def from[S <: Selectable[_] with Tagging[_]](source: S)(

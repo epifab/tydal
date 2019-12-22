@@ -61,7 +61,7 @@ object Program extends App {
     Insert
       .into(Students)
       .compile
-      .run(Student(
+      .runP(Student(
         UUID.randomUUID,
         "Jack",
         Some("jack@tydal.io"),

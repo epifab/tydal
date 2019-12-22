@@ -171,7 +171,7 @@ object PlaceholderValues {
   ): PlaceholderValues[FieldType[Symbol @@ A, T], Literal[T] with Tagging[A]] =
     (v: FieldType[Symbol @@ A, T]) => Literal(v.asInstanceOf[T]) as alias.value
 
-  implicit def hNil: PlaceholderValues[HNil, HNil] =
+  implicit val hNil: PlaceholderValues[HNil, HNil] =
     (_: HNil) => HNil
 
   implicit def hCons[Head, HeadValuesRepr, Tail <: HList, TailValuesRepr <: HList](
