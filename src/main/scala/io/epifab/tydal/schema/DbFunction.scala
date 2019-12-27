@@ -6,6 +6,13 @@ abstract class DbFunction1[+F, +T](name: String) extends DbFunction[T](name)
 abstract class DbFunction2[+F1, +F2, +T](name: String) extends DbFunction[T](name)
 abstract class DbAggregationFunction[+F, +T](name: String) extends DbFunction[T](name)
 
+object Distinct {
+  class Distinct1[+F <: Field[_], T] extends DbFunction1[F, T]("distinct")
+
+  def apply[F <: Field[_], T](field: F)(implicit fieldT: FieldT[F, T]): FieldExpr1[F, T] =
+    FieldExpr1(field, new Distinct1[F, T])(fieldT.get(field).decoder)
+}
+
 object Avg {
   final private class Avg[+F <: Field[_]] extends DbAggregationFunction[F, Option[Double]]("avg")
 

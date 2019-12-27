@@ -188,14 +188,13 @@ object StatementBuilder {
   ): StatementBuilder[(NamedPlaceholder[PType] As PTag) :: Tail, (PTag ~~> PType) :: TailInput, Output] =
     (query: CompiledQuery[(NamedPlaceholder[PType] As PTag) :: Tail, Output]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
-          query.sql,
-          tail
-            .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
-            .toRunnable(values.tail)
-            .input prepended values.head,
-          query.fields
-        )
-      )
+        query.sql,
+        tail
+          .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
+          .toRunnable(values.tail)
+          .input prepended values.head,
+        query.fields
+      ))
 
   implicit def literal[PType, Tail <: HList, TailInput <: HList, Output <: HList](
     implicit

@@ -64,7 +64,7 @@ object Transaction {
 
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
 
-  def sequence[Output](transactions: Seq[Transaction[Output]]): Transaction[Seq[Output]] = {
+  def sequence[Output](transactions: Seq[Transaction[Output]]): Transaction[Seq[Output]] =
     new Transaction[Seq[Output]] {
       override protected def run[F[+ _] : Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
         def recursive(ts: Seq[Transaction[Output]]): F[Either[DataError, Seq[Output]]] = ts match {
@@ -77,7 +77,6 @@ object Transaction {
         recursive(transactions)
       }
     }
-  }
 
   def failed(error: DataError): Transaction[Nothing] = IOTransaction(IO.pure(Left(error)))
 
