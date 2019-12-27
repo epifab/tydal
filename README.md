@@ -187,8 +187,12 @@ Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
 
 ## Why Tydal
 
-The whole point of this library is to bring the compiler at your persistence layer service.  
-The objective is to make it as difficult as possible to build a syntactically invalid query.
+For many real life applications, there are only a discrete number of SQL queries that can be run. 
+Typically those queries are static and can be hardcoded as strings,
+but in most cases you need the flexibility of building and composing those queries together.
+  
+The Tydal mission is to bring the compiler into the game, to ensure that your queries will be
+syntactically valid. 
 
 Typos:
 
@@ -200,10 +204,10 @@ Select.from(Students as "s").take(_("s", "asd"))
 Incompatible SQL types:
 
 ```scala
-Select.from(Students as "s").where(_("s", "date_of_birth") === PlaceholderValue("1999"))
+Select.from(Students as "s").where(_("s", "date_of_birth") === Literal("1999"))
 // Column[LocalDate] and PlaceholderValue[String] are not comparable
 
-Select.from(Students as "s").where(_("s", "date_of_birth") in PlaceholderValue(Seq("1999", "1998")))
+Select.from(Students as "s").where(_("s", "date_of_birth") in Literal(Seq("1999", "1998")))
 // Column[LocalDate] cannot be included in PlaceholderValue[Seq[String]]
 ```
 
