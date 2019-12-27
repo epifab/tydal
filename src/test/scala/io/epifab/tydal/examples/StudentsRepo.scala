@@ -67,7 +67,7 @@ object StudentsRepo {
       .compile
       .toTuple
       .as[Set]
-      .run("min_num_exams" ~~> 2L :: HNil)
+      .run(Tuple1("min_num_exams" ~~> 2L))
 
   val findStudentsWithBestExam: Transaction[Seq[StudentExam]] =
     Select

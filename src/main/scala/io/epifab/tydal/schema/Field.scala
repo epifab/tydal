@@ -268,112 +268,113 @@ object Field {
     ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort, Offset, Limit] =
       InSubquery(field1, subQuery)
 
-    def ===[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): Equals[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def ===[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): Equals[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       Equals(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def like[PlaceholderName <: String with Singleton]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     isText: IsText[F1],
-     fieldEncoder: FieldEncoder[String],
-     fieldDecoder: FieldDecoder[String]): Like[F1, NamedPlaceholder[String] with Tagging[PlaceholderName]] =
+    def like[PlaceholderName <: String with Singleton](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      isText: IsText[F1],
+      fieldEncoder: FieldEncoder[String],
+      fieldDecoder: FieldDecoder[String]
+    ): Like[F1, NamedPlaceholder[String] with Tagging[PlaceholderName]] =
       Like(field1, NamedPlaceholder[String, PlaceholderName])
 
-    def !==[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): NotEquals[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def !==[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): NotEquals[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       NotEquals(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def <[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): LessThan[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def <[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): LessThan[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       LessThan(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def >[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): GreaterThan[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def >[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): GreaterThan[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       GreaterThan(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def <=[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): LessThanOrEqual[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def <=[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): LessThanOrEqual[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       LessThanOrEqual(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def >=[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): GreaterThanOrEqual[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] = GreaterThanOrEqual(field1, NamedPlaceholder[T, PlaceholderName])
+    def >=[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      comparable: AreComparable[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): GreaterThanOrEqual[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+      GreaterThanOrEqual(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def subsetOf[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): IsSubset[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def subsetOf[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): IsSubset[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       IsSubset(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def supersetOf[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): IsSuperset[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def supersetOf[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): IsSuperset[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       IsSuperset(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def overlaps[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[T],
-     fieldDecoder: FieldDecoder[T],
-     areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]): Overlaps[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
+    def overlaps[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[T],
+      fieldDecoder: FieldDecoder[T],
+      areComparableSeq: AreComparableSeq[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]]
+    ): Overlaps[F1, NamedPlaceholder[T] with Tagging[PlaceholderName]] =
       Overlaps(field1, NamedPlaceholder[T, PlaceholderName])
 
-    def in[PlaceholderName <: String with Singleton, T]
-    (placeholderName: PlaceholderName)
-    (implicit
-     valueOf: ValueOf[PlaceholderName],
-     fieldT: FieldT[F1, T],
-     fieldEncoder: FieldEncoder[Seq[T]],
-     fieldDecoder: FieldDecoder[Seq[T]],
-     canBeIncluded: CanBeIncluded[F1, NamedPlaceholder[Seq[T]] with Tagging[PlaceholderName]]): IsIncluded[F1, NamedPlaceholder[Seq[T]] with Tagging[PlaceholderName]] =
+    def in[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      fieldT: FieldT[F1, T],
+      fieldEncoder: FieldEncoder[Seq[T]],
+      fieldDecoder: FieldDecoder[Seq[T]],
+      canBeIncluded: CanBeIncluded[F1, NamedPlaceholder[Seq[T]] with Tagging[PlaceholderName]]
+    ): IsIncluded[F1, NamedPlaceholder[Seq[T]] with Tagging[PlaceholderName]] =
       IsIncluded(field1, NamedPlaceholder[Seq[T], PlaceholderName])
   }
 }
