@@ -166,14 +166,14 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
 
 class ReadStatement[InputRepr, Output, C[_]](val query: String, toTransaction: InputRepr => Transaction[C[Output]]) {
-  def run(input: InputRepr): Transaction[C[Output]] = toTransaction(input)
-  def run[P](input: P)(implicit generic: Generic.Aux[P, InputRepr]): Transaction[C[Output]] = toTransaction(generic.to(input))
+  def run[P](input: P)(implicit generic: Generic.Aux[P, InputRepr]): Transaction[C[Output]] =
+    toTransaction(generic.to(input))
 }
 
 
 case class RunnableStatement[Fields <: HList](sql: String, input: Seq[Literal[_]], fields: Fields)
 
-trait StatementBuilder[Placeholders <: HList, InputRepr <: HList, OutputRepr <: HList] {
+trait StatementBuilder[-Placeholders <: HList, InputRepr <: HList, OutputRepr <: HList] {
   def build(query: CompiledQuery[Placeholders, OutputRepr]): GenericStatement[InputRepr, OutputRepr]
 }
 
@@ -182,13 +182,11 @@ object StatementBuilder {
     (query: CompiledQuery[HNil, Output]) =>
       new GenericStatement(query.sql, _ => RunnableStatement(query.sql, Seq.empty, query.fields))
 
-  implicit def namedPlaceholder[P <: NamedPlaceholder[_] with Tagging[_], PType, PTag <: String with Singleton, Tail <: HList, TailInput <: HList, Output <: HList]
-      (implicit
-       fieldT: FieldT[P, PType],
-       tagged: Tagged[P, PTag],
-       tail: StatementBuilder[Tail, TailInput, Output]
-      ): StatementBuilder[P :: Tail, (PTag ~~> PType) :: TailInput, Output] =
-    (query: CompiledQuery[P :: Tail, Output]) =>
+  implicit def namedPlaceholder[PType, PTag <: String with Singleton, Tail <: HList, TailInput <: HList, Output <: HList](
+    implicit
+    tail: StatementBuilder[Tail, TailInput, Output]
+  ): StatementBuilder[(NamedPlaceholder[PType] As PTag) :: Tail, (PTag ~~> PType) :: TailInput, Output] =
+    (query: CompiledQuery[(NamedPlaceholder[PType] As PTag) :: Tail, Output]) =>
       new GenericStatement(query.sql, values => RunnableStatement(
           query.sql,
           tail
@@ -199,12 +197,11 @@ object StatementBuilder {
         )
       )
 
-  implicit def literal[P <: Literal[_], PType, Tail <: HList, TailInput <: HList, Output <: HList]
-      (implicit
-       fieldT: FieldT[P, PType],
-       tail: StatementBuilder[Tail, TailInput, Output]
-      ): StatementBuilder[P :: Tail, TailInput, Output] =
-    (query: CompiledQuery[P :: Tail, Output]) =>
+  implicit def literal[PType, Tail <: HList, TailInput <: HList, Output <: HList](
+    implicit
+    tail: StatementBuilder[Tail, TailInput, Output]
+  ): StatementBuilder[Literal[PType] :: Tail, TailInput, Output] =
+    (query: CompiledQuery[Literal[PType] :: Tail, Output]) =>
       new GenericStatement(query.sql, values => {
         RunnableStatement(
           query.sql,
@@ -216,12 +213,11 @@ object StatementBuilder {
         )
       })
 
-  implicit def literalOption[P <: LiteralOption[_], PType, Tail <: HList, TailInput <: HList, Output <: HList]
-      (implicit
-       fieldT: FieldT[P, PType],
-       tail: StatementBuilder[Tail, TailInput, Output],
-      ): StatementBuilder[P :: Tail, TailInput, Output] =
-    (query: CompiledQuery[P :: Tail, Output]) =>
+  implicit def literalOption[PType, Tail <: HList, TailInput <: HList, Output <: HList](
+    implicit
+    tail: StatementBuilder[Tail, TailInput, Output],
+  ): StatementBuilder[LiteralOption[PType] :: Tail, TailInput, Output] =
+    (query: CompiledQuery[LiteralOption[PType] :: Tail, Output]) =>
       new GenericStatement(query.sql, values => {
         val tailValues = tail
           .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
