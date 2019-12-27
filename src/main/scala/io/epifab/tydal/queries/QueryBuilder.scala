@@ -401,6 +401,7 @@ object QueryFragmentBuilder {
         case _: GreaterThanOrEqual[_, _] => e1.concatenateRequired(e2, " >= ")
         case _: LessThanOrEqual[_, _] => e1.concatenateRequired(e2, " <= ")
         case _: Like[_, _] => e1.concatenateRequired(e2, " LIKE ")
+        case _: ILike[_, _] => e1.concatenateRequired(e2, " ILIKE ")
         case _: IsSubset[_, _] => e1.concatenateRequired(e2, " <@ ")
         case _: IsSuperset[_, _] => e1.concatenateRequired(e2, " @> ")
         case _: Overlaps[_, _] => e1.concatenateRequired(e2, " && ")

@@ -228,6 +228,9 @@ object Field {
     def like[F2 <: Field[_]](field2: F2)(implicit leftIsText: IsText[F1], rightIsText: IsText[F2]): Like[F1, F2] =
       Like(field1, field2)
 
+    def ilike[F2 <: Field[_]](field2: F2)(implicit leftIsText: IsText[F1], rightIsText: IsText[F2]): ILike[F1, F2] =
+      ILike(field1, field2)
+
     def !==[F2 <: Field[_]](field2: F2)(implicit comparable: AreComparable[F1, F2]): NotEquals[F1, F2] =
       NotEquals(field1, field2)
 
@@ -286,6 +289,15 @@ object Field {
       fieldDecoder: FieldDecoder[String]
     ): Like[F1, NamedPlaceholder[String] with Tagging[PlaceholderName]] =
       Like(field1, NamedPlaceholder[String, PlaceholderName])
+
+    def ilike[PlaceholderName <: String with Singleton](placeholderName: PlaceholderName)(
+      implicit
+      valueOf: ValueOf[PlaceholderName],
+      isText: IsText[F1],
+      fieldEncoder: FieldEncoder[String],
+      fieldDecoder: FieldDecoder[String]
+    ): ILike[F1, NamedPlaceholder[String] with Tagging[PlaceholderName]] =
+      ILike(field1, NamedPlaceholder[String, PlaceholderName])
 
     def !==[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
       implicit

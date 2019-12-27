@@ -58,6 +58,9 @@ case class LessThanOrEqual[+F1 <: Field[_], +F2 <: Field[_]](left: F1, right: F2
 case class Like[+F1 <: Field[_], +F2 <: Field[_]](left: F1, right: F2)(implicit text1: IsText[F1], text2: IsText[F2])
   extends Filter2[F1, F2]
 
+case class ILike[+F1 <: Field[_], +F2 <: Field[_]](left: F1, right: F2)(implicit text1: IsText[F1], text2: IsText[F2])
+  extends Filter2[F1, F2]
+
 case class IsSubset[+F1 <: Field[_], +F2 <: Field[_]](left: F1, right: F2)(implicit areComparableSeq: AreComparableSeq[F1, F2])
   extends Filter2[F1, F2]
 
