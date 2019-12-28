@@ -1,20 +1,13 @@
 package io.epifab.tydal.queries
 
 import io.epifab.tydal.schema._
-import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
-import shapeless.ops.hlist.Tupler
-import shapeless.{HList, HNil}
+import shapeless.HList
 
-final class DeleteQuery[Fields <: HList, E <: Filter](val table: Table[Fields], val filter: E) {
+final class DeleteQuery[Fields <: HList, E <: Filter](val table: Table[Fields], val filter: E) extends WriteQueryBuilder {
+
   def where[E2 <: Filter](f: Selectable[Fields] => E2): DeleteQuery[Fields, E2] =
     new DeleteQuery(table, f(table))
 
-  def compile[Placeholders <: HList, InputRepr <: HList]
-      (implicit
-       queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
-       statementBuilder: StatementBuilder[Placeholders, InputRepr, HNil],
-      ): WriteStatement[InputRepr, HNil] =
-    statementBuilder.build(queryBuilder.build(this)).update
 }
 
 object Delete {

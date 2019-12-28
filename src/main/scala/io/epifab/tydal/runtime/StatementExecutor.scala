@@ -10,15 +10,15 @@ import shapeless.{HList, HNil}
 import scala.util.Try
 import scala.util.control.NonFatal
 
-trait StatementExecutor[CONN, Fields <: HList, Output] {
-  def run[F[+_]: Sync : Monad](connection: CONN, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
+trait StatementExecutor[Conn, Fields <: HList, Output] {
+  def run[F[+_]: Sync : Monad](connection: Conn, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
 }
 
-trait ReadStatementExecutor[CONN, Fields <: HList, ROW]
-  extends StatementExecutor[CONN, Fields, Iterator[Either[DecoderError, ROW]]]
+trait ReadStatementExecutor[Conn, Fields <: HList, Row]
+  extends StatementExecutor[Conn, Fields, Iterator[Either[DecoderError, Row]]]
 
-trait WriteStatementExecutor[CONN, Fields <: HList]
-  extends StatementExecutor[CONN, Fields, Int]
+trait WriteStatementExecutor[Conn, Fields <: HList]
+  extends StatementExecutor[Conn, Fields, Int]
 
 
 object ReadStatementExecutor {
@@ -57,7 +57,7 @@ object ReadStatementExecutor {
 }
 
 object StatementExecutor {
-  implicit def jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
+  implicit val jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
     new WriteStatementExecutor[Connection, HNil] {
       override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
         (for {

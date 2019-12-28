@@ -9,6 +9,7 @@ import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
 import io.epifab.tydal.utils.{Finder, TaggedFind}
+import io.epifab.TaggedLiteral
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -18,7 +19,10 @@ class GenericStatement[InputRepr <: HList, Fields <: HList](
   val query: String,
   val toRunnable: InputRepr => RunnableStatement[Fields]) {
 
-  def update: WriteStatement[InputRepr, Fields] =
+  def update(
+    implicit
+    statementExecutor: WriteStatementExecutor[Connection, Fields]
+  ): WriteStatement[InputRepr, Fields] =
     new WriteStatement(query, toRunnable)
 
   def select[OutputRepr <: HList, TaggedOutput <: HList](
@@ -27,24 +31,22 @@ class GenericStatement[InputRepr <: HList, Fields <: HList](
     taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
   ): ReadStatementStep0[InputRepr, Fields, OutputRepr, TaggedOutput] =
     new ReadStatementStep0(query, toRunnable)
+
 }
 
-class WriteStatement[InputRepr <: HList, Fields <: HList](
+class WriteStatement[Input, Fields <: HList](
   val query: String,
-  toRunnable: InputRepr => RunnableStatement[Fields]
+  toRunnable: Input => RunnableStatement[Fields])(
+  implicit statementExecutor: WriteStatementExecutor[Connection, Fields]
 ) {
 
   def runP[P](values: P)(
     implicit
-    statementExecutor: WriteStatementExecutor[Connection, Fields],
-    placeholderValues: PlaceholderValues[P, InputRepr]
+    placeholderValues: PlaceholderValues[P, Input]
   ): Transaction[Int] = Transaction(toRunnable(placeholderValues(values)))
 
-  def run[P](values: P)(
-    implicit
-    generic: Generic.Aux[P, InputRepr],
-    statementExecutor: WriteStatementExecutor[Connection, Fields],
-  ): Transaction[Int] = Transaction(toRunnable(generic.to(values)))
+  def run[P, G <: Input](values: P)(implicit generic: Generic.Aux[P, G]): Transaction[Int] =
+    Transaction(toRunnable(generic.to(values)))
 
 }
 
@@ -165,8 +167,8 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 }
 
 
-class ReadStatement[InputRepr, Output, C[_]](val query: String, toTransaction: InputRepr => Transaction[C[Output]]) {
-  def run[P](input: P)(implicit generic: Generic.Aux[P, InputRepr]): Transaction[C[Output]] =
+class ReadStatement[Input, Output, C[_]](val query: String, toTransaction: Input => Transaction[C[Output]]) {
+  def run[P, G <: Input](input: P)(implicit generic: Generic.Aux[P, G]): Transaction[C[Output]] =
     toTransaction(generic.to(input))
 }
 
@@ -192,7 +194,7 @@ object StatementBuilder {
         tail
           .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
           .toRunnable(values.tail)
-          .input prepended values.head,
+          .input prepended values.head.toLiteral(query.placeholders.head.decoder, query.placeholders.head.encoder),
         query.fields
       ))
 

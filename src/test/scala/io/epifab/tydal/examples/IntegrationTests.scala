@@ -244,8 +244,8 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
       .as[Vector]
       .run((
         "list" ~~> Seq(1, 2, 3),
-        "double" ~~> Option(3.14),
-        "maybelist" ~~> Option(Seq.empty[Int]),
+        "double" ~~> Some(3.14),
+        "maybelist" ~~> Some(Seq.empty[Int]),
         "stupid" ~~> Option[Option[Seq[Int]]](None)
       ))
       .sync(connection)
@@ -279,7 +279,7 @@ class IntegrationTests extends FlatSpec with BeforeAndAfterAll {
         .toTuple
         .as[Vector]
         .run((
-          "lat1" ~~> Option(51.5432), "lng1" ~~> 0.1519,
+          "lat1" ~~> Some(51.5432), "lng1" ~~> 0.1519,
           "lat2" ~~> 51.4656, "lng2" ~~> 0.1150
         ))
         .sync(connection)

@@ -18,11 +18,14 @@ case class Student(
   address: Option[Address]
 )
 
-object Program extends App {
+object ProgramSchema {
   import io.circe.generic.auto._
+  implicit val addressEncoder: FieldEncoder.Aux[Address, String] = FieldEncoder.jsonEncoder[Address]
+  implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
+}
 
-  implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
-  implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
+object Program extends App {
+  import ProgramSchema._
 
   object Students extends TableBuilder["students", (
     "id" :=: UUID,
@@ -38,12 +41,12 @@ object Program extends App {
     Insert
       .into(Students)
       .compile
-      .runP(Student(
-        UUID.randomUUID,
-        "Jack",
-        Some("jack@tydal.io"),
-        LocalDate.of(1970, 1, 1),
-        Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway"))),
+      .run((
+        "id" ~~> UUID.randomUUID,
+        "name" ~~> "Jack",
+        "email" ~~> Some("jack@tydal.io"),
+        "date_of_birth" ~~> LocalDate.of(1970, 1, 1),
+        "address" ~~> Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway"))),
       ))
 
   val findStudents =

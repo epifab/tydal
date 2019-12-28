@@ -1,8 +1,5 @@
 package io.epifab.tydal.queries
 
-import java.sql.Connection
-
-import io.epifab.tydal.runtime.{ReadStatementExecutor, ReadStatementStep0, StatementBuilder, TagOutput}
 import io.epifab.tydal.schema._
 import io.epifab.tydal.utils.{Bounded, Concat, HSet, TaggedFind}
 import io.epifab.tydal.{As, TagMap, Tagged, Tagging}
@@ -111,6 +108,15 @@ trait SelectOps[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Fi
     queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Or[Having, NewHaving], Sort, Offset, Limit], _, Fields]
   ): SelectQuery[Fields, GroupBy, Sources, Where, Or[Having, NewHaving], Sort, Offset, Limit] =
     new SelectQuery(select.fields, select.groupBy, select.sources, select.where, select.having or f(context), select.sortBy, select.offset, select.limit)
+
+  def sortBy[P, NewSort <: HList](f: Context => P)(
+    implicit
+    generic: Generic.Aux[P, NewSort],
+    taggedListOfSortByClauses: Bounded[SortBy[_], NewSort],
+    queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort, Offset, Limit], _, Fields]
+  ): SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort, Offset, Limit] =
+    new SelectQuery(select.fields, select.groupBy, select.sources, select.where, select.having, generic.to(f(context)), select.offset, select.limit)
+
 }
 
 sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList, Offset, Limit](
@@ -125,7 +131,9 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
 )(
   implicit
   queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit], _, Fields]
-) extends SelectContext[Fields, Sources] with SelectOps[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit, SelectContext[Fields, Sources]] { Self =>
+) extends SelectContext[Fields, Sources]
+  with ReadQueryBuilder[Fields]
+  with SelectOps[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit, SelectContext[Fields, Sources]] { Self =>
 
   override val select: SelectQuery[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit] = this
   override val context: SelectContext[Fields, Sources] = this
@@ -136,15 +144,6 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     new SelectSubQuery(this, subQueryFields.build(tag, fields)) with Tagging[T] {
       override def tagValue: String = tag
     }
-
-  def compile[Placeholders <: HList, InputRepr <: HList, OutputRepr <: HList, TaggedOutput <: HList](
-    implicit
-    queryBuilder: QueryBuilder[this.type, Placeholders, Fields],
-    statementBuilder: StatementBuilder[Placeholders, InputRepr, Fields],
-    readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
-    taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
-  ): ReadStatementStep0[InputRepr, Fields, OutputRepr, TaggedOutput] =
-    statementBuilder.build(queryBuilder.build(this)).select
 
   def from[S <: Selectable[_] with Tagging[_]](source: S)(
     implicit
@@ -168,14 +167,6 @@ sealed class SelectQuery[Fields <: HList, GroupBy <: HList, Sources <: HList, Wh
     tagged: Tagged[RightSource, RightAlias]
   ): JoinBuilder[Fields, GroupBy, Sources, Where, Having, Sort, Offset, Limit, RightSource, TargetFields, RightAlias] =
     new JoinBuilder(this, that, nullableFields.build(fieldsOf(that)), LeftJoin)
-
-  def sortBy[P, NewSort <: HList](f: SelectContext[Fields, Sources] => P)(
-    implicit
-    generic: Generic.Aux[P, NewSort],
-    taggedListOfSortByClauses: Bounded[SortBy[_], NewSort],
-    queryBuilder: QueryBuilder[SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort, Offset, Limit], _, Fields]
-  ): SelectQuery[Fields, GroupBy, Sources, Where, Having, NewSort, Offset, Limit] =
-    new SelectQuery(fields, groupBy, sources, where, having, generic.to(f(this)), offset, limit)
 
   def inRange[OffsetLabel <: String with Singleton, LimitLabel <: String with Singleton](
     implicit

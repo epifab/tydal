@@ -11,7 +11,7 @@ final class UpdateQuery[Fields <: HList, Values <: HList, Where <: Filter](
   private[tydal] val table: Table[Fields],
   private[tydal] val values: Values,
   private[tydal] val where: Where
-) {
+) extends WriteQueryBuilder {
 
   def fields[P, NewFields <: HList, NewValues <: HList](
     f: Selectable[Fields] => P)(
@@ -30,12 +30,6 @@ final class UpdateQuery[Fields <: HList, Values <: HList, Where <: Filter](
   def where[E2 <: Filter](f: Selectable[Fields] => E2): UpdateQuery[Fields, Values, E2] =
     new UpdateQuery(table, values, f(table))
 
-  def compile[Placeholders <: HList, InputRepr <: HList](
-    implicit
-    queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
-    statementBuilder: StatementBuilder[Placeholders, InputRepr, HNil]
-  ): WriteStatement[InputRepr, HNil] =
-    statementBuilder.build(queryBuilder.build(this)).update
 }
 
 object Update {

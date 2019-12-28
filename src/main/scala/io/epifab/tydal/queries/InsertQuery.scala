@@ -1,25 +1,18 @@
 package io.epifab.tydal.queries
 
-import io.epifab.tydal.{As, Tagging}
-import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
-import io.epifab.tydal.schema.{Columns, Field, GenericSchema, NamedPlaceholders, Table, TableBuilder}
+import io.epifab.tydal.schema._
 import io.epifab.tydal.utils.{TaggedFind, TaggedReplace}
-import shapeless.ops.hlist.Tupler
-import shapeless.{HList, HNil}
+import io.epifab.tydal.{As, Tagging}
+import shapeless.HList
 
-final class InsertQuery[Fields <: HList, Values <: HList](private [tydal] val table: Table[Fields], private [tydal] val values: Values) {
+final class InsertQuery[Fields <: HList, Values <: HList](private [tydal] val table: Table[Fields], private [tydal] val values: Values) extends WriteQueryBuilder {
+
   def set[F <: Field[_] with Tagging[_], A <: String with Singleton, T, NewValues <: HList](field: F As A)(
     implicit
     taggedFind: TaggedFind[A, Field[T], Values],
     taggedReplace: TaggedReplace[A, F, Values, NewValues]
   ): InsertQuery[Fields, NewValues] = new InsertQuery(table, taggedReplace(values, field))
 
-  def compile[Placeholders <: HList, InputRepr <: HList](
-    implicit
-    queryBuilder: QueryBuilder[this.type, Placeholders, HNil],
-    statementBuilder: StatementBuilder[Placeholders, InputRepr, HNil]
-  ): WriteStatement[InputRepr, HNil] =
-    statementBuilder.build(queryBuilder.build(this)).update
 }
 
 object Insert {
