@@ -1,6 +1,5 @@
 package io.epifab.tydal.examples
 
-import io.epifab.tydal._
 import io.epifab.tydal.queries._
 import io.epifab.tydal.examples.Model.Exam
 import io.epifab.tydal.examples.Schema._
@@ -11,13 +10,7 @@ object ExamsRepo {
     Insert
       .into(Exams)
       .compile
-      .run((
-        "student_id" ~~> exam.student_id,
-        "course_id" ~~> exam.course_id,
-        "score" ~~> exam.score,
-        "exam_timestamp" ~~> exam.exam_timestamp,
-        "registration_timestamp" ~~> exam.registration_timestamp
-      ))
+      .runP(exam)
 
   lazy val removeAll: Transaction[Int] =
     Delete

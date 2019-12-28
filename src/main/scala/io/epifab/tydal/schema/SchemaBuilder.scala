@@ -1,6 +1,6 @@
 package io.epifab.tydal.schema
 
-import io.epifab.tydal.Tagging
+import io.epifab.tydal._
 import io.epifab.tydal.utils.Concat
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Tupler
@@ -157,34 +157,32 @@ object GenericSchema {
   }
 }
 
-@implicitNotFound("The required placeholders for this query: ${Values} do not match with type ${T}.")
-trait PlaceholderValues[-T, +Values] {
-  def apply(v: T): Values
+@implicitNotFound("The required placeholders for this query: ${Output} do not match with type ${Input}.")
+trait Literals[-Input, +Output] {
+  def apply(v: Input): Output
 }
 
-object PlaceholderValues {
+object Literals {
   implicit def head[T, A <: String with Singleton](
     implicit
-    alias: ValueOf[A],
-    fieldEncoder: FieldEncoder[T],
-    fieldDecoder: FieldDecoder[T]
-  ): PlaceholderValues[FieldType[Symbol @@ A, T], Literal[T] with Tagging[A]] =
-    (v: FieldType[Symbol @@ A, T]) => Literal(v.asInstanceOf[T]) as alias.value
+    alias: ValueOf[A]
+  ): Literals[FieldType[Symbol @@ A, T], A ~~> T] =
+    (v: FieldType[Symbol @@ A, T]) => new KeyVal(alias.value, v.asInstanceOf[T])
 
-  implicit val hNil: PlaceholderValues[HNil, HNil] =
+  implicit val hNil: Literals[HNil, HNil] =
     (_: HNil) => HNil
 
-  implicit def hCons[Head, HeadValuesRepr, Tail <: HList, TailValuesRepr <: HList](
+  implicit def hCons[Head, HeadOutputRepr, Tail <: HList, TailOutputRepr <: HList](
     implicit
-    headBuilder: PlaceholderValues[Head, HeadValuesRepr],
-    tailBuilder: PlaceholderValues[Tail, TailValuesRepr]
-  ): PlaceholderValues[Head :: Tail, HeadValuesRepr :: TailValuesRepr] =
+    headBuilder: Literals[Head, HeadOutputRepr],
+    tailBuilder: Literals[Tail, TailOutputRepr]
+  ): Literals[Head :: Tail, HeadOutputRepr :: TailOutputRepr] =
     (v: Head :: Tail) => headBuilder(v.head) :: tailBuilder(v.tail)
 
-  implicit def fromCaseClass[C, R1, Values](
+  implicit def labelledGeneric[P, Repr, Output](
     implicit
-    labelledGeneric: LabelledGeneric.Aux[C, R1],
-    schemaBuilder: PlaceholderValues[R1, Values]
-  ): PlaceholderValues[C, Values] =
-    (v: C) => schemaBuilder(labelledGeneric.to(v))
+    labelledGeneric: LabelledGeneric.Aux[P, Repr],
+    genericLiterals: Literals[Repr, Output]
+  ): Literals[P, Output] =
+    (v: P) => genericLiterals(labelledGeneric.to(v))
 }

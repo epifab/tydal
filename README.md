@@ -61,12 +61,12 @@ object Program extends App {
     Insert
       .into(Students)
       .compile
-      .runP(Student(
-        UUID.randomUUID,
-        "Jack",
-        Some("jack@tydal.io"),
-        LocalDate.of(1970, 1, 1),
-        Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway"))),
+      .run((
+        "id" ~~> UUID.randomUUID,
+        "name" ~~> "Jack",
+        "email" ~~> Some("jack@tydal.io"),
+        "date_of_birth" ~~> LocalDate.of(1970, 1, 1),
+        "address" ~~> Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway")))
       ))
 
   val findStudents =

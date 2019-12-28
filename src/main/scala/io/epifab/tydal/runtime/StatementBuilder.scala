@@ -8,8 +8,7 @@ import cats.implicits._
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.{Finder, TaggedFind}
-import io.epifab.TaggedLiteral
+import io.epifab.tydal.utils.TaggedFind
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -40,10 +39,10 @@ class WriteStatement[Input, Fields <: HList](
   implicit statementExecutor: WriteStatementExecutor[Connection, Fields]
 ) {
 
-  def runP[P](values: P)(
+  def runP[P](input: P)(
     implicit
-    placeholderValues: PlaceholderValues[P, Input]
-  ): Transaction[Int] = Transaction(toRunnable(placeholderValues(values)))
+    literals: Literals[P, Input]
+  ): Transaction[Int] = Transaction(toRunnable(literals(input)))
 
   def run[P, G <: Input](values: P)(implicit generic: Generic.Aux[P, G]): Transaction[Int] =
     Transaction(toRunnable(generic.to(values)))
@@ -168,8 +167,15 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
 
 class ReadStatement[Input, Output, C[_]](val query: String, toTransaction: Input => Transaction[C[Output]]) {
+
+  def runP[P](input: P)(
+    implicit
+    literals: Literals[P, Input]
+  ): Transaction[C[Output]] = toTransaction(literals(input))
+
   def run[P, G <: Input](input: P)(implicit generic: Generic.Aux[P, G]): Transaction[C[Output]] =
     toTransaction(generic.to(input))
+
 }
 
 
