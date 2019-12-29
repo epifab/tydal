@@ -62,17 +62,37 @@ object IsDateTime {
 sealed trait AreComparable[T, U] extends TypeProps
 
 object AreComparable {
+  def yes[A, B]: AreComparable[A, B] = new AreComparable[A, B] {}
+
+  implicit def fields[F <: Field[_], G <: Field[_], A](
+    implicit
+    fType: FieldT[F, A],
+    gType: FieldT[G, A]
+  ): AreComparable[F, G] = yes
+
+  implicit def optionF[F <: Field[_], G <: Field[_], A](
+    implicit
+    fType: FieldT[F, Option[A]],
+    gType: FieldT[G, A]
+  ): AreComparable[F, G] = yes
+
+  implicit def optionG[F <: Field[_], G <: Field[_], A](
+    implicit
+    fType: FieldT[F, A],
+    gType: FieldT[G, Option[A]]
+  ): AreComparable[F, G] = yes
+
   implicit def numeric[T, U](implicit tIsNumeric: IsNumeric[T], uIsNumeric: IsNumeric[U]): AreComparable[T, U] =
-    new AreComparable[T, U] {}
+    yes
 
   implicit def text[T, U](implicit tIsText: IsText[T], uIsText: IsText[U]): AreComparable[T, U] =
-    new AreComparable[T, U] {}
+    yes
 
   implicit def date[T, U](implicit tIsDate: IsDate[T], uIsDate: IsDate[U]): AreComparable[T, U] =
-    new AreComparable[T, U] {}
+    yes
 
   implicit def dateTime[T, U](implicit tIsDateTime: IsDateTime[T], uIsDateTime: IsDateTime[U]): AreComparable[T, U] =
-    new AreComparable[T, U] {}
+    yes
 }
 
 @implicitNotFound("${T} and ${U} are not comparable")

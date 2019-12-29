@@ -41,6 +41,9 @@ trait Transaction[+Output] {
 
   final def flatMap[O2](f: Output => Transaction[O2]): Transaction[O2] =
     Transaction.FlatMapTransaction(this, f)
+
+  final def discardResults: Transaction[Unit] =
+    map(_ => ())
 }
 
 object Transaction {
