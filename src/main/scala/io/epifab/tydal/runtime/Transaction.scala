@@ -2,9 +2,10 @@ package io.epifab.tydal.runtime
 
 import java.sql.Connection
 
-import cats.Monad
-import cats.effect.{IO, LiftIO, Sync}
+import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
+import cats.{Functor, Monad, Traverse}
+import io.epifab.tydal.utils.EitherSupport
 import shapeless.HList
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -67,19 +68,17 @@ object Transaction {
 
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
 
-  def sequence[Output](transactions: Seq[Transaction[Output]]): Transaction[Seq[Output]] =
-    new Transaction[Seq[Output]] {
-      override protected def run[F[+ _] : Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
-        def recursive(ts: Seq[Transaction[Output]]): F[Either[DataError, Seq[Output]]] = ts match {
-          case empty if empty.isEmpty => Sync[F].pure(Right(Seq.empty[Output]))
-          case nonEmpty => nonEmpty.head.run(connection).flatMap {
-            case Left(error) => Sync[F].pure(Left(error))
-            case Right(result) => recursive(nonEmpty.tail).map(_.map(seq => result +: seq))
-          }
-        }
-        recursive(transactions)
-      }
-    }
+  def vector[Output](transactions: Vector[Transaction[Output]]): Transaction[Vector[Output]] =
+    Traverse[Vector].sequence(transactions)
+
+  def list[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
+    Traverse[List].sequence(transactions)
+
+  def parVector[Output](transactions: Vector[Transaction[Output]])(implicit cs: ContextShift[IO]): Transaction[Seq[Output]] =
+    ParTransactions(transactions)
+
+  def parList[Output](transactions: List[Transaction[Output]])(implicit cs: ContextShift[IO]): Transaction[Seq[Output]] =
+    ParTransactions(transactions)
 
   def failed(error: DataError): Transaction[Nothing] = IOTransaction(IO.pure(Left(error)))
 
@@ -106,6 +105,13 @@ object Transaction {
         case Right(results) => f(results).run(connection)
         case Left(error) => Sync[F].pure(Left(error))
       }
+  }
+
+  case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]])(implicit cs: ContextShift[IO]) extends Transaction[Seq[Output]] {
+    override def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
+      LiftIO[F].liftIO(Functor[C].map(transactions)(_.toIO(connection)).parSequence)
+        .map(list => EitherSupport.leftOrRights[C, DataError, Output, Vector](list))
+    }
   }
 
   def apply[Fields <: HList, Output](

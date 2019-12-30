@@ -1,10 +1,12 @@
 package io.epifab.tydal.utils
 
+import cats.Foldable
+
 import scala.collection.{Factory, mutable}
 
 object EitherSupport {
-  def leftOrRights[E, X, To[_]](from: Iterator[Either[E, X]])(implicit factory: Factory[X, To[X]]): Either[E, To[X]] = {
-    val results = from.iterator.foldLeft[Either[E, mutable.Builder[X, To[X]]]](Right(factory.newBuilder)) {
+  def leftOrRights[C[_]: Foldable, E, X, To[_]](from: C[Either[E, X]])(implicit factory: Factory[X, To[X]]): Either[E, To[X]] = {
+    val results = Foldable[C].foldLeft[Either[E, X], Either[E, mutable.Builder[X, To[X]]]](from, Right(factory.newBuilder)) {
       case (Left(e), _) => Left(e)
       case (_, Left(e)) => Left(e)
       case (Right(builder), Right(x)) => Right(builder.addOne(x))
