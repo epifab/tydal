@@ -1,9 +1,9 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
 import io.epifab.tydal._
+import Model.Course
+import Schema.Courses
 import io.epifab.tydal.queries._
-import io.epifab.tydal.examples.Model.Course
-import io.epifab.tydal.examples.Schema.Courses
 import io.epifab.tydal.runtime.Transaction
 
 object CoursesRepo {

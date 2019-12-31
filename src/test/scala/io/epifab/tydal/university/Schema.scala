@@ -1,10 +1,10 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
 import java.time.{Instant, LocalDate}
 
 import io.circe.generic.auto._
 import io.epifab.tydal._
-import io.epifab.tydal.examples.Model._
+import Model._
 import io.epifab.tydal.schema.{FieldDecoder, FieldEncoder, TableBuilder}
 
 object Schema {

@@ -1,12 +1,15 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
 import java.time.LocalDate
 import java.util.UUID
 
+import cats.effect.{ContextShift, IO}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.{Insert, Select}
-import io.epifab.tydal.runtime.{PostgresConfig, PostgresConnection}
+import io.epifab.tydal.runtime.{HikariConnectionPool, PostgresConfig}
 import io.epifab.tydal.schema._
+
+import scala.concurrent.ExecutionContext
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -35,8 +38,6 @@ object Program extends App {
     "address" :=: Option[Address]
   )]
 
-  val connection = PostgresConnection(PostgresConfig.fromEnv())
-
   val createStudent =
     Insert
       .into(Students)
@@ -62,10 +63,21 @@ object Program extends App {
         "max_dob" ~~> LocalDate.of(1986, 1, 1)
       ))
 
-  val program = (for {
-    _ <- createStudent
-    students <- findStudents
-  } yield students).toIO(connection)
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
+  val connectionPool = HikariConnectionPool[IO](
+    PostgresConfig.fromEnv(),
+    ExecutionContext.global
+  )
+
+  val program =
+    connectionPool.use(pool =>
+      (for {
+        _ <- createStudent
+        students <- findStudents
+      } yield students).transact(pool)
+    )
+
 
   program.unsafeRunSync()
 }

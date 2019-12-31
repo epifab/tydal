@@ -1,4 +1,4 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
 import java.time.{Instant, LocalDate}
 

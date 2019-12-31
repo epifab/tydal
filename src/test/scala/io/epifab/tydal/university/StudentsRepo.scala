@@ -1,10 +1,10 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
 import java.time.{Instant, LocalDate}
 
 import io.epifab.tydal._
-import io.epifab.tydal.examples.Model.{Interest, Student, StudentExam}
-import io.epifab.tydal.examples.Schema._
+import Model.{Interest, Student, StudentExam}
+import Schema._
 import io.epifab.tydal.queries._
 import io.epifab.tydal.runtime.{ReadStatement, Transaction}
 import io.epifab.tydal.schema._

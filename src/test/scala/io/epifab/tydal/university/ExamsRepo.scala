@@ -1,8 +1,8 @@
-package io.epifab.tydal.examples
+package io.epifab.tydal.university
 
+import Model.Exam
+import Schema._
 import io.epifab.tydal.queries._
-import io.epifab.tydal.examples.Model.Exam
-import io.epifab.tydal.examples.Schema._
 import io.epifab.tydal.runtime.Transaction
 
 object ExamsRepo {

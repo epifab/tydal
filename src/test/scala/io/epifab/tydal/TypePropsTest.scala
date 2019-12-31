@@ -1,18 +1,9 @@
-package io.epifab.tydal.typesafe
+package io.epifab.tydal
 
 import java.time.{Instant, LocalDate}
 
-import io.epifab.tydal.Tagging
 import org.scalatest.FunSuite
 import shapeless.the
-
-import scala.annotation.implicitAmbiguous
-
-trait SameType[T, U]
-
-object SameType {
-  implicit def trivial[T]: SameType[T, T] = new SameType[T, T] {}
-}
 
 class TypePropsTest extends FunSuite {
   import io.epifab.tydal.schema._

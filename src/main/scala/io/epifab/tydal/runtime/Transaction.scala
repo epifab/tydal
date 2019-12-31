@@ -8,25 +8,16 @@ import cats.{Functor, Monad, Traverse}
 import io.epifab.tydal.utils.EitherSupport
 import shapeless.HList
 
-import scala.concurrent.{ExecutionContext, Future}
-
 trait Transaction[+Output] {
-  def toIO(connection: Connection): IO[Either[DataError, Output]] =
-    transact[IO](connection)
-
-  def toFuture(connection: Connection)(implicit executionContext: ExecutionContext): Future[Either[DataError, Output]] =
-    toIO(connection).unsafeToFuture()
-
-  def sync(connection: Connection): Either[DataError, Output] =
-    toIO(connection).unsafeRunSync()
-
-  final def transact[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]] =
-    ensureNonAutoCommit(connection).flatMap(_ =>
-      Sync[F].delay(connection.setSavepoint()).flatMap(savePoint =>
-        run(connection).flatMap {
-          case Left(error) => Sync[F].delay(connection.rollback(savePoint)).map(_ => Left(error))
-          case Right(results) => Sync[F].delay(connection.commit()).map(_ => Right(results))
-        }
+  final def transact[F[+_]: Sync : Monad : LiftIO](pool: ConnectionPool[F]): F[Either[DataError, Output]] =
+    pool.connection.use(connection =>
+      ensureNonAutoCommit(connection).flatMap(_ =>
+        Sync[F].delay(connection.setSavepoint()).flatMap(savePoint =>
+          run(connection).flatMap {
+            case Left(error) => Sync[F].delay(connection.rollback(savePoint)).map(_ => Left(error))
+            case Right(results) => Sync[F].delay(connection.commit()).map(_ => Right(results))
+          }
+        )
       )
     )
 
@@ -109,7 +100,7 @@ object Transaction {
 
   case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]])(implicit cs: ContextShift[IO]) extends Transaction[Seq[Output]] {
     override def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
-      LiftIO[F].liftIO(Functor[C].map(transactions)(_.toIO(connection)).parSequence)
+      LiftIO[F].liftIO(Functor[C].map(transactions)(_.run[IO](connection)).parSequence)
         .map(list => EitherSupport.leftOrRights[C, DataError, Output, Vector](list))
     }
   }
