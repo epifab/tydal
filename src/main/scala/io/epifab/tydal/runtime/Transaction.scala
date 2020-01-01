@@ -5,6 +5,7 @@ import java.sql.Connection
 import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
 import cats.{Functor, Monad, Parallel, Traverse}
+import io.epifab.tydal.runtime.Transaction.MapTransaction
 import io.epifab.tydal.utils.EitherSupport
 import shapeless.HList
 
@@ -37,10 +38,11 @@ trait Transaction[+Output] {
       case anything => anything
     })
 
-  final def foreach(f: PartialFunction[Either[DataError, Output], Unit]): Transaction[Output] =
-    Transaction.MapTransaction(this, (x: Either[DataError, Output]) => x match {
-      case x if f.isDefinedAt(x) => f(x); x
-      case x => x
+  final def foreach(f: PartialFunction[Either[DataError, Output], IO[Unit]]): Transaction[Output] =
+    Transaction.FlatMapTransaction(this, (x: Either[DataError, Output]) => x match {
+      case x if f.isDefinedAt(x) => MapTransaction(LiftIO[Transaction].liftIO(f(x)), (_: Either[DataError, Unit]) => x)
+      case Right(x) => Transaction.successful(x)
+      case Left(x) => Transaction.failed(x)
     })
 
   final def flatMap[O2](f: Output => Transaction[O2]): Transaction[O2] =
@@ -80,10 +82,10 @@ object Transaction {
   def list[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
     Traverse[List].sequence(transactions)
 
-  def parVector[Output](transactions: Vector[Transaction[Output]])(implicit cs: ContextShift[IO]): Transaction[Seq[Output]] =
+  def parVector[Output](transactions: Vector[Transaction[Output]]): Transaction[Seq[Output]] =
     ParTransactions(transactions)
 
-  def parList[Output](transactions: List[Transaction[Output]])(implicit cs: ContextShift[IO]): Transaction[Seq[Output]] =
+  def parList[Output](transactions: List[Transaction[Output]]): Transaction[Seq[Output]] =
     ParTransactions(transactions)
 
   def failed(error: DataError): Transaction[Nothing] = IOTransaction(IO.pure(Left(error)))
