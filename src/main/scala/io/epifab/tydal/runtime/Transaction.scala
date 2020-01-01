@@ -4,12 +4,12 @@ import java.sql.Connection
 
 import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
-import cats.{Functor, Monad, Traverse}
+import cats.{Functor, Monad, Parallel, Traverse}
 import io.epifab.tydal.utils.EitherSupport
 import shapeless.HList
 
 trait Transaction[+Output] {
-  final def transact[F[+_]: Sync : Monad : LiftIO](pool: ConnectionPool[F]): F[Either[DataError, Output]] =
+  final def transact[F[+_]: Sync : Parallel : ContextShift : LiftIO](pool: ConnectionPool[F]): F[Either[DataError, Output]] =
     pool.connection.use(connection =>
       ensureNonAutoCommit(connection).flatMap(_ =>
         Sync[F].delay(connection.setSavepoint()).flatMap(savePoint =>
@@ -26,13 +26,28 @@ trait Transaction[+Output] {
     _ <- if (autoCommit) Sync[F].delay(connection.setAutoCommit(false)) else Sync[F].pure(())
   } yield ()
 
-  protected def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]]
+  protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Output]]
 
   final def map[O2](f: Output => O2): Transaction[O2] =
-    Transaction.MapTransaction(this, f)
+    Transaction.MapTransaction(this, (x: Either[DataError, Output]) => x.map(f))
+
+  final def recover[O2 >: Output](f: PartialFunction[DataError, O2]): Transaction[O2] =
+    Transaction.MapTransaction(this, (x: Either[DataError, Output]) => x match {
+      case Left(error) if f.isDefinedAt(error) => Right(f(error))
+      case anything => anything
+    })
+
+  final def foreach(f: PartialFunction[Either[DataError, Output], Unit]): Transaction[Output] =
+    Transaction.MapTransaction(this, (x: Either[DataError, Output]) => x match {
+      case x if f.isDefinedAt(x) => f(x); x
+      case x => x
+    })
 
   final def flatMap[O2](f: Output => Transaction[O2]): Transaction[O2] =
-    Transaction.FlatMapTransaction(this, f)
+    Transaction.FlatMapTransaction(this, (x: Either[DataError, Output]) => x match {
+      case Right(o) => f(o)
+      case Left(error) => Transaction.failed(error)
+    })
 
   final def discardResults: Transaction[Unit] =
     map(_ => ())
@@ -76,31 +91,28 @@ object Transaction {
   def successful[Output](value: Output): Transaction[Output] = IOTransaction(IO.pure(Right(value)))
 
   case class SimpleTransaction[Fields <: HList, Output](runnableStatement: RunnableStatement[Fields], statementExecutor: StatementExecutor[Connection, Fields, Output]) extends Transaction[Output] {
-    override protected def run[F[+ _] : Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]] =
+    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Output]] =
       statementExecutor.run(connection, runnableStatement)
   }
 
   case class IOTransaction[Output](result: IO[Either[DataError, Output]]) extends Transaction[Output] {
-    override protected def run[F[+ _] : Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]] =
+    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Output]] =
       LiftIO[F].liftIO(result)
   }
 
-  case class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: O1 => Output) extends Transaction[Output] {
-    override def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]] =
-      transactionIO.run(connection).map(_.map(f))
+  case class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: Either[DataError, O1] => Either[DataError, Output]) extends Transaction[Output] {
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Output]] =
+      transactionIO.run(connection).map(f)
   }
 
-  case class FlatMapTransaction[O1, Output](transaction: Transaction[O1], f: O1 => Transaction[Output]) extends Transaction[Output] {
-    override def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Output]] =
-      transaction.run(connection).flatMap {
-        case Right(results) => f(results).run(connection)
-        case Left(error) => Sync[F].pure(Left(error))
-      }
+  case class FlatMapTransaction[O1, Output](transaction: Transaction[O1], f: Either[DataError, O1] => Transaction[Output]) extends Transaction[Output] {
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Output]] =
+      transaction.run(connection).flatMap(f(_).run(connection))
   }
 
-  case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]])(implicit cs: ContextShift[IO]) extends Transaction[Seq[Output]] {
-    override def run[F[+_]: Sync : Monad : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
-      LiftIO[F].liftIO(Functor[C].map(transactions)(_.run[IO](connection)).parSequence)
+  case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]]) extends Transaction[Seq[Output]] {
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection): F[Either[DataError, Seq[Output]]] = {
+      Functor[C].map(transactions)(_.run[F](connection)).parSequence
         .map(list => EitherSupport.leftOrRights[C, DataError, Output, Vector](list))
     }
   }
