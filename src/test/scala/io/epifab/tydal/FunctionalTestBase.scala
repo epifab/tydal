@@ -9,15 +9,16 @@ trait FunctionalTestBase {
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  val connectionPoolResource: Resource[IO, ConnectionPool[IO]] =
-    HikariConnectionPool[IO](
-      PostgresConfig.fromEnv(),
+  val connectionPool: ConnectionPool[IO] =
+    ConnectionPool[IO](
+      PostgresConfig.fromEnv("postgres://root:p4ssw0rd@localhost:5432/tydal"),
+      ExecutionContext.global,
       ExecutionContext.global
     )
 
   implicit class ExtendedTransaction[C](transaction: Transaction[C]) {
     def runSync(): Either[DataError, C] =
-      connectionPoolResource.use(pool => transaction.transact(pool)).unsafeRunSync()
+      transaction.transact(connectionPool).unsafeRunSync()
   }
 
 }

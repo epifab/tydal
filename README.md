@@ -6,7 +6,7 @@ is a *type safe* PostgreSQL DSL for Scala.
 
 ## Getting started
 
-### Installation
+### Installation (sbt)
 
 Step 1. Add the JitPack repository to your build file
 
@@ -17,19 +17,22 @@ resolvers += "jitpack" at "https://jitpack.io"
 Step 2. Add the dependency
 
 ```
-libraryDependencies += "com.github.epifab" % "tydal" % "1.x-SNAPSHOT"	
+libraryDependencies += "com.github.epifab" % "tydal" % "1.2.0"	
 ```
 
-### A basic example
+### A basic app example
 
 ```scala
 import java.time.LocalDate
 import java.util.UUID
 
+import cats.effect.{ExitCode, IO, IOApp}
 import io.epifab.tydal._
-import io.epifab.tydal.queries._
-import io.epifab.tydal.runtime._
+import io.epifab.tydal.queries.{Insert, Select}
+import io.epifab.tydal.runtime.{ConnectionPool, DataError, PostgresConfig}
 import io.epifab.tydal.schema._
+
+import scala.concurrent.ExecutionContext
 
 case class Address(postcode: String, line1: String, line2: Option[String])
 
@@ -37,15 +40,18 @@ case class Student(
   id: UUID,
   name: String,
   email: Option[String],
-  dateOfBirth: LocalDate,
+  date_of_birth: LocalDate,
   address: Option[Address]
 )
 
-object Program extends App {
+object ProgramSchema {
   import io.circe.generic.auto._
+  implicit val addressEncoder: FieldEncoder.Aux[Address, String] = FieldEncoder.jsonEncoder[Address]
+  implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
+}
 
-  implicit val addressEncoder: FieldEncoder[Address] = FieldEncoder.jsonEncoder[Address]
-  implicit val addressDecoder: FieldDecoder[Address] = FieldDecoder.jsonDecoder[Address]
+object Program extends IOApp {
+  import ProgramSchema._
 
   object Students extends TableBuilder["students", (
     "id" :=: UUID,
@@ -54,8 +60,6 @@ object Program extends App {
     "date_of_birth" :=: LocalDate,
     "address" :=: Option[Address]
   )]
-
-  val connection = PostgresConnection(PostgresConfig.fromEnv())
 
   val createStudent =
     Insert
@@ -66,13 +70,13 @@ object Program extends App {
         "name" ~~> "Jack",
         "email" ~~> Some("jack@tydal.io"),
         "date_of_birth" ~~> LocalDate.of(1970, 1, 1),
-        "address" ~~> Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway")))
+        "address" ~~> Some(Address("7590", "Tydalsvegen 125", Some("Tydal, Norway"))),
       ))
 
   val findStudents =
     Select
       .from(Students as "s")
-      .take(_("s").*)
+      .focus("s").take(_.*)
       .where(ctx => ctx("s", "email") like "email" and (ctx("date_of_birth") < "max_dob"))
       .compile
       .to[Student]
@@ -82,12 +86,20 @@ object Program extends App {
         "max_dob" ~~> LocalDate.of(1986, 1, 1)
       ))
 
-  val program = (for {
-    _ <- createStudent
-    students <- findStudents
-  } yield students).toIO(connection)
+  val connectionPool = ConnectionPool[IO](
+    PostgresConfig.fromEnv(),
+    connectionEC = ExecutionContext.global,
+    blockingEC = ExecutionContext.global
+  )
 
-  program.unsafeRunSync()
+  override def run(args: List[String]): IO[ExitCode] = {
+    val io: IO[Either[DataError, Seq[Student]]] = (for {
+      _ <- createStudent
+      students <- findStudents
+    } yield students).transact(connectionPool)
+
+    io.map(_.fold(_ => ExitCode.Error, _ => ExitCode.Success))
+  }
 }
 ```
 

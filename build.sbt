@@ -3,13 +3,17 @@ import sbt.Global
 /*****************************************************************
  Global Settings & Configs
   *****************************************************************/
-Global / name := "tydal"
-Global / version := sys.env.getOrElse("BUILD_NUMBER", "LOCAL")
-Global / organization := "epifab.io"
-Global / scalaVersion := "2.13.1"
-Global / exportJars := true
-Global / parallelExecution := false
-Global / scalacOptions ++= Seq(
+name := "tydal"
+version := "1.2.0"
+organization := "epifab.io"
+
+exportJars := true
+parallelExecution := false
+
+scalaVersion := "2.13.1"
+crossScalaVersions := Seq("2.13.1")
+
+scalacOptions ++= Seq(
   "-unchecked",
   "-deprecation",
   "-feature",
@@ -23,15 +27,10 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.0.0",
   "org.typelevel" %% "cats-effect" % "2.0.0",
   "com.chuusai" %% "shapeless" % "2.3.3",
+  "io.circe" %% "circe-core" % "0.12.3",
+  "io.circe" %% "circe-generic" % "0.12.3",
+  "io.circe" %% "circe-parser" % "0.12.3",
   "org.postgresql" % "postgresql" % "42.2.2",
   "com.zaxxer" % "HikariCP" % "3.4.1",
   "org.scalatest" %% "scalatest" % "3.0.8" % Test
 )
-
-val circeVersion = "0.12.3"
-
-libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser"
-).map(_ % circeVersion)

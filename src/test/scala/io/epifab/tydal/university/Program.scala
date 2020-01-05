@@ -3,10 +3,10 @@ package io.epifab.tydal.university
 import java.time.LocalDate
 import java.util.UUID
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ExitCode, IO, IOApp}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.{Insert, Select}
-import io.epifab.tydal.runtime.{HikariConnectionPool, PostgresConfig}
+import io.epifab.tydal.runtime.{ConnectionPool, PostgresConfig}
 import io.epifab.tydal.schema._
 
 import scala.concurrent.ExecutionContext
@@ -27,7 +27,7 @@ object ProgramSchema {
   implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
 }
 
-object Program extends App {
+object Program extends IOApp {
   import ProgramSchema._
 
   object Students extends TableBuilder["students", (
@@ -63,21 +63,18 @@ object Program extends App {
         "max_dob" ~~> LocalDate.of(1986, 1, 1)
       ))
 
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-
-  val connectionPool = HikariConnectionPool[IO](
+  val connectionPool = ConnectionPool[IO](
     PostgresConfig.fromEnv(),
-    ExecutionContext.global
+    connectionEC = ExecutionContext.global,
+    blockingEC = ExecutionContext.global
   )
 
-  val program =
-    connectionPool.use(pool =>
-      (for {
-        _ <- createStudent
-        students <- findStudents
-      } yield students).transact(pool)
-    )
+  override def run(args: List[String]): IO[ExitCode] = {
+    val io = (for {
+      _ <- createStudent
+      students <- findStudents
+    } yield students).transact(connectionPool)
 
-
-  program.unsafeRunSync()
+    io.map(_.fold(_ => ExitCode.Error, _ => ExitCode.Success))
+  }
 }

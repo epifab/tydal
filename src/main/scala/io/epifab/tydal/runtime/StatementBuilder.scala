@@ -1,10 +1,10 @@
 package io.epifab.tydal.runtime
 
-import java.sql.Connection
+import java.sql
 
 import cats.Monad
-import cats.effect.Sync
-import cats.implicits._
+import cats.data.EitherT
+import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
@@ -20,13 +20,12 @@ class GenericStatement[InputRepr <: HList, Fields <: HList](
 
   def update(
     implicit
-    statementExecutor: WriteStatementExecutor[Connection, Fields]
+    statementExecutor: WriteStatementExecutor[sql.Connection, Fields]
   ): WriteStatement[InputRepr, Fields] =
     new WriteStatement(query, toRunnable)
 
   def select[OutputRepr <: HList, TaggedOutput <: HList](
     implicit
-    readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
     taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
   ): ReadStatementStep0[InputRepr, Fields, OutputRepr, TaggedOutput] =
     new ReadStatementStep0(query, toRunnable)
@@ -36,7 +35,7 @@ class GenericStatement[InputRepr <: HList, Fields <: HList](
 class WriteStatement[Input, Fields <: HList](
   val query: String,
   toRunnable: Input => RunnableStatement[Fields])(
-  implicit statementExecutor: WriteStatementExecutor[Connection, Fields]
+  implicit statementExecutor: WriteStatementExecutor[sql.Connection, Fields]
 ) {
 
   def runP[P](input: P)(
@@ -75,7 +74,6 @@ class ReadStatementStep0[Input, Fields <: HList, OutputRepr <: HList, TaggedOutp
   val query: String,
   toRunnable: Input => RunnableStatement[Fields])(
   implicit
-  readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr],
   taggedOutput: TagOutput[Fields, OutputRepr, TaggedOutput]
 ) {
 
@@ -99,66 +97,70 @@ class ReadStatementStep0[Input, Fields <: HList, OutputRepr <: HList, TaggedOutp
 class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
   val query: String,
   toRunnable: Input => RunnableStatement[Fields],
-  toOutput: OutputRepr => Output)(
-  implicit
-  readStatement: ReadStatementExecutor[Connection, Fields, OutputRepr]
-) {
+  toOutput: OutputRepr => Output) {
 
-  def as[C[_]](implicit factory: Factory[Output, C[Output]]): ReadStatement[Input, Output, C] = {
-    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
-      new StatementExecutor[Connection, Fields, C[Output]] {
-        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] =
-          readStatement.run(connection, statement).map {
-            case Left(dataError) => Left(dataError)
-            case Right(iterator) =>
-              val errorOrBuilder = iterator.foldLeft[Either[DataError, mutable.Builder[Output, C[Output]]]](Right(factory.newBuilder)) {
-                case (Left(e), _) => Left(e)
-                case (_, Left(e)) => Left(e)
-                case (Right(builder), Right(x)) => Right(builder.addOne(toOutput(x)))
-              }
-              errorOrBuilder.map(_.result)
-          }
+  implicit private def executor[C[_]](implicit factory: Factory[Output, C[Output]], dataExtractor: DataExtractor[sql.ResultSet, Fields, OutputRepr]): StatementExecutor[sql.Connection, Fields, C[Output]] = new StatementExecutor[sql.Connection, Fields, C[Output]] {
+
+    override def run[F[+_] : Sync : Monad : ContextShift](connection: sql.Connection, blocker: Blocker, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] = {
+      import cats.implicits._
+
+      def resultSetResource(statement: sql.PreparedStatement): Resource[F, sql.ResultSet] = {
+        val acquire = blocker.delay(statement.executeQuery())
+        val close: sql.ResultSet => F[Unit] = rs => blocker.delay(rs.close())
+        Resource.make(acquire)(close)
       }
+
+      def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[Either[DecoderError, C[Output]]] =
+        blocker.delay(resultSet.next()).flatMap {
+          case false =>
+            Monad[F].pure(Right(builder.result()))
+
+          case true =>
+            blocker.delay(dataExtractor.extract(resultSet, statement.fields)).flatMap {
+              case Right(element) => recurse(resultSet, builder.addOne(toOutput(element)))
+              case Left(error) => Monad[F].pure(Left(error))
+            }
+        }
+
+      (for {
+        ps <- EitherT[F, DataError, sql.PreparedStatement](blocker.delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+        rs <- EitherT[F, DataError, C[Output]](resultSetResource(ps).use(rs => recurse(rs, factory.newBuilder)))
+      } yield rs).value
+
+    }
+  }
+
+  def as[C[_] <: Iterable[_]](
+    implicit
+    factory: Factory[Output, C[Output]],
+    dataExtractor: DataExtractor[java.sql.ResultSet, Fields, OutputRepr]
+  ): ReadStatement[Input, Output, C] = {
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)
+    new ReadStatement(query, input => toTransaction(toRunnable(input)))
+  }
+
+  def asOption(
+    implicit
+    dataExtractor: DataExtractor[java.sql.ResultSet, Fields, OutputRepr]
+  ): ReadStatement[Input, Output, Option] = {
+
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)(executor[Vector]).flatMap {
+      case twoOrMoreResults if twoOrMoreResults.size > 1 => Transaction.failed(MultipleResultsError("Multiple results"))
+      case vector => Transaction.successful(vector.headOption)
     }
 
     new ReadStatement(query, input => toTransaction(toRunnable(input)))
   }
 
-  def asOption: ReadStatement[Input, Output, Option] = {
-    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
-      new StatementExecutor[Connection, Fields, Option[Output]] {
-        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Option[Output]]] =
-          readStatement.run(connection, statement).map {
-            case Left(dataError) => Left(dataError)
-            case Right(iterator) =>
-              iterator.foldLeft[Either[DataError, Option[Output]]](Right(None)) {
-                case (Left(e), _) => Left(e)
-                case (_, Left(e)) => Left(e)
-                case (Right(None), Right(x)) => Right(Some(toOutput(x)))
-                case (Right(Some(old)), Right(x)) =>
-                  Left(MultipleResultsError(s"Only one result was expected, multiple returned: $old - $x"))
-              }
-          }
-      }
-    }
+  def single(
+    implicit
+    dataExtractor: DataExtractor[java.sql.ResultSet, Fields, OutputRepr]
+  ): ReadStatement[Input, Output, cats.Id] = {
 
-    new ReadStatement(query, input => toTransaction(toRunnable(input)))
-  }
-
-  def last(default: Output): ReadStatement[Input, Output, cats.Id] = {
-    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement) {
-      new StatementExecutor[Connection, Fields, Output] {
-        override def run[F[+_]: Sync : Monad](connection: Connection, statement: RunnableStatement[Fields]): F[Either[DataError, Output]] =
-          readStatement.run(connection, statement).map {
-            case Left(dataError) => Left(dataError)
-            case Right(iterator) =>
-              iterator.foldLeft[Either[DataError, Output]](Right(default)) {
-                case (Left(e), _) => Left(e)
-                case (_, Left(e)) => Left(e)
-                case (Right(_), Right(x)) => Right(toOutput(x))
-              }
-          }
-      }
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)(executor[Vector]).flatMap {
+      case emptyVector if emptyVector.isEmpty => Transaction.failed(NoResultsError("No results"))
+      case twoOrMoreResults if twoOrMoreResults.size > 1 => Transaction.failed(MultipleResultsError("Multiple results"))
+      case nonEmptyVector if nonEmptyVector.nonEmpty => Transaction.successful(nonEmptyVector.head)
     }
 
     new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))

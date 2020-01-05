@@ -3,11 +3,11 @@ package io.epifab.tydal.university
 import java.time.{Instant, LocalDate}
 
 import io.epifab.tydal._
-import Model.{Interest, Student, StudentExam}
-import Schema._
 import io.epifab.tydal.queries._
 import io.epifab.tydal.runtime.{ReadStatement, Transaction}
 import io.epifab.tydal.schema._
+import io.epifab.tydal.university.Model.{Interest, Student, StudentExam}
+import io.epifab.tydal.university.Schema._
 import shapeless.{::, HNil}
 
 object StudentsRepo {

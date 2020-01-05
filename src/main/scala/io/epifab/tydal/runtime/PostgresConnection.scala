@@ -31,7 +31,12 @@ object PostgresConfig {
   }
 
   def fromEnv(): PostgresConfig = PostgresConfig(
-    sys.env.getOrElse("DATABASE_URL", "postgres://root:p4ssw0rd@localhost:5432/tydal"),
+    sys.env("DATABASE_URL"),
+    sys.env.get("POSTGRES_SSL").exists(_.toBoolean)
+  )
+
+  def fromEnv(defaultUrl: String): PostgresConfig = PostgresConfig(
+    sys.env.getOrElse("DATABASE_URL", defaultUrl),
     sys.env.get("POSTGRES_SSL").exists(_.toBoolean)
   )
 }

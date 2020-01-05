@@ -214,12 +214,12 @@ object FieldT {
 
 object Field {
   implicit class ExtendedNonOptionalField[F1 <: Field[_]](field1: F1)(implicit nonOptional: Negative[IsOptional[F1]]) {
-    def castTo[U](implicit fieldDecoder: FieldDecoder[U], notNull: Negative[IsOptional[F1]]): Cast[F1, U] =
+    def castTo[U](implicit fieldDecoder: FieldDecoder[U]): Cast[F1, U] =
       Cast(field1)
   }
 
   implicit class ExtendedOptionalField[F1 <: Field[_]](field1: F1)(implicit isOptional: IsOptional[F1]) {
-    def castTo[U](implicit fieldDecoder: FieldDecoder[U], isOptional: IsOptional[F1]): Cast[F1, Option[U]] =
+    def castTo[U](implicit fieldDecoder: FieldDecoder[U]): Cast[F1, Option[U]] =
       Cast(field1)(fieldDecoder.toOption)
 
     def isDefined: IsDefined[F1] = IsDefined(field1)

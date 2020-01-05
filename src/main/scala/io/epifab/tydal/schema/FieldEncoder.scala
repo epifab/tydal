@@ -34,6 +34,8 @@ trait FieldEncoder[-T] { baseEncoder =>
 object FieldEncoder {
   type Aux[-T, D] = FieldEncoder[T] { type DbType = D }
 
+  def apply[T](implicit decoder: FieldDecoder[T]): FieldDecoder[T] = decoder
+
   implicit val stringEncoder: FieldEncoder.Aux[String, String] = new FieldEncoder[String] {
     override type DbType = String
     override def dbType: FieldType[String] = TypeString
