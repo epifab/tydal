@@ -9,12 +9,15 @@ import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class JdbcExecutor(blocker: Blocker) {
-  def run[F[_] : Sync : ContextShift, A](f: => A): F[Either[DriverError, A]] =
+  def safe[F[_] : Sync : ContextShift, A](f: => A): F[Either[DataError, A]] =
     blocker.delay(Try(f).toEither.left.map(error => DriverError(error.getMessage)))
+
+  def unsafe[F[_] : Sync : ContextShift, A](f: => A): F[A] =
+    blocker.delay(f)
 }
 
 trait ConnectionPool[F[_]] {
-  def blocker: Blocker
+  def executor: JdbcExecutor
   def connection: Resource[F, Connection]
 }
 
@@ -39,7 +42,7 @@ class HikariConnectionPool[M[_] : Sync](
   contextShift: ContextShift[M]
 ) extends ConnectionPool[M] {
 
-  override val blocker: Blocker = Blocker.liftExecutionContext(blockingEC)
+  override val executor: JdbcExecutor = new JdbcExecutor(Blocker.liftExecutionContext(blockingEC))
 
   override val connection: Resource[M, Connection] = {
     val acquire = contextShift.evalOn(connectionEC)(ev.delay(dataSource.getConnection))

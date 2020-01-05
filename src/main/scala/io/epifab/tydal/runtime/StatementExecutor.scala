@@ -11,7 +11,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 trait StatementExecutor[Conn, Fields <: HList, +Output] {
-  def run[F[+_]: Sync : Monad : ContextShift](connection: Conn, blocker: Blocker, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
+  def run[F[+_]: Sync : Monad : ContextShift](connection: Conn, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
 }
 
 trait ReadStatementExecutor[Conn, Fields <: HList, Row, +C[_] <: Iterable[_]]
@@ -23,9 +23,9 @@ trait WriteStatementExecutor[Conn, Fields <: HList]
 object StatementExecutor {
   implicit val jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
     new WriteStatementExecutor[Connection, HNil] {
-      override def run[F[+_] : Sync : Monad : ContextShift](connection: Connection, blocker: Blocker, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
+      override def run[F[+_] : Sync : Monad : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
         (for {
-          preparedStatement <- EitherT(blocker.delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
+          preparedStatement <- EitherT(Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input))
           results <- EitherT(Sync[F].delay(runStatement(preparedStatement)))
         } yield results).value
 

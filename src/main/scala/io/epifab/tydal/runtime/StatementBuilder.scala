@@ -4,7 +4,7 @@ import java.sql
 
 import cats.Monad
 import cats.data.EitherT
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{ContextShift, Resource, Sync}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
@@ -101,30 +101,40 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
   implicit private def executor[C[_]](implicit factory: Factory[Output, C[Output]], dataExtractor: DataExtractor[sql.ResultSet, Fields, OutputRepr]): StatementExecutor[sql.Connection, Fields, C[Output]] = new StatementExecutor[sql.Connection, Fields, C[Output]] {
 
-    override def run[F[+_] : Sync : Monad : ContextShift](connection: sql.Connection, blocker: Blocker, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] = {
+    override def run[F[+_] : Sync : Monad : ContextShift](connection: sql.Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] = {
       import cats.implicits._
 
-      def resultSetResource(statement: sql.PreparedStatement): Resource[F, sql.ResultSet] = {
-        val acquire = blocker.delay(statement.executeQuery())
-        val close: sql.ResultSet => F[Unit] = rs => blocker.delay(rs.close())
+      def resultSetResource(statement: sql.PreparedStatement): Resource[F, Either[DataError, sql.ResultSet]] = {
+        val acquire = jdbcExecutor.safe(statement.executeQuery())
+
+        val close: Either[DataError, sql.ResultSet] => F[Unit] = {
+          case Right(rs) => jdbcExecutor.safe(rs.close()).map(_ => ())
+          case Left(_) => Sync[F].pure(())
+        }
+
         Resource.make(acquire)(close)
       }
 
-      def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[Either[DecoderError, C[Output]]] =
-        blocker.delay(resultSet.next()).flatMap {
-          case false =>
+      def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[Either[DataError, C[Output]]] =
+        jdbcExecutor.safe(resultSet.next()).flatMap {
+          case Right(false) =>
             Monad[F].pure(Right(builder.result()))
 
-          case true =>
-            blocker.delay(dataExtractor.extract(resultSet, statement.fields)).flatMap {
+          case Right(true) =>
+            jdbcExecutor.unsafe(dataExtractor.extract(resultSet, statement.fields)).flatMap {
               case Right(element) => recurse(resultSet, builder.addOne(toOutput(element)))
               case Left(error) => Monad[F].pure(Left(error))
             }
+
+          case Left(error) => Sync[F].pure(Left(error))
         }
 
       (for {
-        ps <- EitherT[F, DataError, sql.PreparedStatement](blocker.delay(Jdbc.initStatement(connection, statement.sql, statement.input)))
-        rs <- EitherT[F, DataError, C[Output]](resultSetResource(ps).use(rs => recurse(rs, factory.newBuilder)))
+        ps <- EitherT[F, DataError, sql.PreparedStatement](Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input))
+        rs <- EitherT[F, DataError, C[Output]](resultSetResource(ps).use {
+          case Right(rs) => recurse(rs, factory.newBuilder)
+          case Left(error) => Sync[F].pure(Left(error))
+        })
       } yield rs).value
 
     }
@@ -181,7 +191,7 @@ class ReadStatement[Input, Output, C[_]](val query: String, toTransaction: Input
 }
 
 
-case class RunnableStatement[Fields <: HList](sql: String, input: Seq[Literal[_]], fields: Fields)
+case class RunnableStatement[Fields <: HList](sql: String, input: List[Literal[_]], fields: Fields)
 
 trait StatementBuilder[-Placeholders <: HList, InputRepr <: HList, OutputRepr <: HList] {
   def build(query: CompiledQuery[Placeholders, OutputRepr]): GenericStatement[InputRepr, OutputRepr]
@@ -190,7 +200,7 @@ trait StatementBuilder[-Placeholders <: HList, InputRepr <: HList, OutputRepr <:
 object StatementBuilder {
   implicit def noPlaceholders[Output <: HList]: StatementBuilder[HNil, HNil, Output] =
     (query: CompiledQuery[HNil, Output]) =>
-      new GenericStatement(query.sql, _ => RunnableStatement(query.sql, Seq.empty, query.fields))
+      new GenericStatement(query.sql, _ => RunnableStatement(query.sql, List.empty, query.fields))
 
   implicit def namedPlaceholder[PType, PTag <: String with Singleton, Tail <: HList, TailInput <: HList, Output <: HList](
     implicit

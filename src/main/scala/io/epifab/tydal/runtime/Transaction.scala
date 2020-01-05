@@ -2,7 +2,8 @@ package io.epifab.tydal.runtime
 
 import java.sql.Connection
 
-import cats.effect.{Blocker, ContextShift, IO, LiftIO, Sync}
+import cats.data.EitherT
+import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
 import cats.{Functor, Monad, Parallel, Traverse}
 import io.epifab.tydal.runtime.Transaction.MapTransaction
@@ -12,16 +13,18 @@ import shapeless.HList
 trait Transaction[+Output] {
   final def transact[F[+_]: Sync : Parallel : ContextShift : LiftIO](pool: ConnectionPool[F]): F[Either[DataError, Output]] = {
     pool.connection.use(connection =>
-      for {
-        ac <- pool.blocker.delay(connection.getAutoCommit)
-        _  <- if (ac) pool.blocker.delay(connection.setAutoCommit(false)) else Sync[F].pure(())
-        sp <- pool.blocker.delay(connection.setSavepoint())
-        rs <- run(connection, pool.blocker)
-        _  <- pool.blocker.delay(rs.fold(_ => connection.rollback(sp), _ => connection.commit()))
-      } yield rs)
+      (for {
+        ac <- EitherT(pool.executor.safe(connection.getAutoCommit))
+        _  <- if (ac) EitherT(pool.executor.safe(connection.setAutoCommit(false))) else EitherT.right(Sync[F].pure(()))
+        sp <- EitherT(pool.executor.safe(connection.setSavepoint()))
+        rs <- EitherT(run(connection, pool.executor).flatMap {
+          case Right(result) => pool.executor.safe(connection.commit()).map(_.map(_ => result))
+          case Left(error) =>   pool.executor.safe(connection.rollback(sp)).map(_ => Left(error))
+        })
+      } yield rs).value)
   }
 
-  protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Output]]
+  protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]]
 
   final def map[O2](f: Output => O2): Transaction[O2] =
     Transaction.MapTransaction(this, (x: Either[DataError, Output]) => x.map(f))
@@ -87,28 +90,28 @@ object Transaction {
   def successful[Output](value: Output): Transaction[Output] = IOTransaction(IO.pure(Right(value)))
 
   case class SimpleTransaction[Fields <: HList, Output](runnableStatement: RunnableStatement[Fields], statementExecutor: StatementExecutor[Connection, Fields, Output]) extends Transaction[Output] {
-    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Output]] =
-      statementExecutor.run(connection, blocker, runnableStatement)
+    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] =
+      statementExecutor.run(connection, jdbcExecutor, runnableStatement)
   }
 
   case class IOTransaction[Output](result: IO[Either[DataError, Output]]) extends Transaction[Output] {
-    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Output]] =
+    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] =
       LiftIO[F].liftIO(result)
   }
 
   case class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: Either[DataError, O1] => Either[DataError, Output]) extends Transaction[Output] {
-    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Output]] =
-      transactionIO.run(connection, blocker).map(f)
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] =
+      transactionIO.run(connection, jdbcExecutor).map(f)
   }
 
   case class FlatMapTransaction[O1, Output](transaction: Transaction[O1], f: Either[DataError, O1] => Transaction[Output]) extends Transaction[Output] {
-    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Output]] =
-      transaction.run(connection, blocker).flatMap(f(_).run(connection, blocker))
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] =
+      transaction.run(connection, jdbcExecutor).flatMap(f(_).run(connection, jdbcExecutor))
   }
 
   case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]]) extends Transaction[Seq[Output]] {
-    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, blocker: Blocker): F[Either[DataError, Seq[Output]]] = {
-      Functor[C].map(transactions)(_.run[F](connection, blocker)).parSequence
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Seq[Output]]] = {
+      Functor[C].map(transactions)(_.run[F](connection, jdbcExecutor)).parSequence
         .map(list => EitherSupport.leftOrRights[C, DataError, Output, Vector](list))
     }
   }

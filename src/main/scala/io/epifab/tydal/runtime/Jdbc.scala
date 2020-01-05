@@ -3,10 +3,10 @@ package io.epifab.tydal.runtime
 import java.sql.{Connection, PreparedStatement}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
+import cats.effect.{ContextShift, Sync}
+import cats.{Monad, Traverse}
 import io.epifab.tydal.schema._
-
-import scala.util.Try
-import scala.util.control.NonFatal
+import io.epifab.tydal.utils.EitherSupport
 
 object SqlDateTime {
   val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
@@ -33,26 +33,34 @@ object SqlDate {
 }
 
 object Jdbc {
-  def initStatement(connection: Connection, sql: String, placeholderValues: Seq[Literal[_]]): Either[DriverError, PreparedStatement] =
-    Try(connection.prepareStatement(sql)).toEither match {
+  import cats.implicits._
+
+  def initStatement[F[_] : Sync : ContextShift](
+    connection: Connection,
+    jdbcExecutor: JdbcExecutor,
+    sql: String,
+    placeholderValues: List[Literal[_]]
+  ): F[Either[DataError, PreparedStatement]] = {
+
+    jdbcExecutor.safe(connection.prepareStatement(sql)) flatMap {
       case Right(preparedStatement) =>
-        placeholderValues.zipWithIndex.foreach {
-          case (value, index) => setPlaceholder(
+
+        val results: F[List[Either[DataError, Unit]]] = Traverse[List].sequence(placeholderValues.zipWithIndex.map {
+          case (value, index) => jdbcExecutor.safe(setPlaceholder(
             connection,
             preparedStatement,
             index + 1,
             value.encoder.dbType,
             value.dbValue
-          )
-        }
-        Right(preparedStatement)
+          ))
+        })
 
-      case Left(NonFatal(e)) =>
-        Left(DriverError(e.getMessage))
+        results.map(x => EitherSupport.leftOrRights[List, DataError, Unit, Vector](x))
+          .map(_.map(_ => preparedStatement))
 
-      case Left(fatalError) =>
-        throw fatalError
+      case Left(error) => Monad[F].pure(Left(error))
     }
+  }
 
   @scala.annotation.tailrec
   private def setPlaceholder[U, X](connection: Connection, statement: PreparedStatement, index: Int, dbType: FieldType[U], value: X): Unit = {
