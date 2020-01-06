@@ -175,6 +175,20 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
     new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))
   }
+
+  def single(default: Output)(
+    implicit
+    dataExtractor: DataExtractor[java.sql.ResultSet, Fields, OutputRepr]
+  ): ReadStatement[Input, Output, cats.Id] = {
+
+    val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)(executor[Vector]).flatMap {
+      case emptyVector if emptyVector.isEmpty => Transaction.successful(default)
+      case twoOrMoreResults if twoOrMoreResults.size > 1 => Transaction.failed(MultipleResultsError("Multiple results"))
+      case nonEmptyVector if nonEmptyVector.nonEmpty => Transaction.successful(nonEmptyVector.head)
+    }
+
+    new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))
+  }
 }
 
 
