@@ -17,7 +17,7 @@ resolvers += "jitpack" at "https://jitpack.io"
 Step 2. Add the dependency
 
 ```
-libraryDependencies += "com.github.epifab" % "tydal" % "1.2.0"	
+libraryDependencies += "com.github.epifab" % "tydal" % "1.2.2"	
 ```
 
 ### A basic app example
@@ -44,26 +44,26 @@ case class Student(
   address: Option[Address]
 )
 
-object ProgramSchema {
+object Schema {
   import io.circe.generic.auto._
   implicit val addressEncoder: FieldEncoder.Aux[Address, String] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
-}
 
-object Program extends IOApp {
-  import ProgramSchema._
-
-  object Students extends TableBuilder["students", (
+  object students extends TableBuilder["students", (
     "id" :=: UUID,
     "name" :=: String,
     "email" :=: Option[String],
     "date_of_birth" :=: LocalDate,
     "address" :=: Option[Address]
   )]
+}
+
+object Program extends IOApp {
+  import Schema._
 
   val createStudent =
     Insert
-      .into(Students)
+      .into(students)
       .compile
       .run((
         "id" ~~> UUID.randomUUID,
@@ -75,9 +75,9 @@ object Program extends IOApp {
 
   val findStudents =
     Select
-      .from(Students as "s")
-      .focus("s").take(_.*)
-      .where(ctx => ctx("s", "email") like "email" and (ctx("date_of_birth") < "max_dob"))
+      .from(students as "s")
+      .take(_("s").*)
+      .focus("s").where(s => (s("email") like "email") and (s("date_of_birth") < "max_dob"))
       .compile
       .to[Student]
       .as[Vector]
@@ -93,7 +93,7 @@ object Program extends IOApp {
   )
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val io: IO[Either[DataError, Seq[Student]]] = (for {
+    val io = (for {
       _ <- createStudent
       students <- findStudents
     } yield students).transact(connectionPool)
@@ -194,7 +194,7 @@ Select
   .sortBy(ctx => Descending(ctx("score")) -> Ascending(ctx("sname")))
 ```
 
-Please find more examples [here](src/test/scala/io/epifab/tydal/examples).
+Please find more examples [here](src/test/scala/io/epifab/tydal/university).
 
 
 ## Why Tydal
@@ -204,7 +204,7 @@ Typically those queries are static and can be hardcoded as strings,
 but in most cases you need the flexibility of building and composing those queries together.
   
 The Tydal mission is to bring the compiler into the game, to ensure that your queries will be
-syntactically valid. 
+syntactically valid at compile time.
 
 Typos:
 

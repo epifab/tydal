@@ -19,16 +19,41 @@ class JdbcExecutor(blocker: Blocker) {
 trait ConnectionPool[F[_]] {
   def executor: JdbcExecutor
   def connection: Resource[F, Connection]
+  def shutDown(): F[Unit]
+}
+
+case class PoolConfig(maxPoolSize: Option[Int] = None)
+
+object PoolConfig {
+  val default: PoolConfig = PoolConfig()
 }
 
 object ConnectionPool {
-  def apply[F[_] : Sync : Async : ContextShift](postgresConfig: PostgresConfig, connectionEC: ExecutionContext, blockingEC: ExecutionContext): ConnectionPool[F] =
-    new HikariConnectionPool(createDataSource(postgresConfig), connectionEC, blockingEC)
+  def resource[F[_] : Sync : Async : ContextShift](
+    postgresConfig: PostgresConfig,
+    connectionEC: ExecutionContext,
+    blockingEC: ExecutionContext,
+    poolConfig: PoolConfig = PoolConfig.default
+  ): Resource[F, ConnectionPool[F]] = {
+    val acquire = Sync[F].delay(ConnectionPool(postgresConfig, connectionEC, blockingEC, poolConfig))
+    val release: ConnectionPool[F] => F[Unit] = _.shutDown()
+    Resource.make(acquire)(release)
+  }
 
-  private def createDataSource(postgresConfig: PostgresConfig) = {
+  def apply[F[_] : Sync : Async : ContextShift](
+    postgresConfig: PostgresConfig,
+    connectionEC: ExecutionContext,
+    blockingEC: ExecutionContext,
+    poolConfig: PoolConfig = PoolConfig.default
+  ): ConnectionPool[F] =
+    new HikariConnectionPool(createDataSource(postgresConfig, poolConfig), connectionEC, blockingEC)
+
+  private def createDataSource(postgresConfig: PostgresConfig, poolConfig: PoolConfig) = {
     val dataSource = new HikariDataSource
     dataSource.setDriverClassName("org.postgresql.Driver")
     dataSource.setJdbcUrl(postgresConfig.toUrl)
+    dataSource.setAutoCommit(false)
+    poolConfig.maxPoolSize.foreach(dataSource.setMaximumPoolSize)
     dataSource
   }
 }
@@ -49,5 +74,7 @@ class HikariConnectionPool[M[_] : Sync](
     def release(c: Connection) = ev.delay(c.close())
     Resource.make(acquire)(release)
   }
+
+  override def shutDown(): M[Unit] = Sync[M].delay(dataSource.close())
 
 }
