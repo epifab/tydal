@@ -5,10 +5,12 @@ import java.sql.Connection
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
-import cats.{Functor, Monad, Parallel, Traverse}
+import cats.{Applicative, Functor, Monad, Parallel, Traverse, ~>}
 import io.epifab.tydal.runtime.Transaction.MapTransaction
 import io.epifab.tydal.utils.EitherSupport
 import shapeless.HList
+
+import scala.collection.Factory
 
 trait Transaction[+Output] {
   final def transact[F[+_]: Sync : Parallel : ContextShift : LiftIO](pool: ConnectionPool[F]): F[Either[DataError, Output]] = {
@@ -71,19 +73,13 @@ object Transaction {
     override def liftIO[A](ioa: IO[A]): Transaction[A] = IOTransaction(ioa.map(Right(_)))
   }
 
+  def sequential[C[_] : Traverse, Output](transactions: C[Transaction[Output]]): Transaction[C[Output]] =
+    Traverse[C].sequence(transactions)
+
+  def parallel[C[_] : Traverse, Output](transactions: C[Transaction[Output]])(implicit factory: Factory[Output, C[Output]]): Transaction[C[Output]] =
+    ParTransactions(transactions)
+
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
-
-  def vector[Output](transactions: Vector[Transaction[Output]]): Transaction[Vector[Output]] =
-    Traverse[Vector].sequence(transactions)
-
-  def list[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
-    Traverse[List].sequence(transactions)
-
-  def parVector[Output](transactions: Vector[Transaction[Output]]): Transaction[Seq[Output]] =
-    ParTransactions(transactions)
-
-  def parList[Output](transactions: List[Transaction[Output]]): Transaction[Seq[Output]] =
-    ParTransactions(transactions)
 
   def failed(error: DataError): Transaction[Nothing] = IOTransaction(IO.pure(Left(error)))
 
@@ -109,10 +105,12 @@ object Transaction {
       transaction.run(connection, jdbcExecutor).flatMap(f(_).run(connection, jdbcExecutor))
   }
 
-  case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]]) extends Transaction[Seq[Output]] {
-    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Seq[Output]]] = {
-      Functor[C].map(transactions)(_.run[F](connection, jdbcExecutor)).parSequence
-        .map(list => EitherSupport.leftOrRights[C, DataError, Output, Vector](list))
+  case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]])(implicit factory: Factory[Output, C[Output]]) extends Transaction[C[Output]] {
+    override def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, C[Output]]] = {
+      transactions
+        .map(_.run[F](connection, jdbcExecutor))
+        .parSequence
+        .map((list: C[Either[DataError, Output]]) => EitherSupport.leftOrRights[C, DataError, Output](list))
     }
   }
 

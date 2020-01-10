@@ -148,7 +148,7 @@ object StudentsRepo {
   def findStudentExams(ids: Seq[Int]): Transaction[Seq[StudentExam]] = {
     studentExamsQuery
       .to[StudentExam]
-      .as[Vector]
+      .as[List]
       .run(Tuple1("sids" ~~> ids))
   }
 

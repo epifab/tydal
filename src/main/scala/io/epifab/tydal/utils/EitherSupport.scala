@@ -5,8 +5,8 @@ import cats.Foldable
 import scala.collection.{Factory, mutable}
 
 object EitherSupport {
-  def leftOrRights[C[_]: Foldable, E, X, To[_]](from: C[Either[E, X]])(implicit factory: Factory[X, To[X]]): Either[E, To[X]] = {
-    val results = Foldable[C].foldLeft[Either[E, X], Either[E, mutable.Builder[X, To[X]]]](from, Right(factory.newBuilder)) {
+  def leftOrRights[C[_]: Foldable, E, X](from: C[Either[E, X]])(implicit factory: Factory[X, C[X]]): Either[E, C[X]] = {
+    val results = Foldable[C].foldLeft[Either[E, X], Either[E, mutable.Builder[X, C[X]]]](from, Right(factory.newBuilder)) {
       case (Left(e), _) => Left(e)
       case (_, Left(e)) => Left(e)
       case (Right(builder), Right(x)) => Right(builder.addOne(x))

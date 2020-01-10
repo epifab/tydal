@@ -55,7 +55,7 @@ object Jdbc {
           ))
         })
 
-        results.map(x => EitherSupport.leftOrRights[List, DataError, Unit, Vector](x))
+        results.map(x => EitherSupport.leftOrRights[List, DataError, Unit](x))
           .map(_.map(_ => preparedStatement))
 
       case Left(error) => Monad[F].pure(Left(error))
