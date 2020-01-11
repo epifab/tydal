@@ -4,7 +4,7 @@ import sbt.Global
  Global Settings & Configs
   *****************************************************************/
 name := "tydal"
-version := "1.2.2"
+version := "1.2.4"
 organization := "epifab.io"
 
 exportJars := true

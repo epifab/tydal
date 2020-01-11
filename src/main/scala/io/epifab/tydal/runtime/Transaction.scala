@@ -5,9 +5,10 @@ import java.sql.Connection
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
-import cats.{Applicative, Functor, Monad, Parallel, Traverse, ~>}
+import cats.{Applicative, Functor, Monad, Parallel, Traverse}
 import io.epifab.tydal.runtime.Transaction.MapTransaction
 import io.epifab.tydal.utils.EitherSupport
+import org.slf4j.{Logger, LoggerFactory}
 import shapeless.HList
 
 import scala.collection.Factory
@@ -55,12 +56,16 @@ trait Transaction[+Output] {
 }
 
 object Transaction {
+
   implicit val monad: Monad[Transaction] = new Monad[Transaction] {
     override def pure[A](x: A): Transaction[A] =
-      successful(x)
+      Transaction.successful(x)
 
     override def flatMap[A, B](fa: Transaction[A])(f: A => Transaction[B]): Transaction[B] =
       fa.flatMap(f)
+
+    override def map[A, B](fa: Transaction[A])(f: A => B): Transaction[B] =
+      applicative.map(fa)(f)
 
     override def tailRecM[A, B](a: A)(f: A => Transaction[Either[A, B]]): Transaction[B] =
       f(a).flatMap {
@@ -69,27 +74,44 @@ object Transaction {
       }
   }
 
+  implicit val applicative: Applicative[Transaction] = new Applicative[Transaction] {
+    override def pure[A](x: A): Transaction[A] =
+      Transaction.successful(x)
+
+    override def ap[A, B](ff: Transaction[A => B])(fa: Transaction[A]): Transaction[B] =
+      new Transaction[B] {
+        override protected def run[F[+_] : Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, B]] =
+          (ff.run(connection, jdbcExecutor), fa.run(connection, jdbcExecutor)).parMapN {
+            case (Right(f), Right(a)) => Right(f(a))
+            case (Left(f), _) => Left(f)
+            case (_, Left(a)) => Left(a)
+          }
+      }
+  }
+
   implicit val liftIO: LiftIO[Transaction] = new LiftIO[Transaction] {
     override def liftIO[A](ioa: IO[A]): Transaction[A] = IOTransaction(ioa.map(Right(_)))
   }
 
+  def fromIO[A](ioa: IO[A]): Transaction[A] = liftIO.liftIO(ioa)
+
   def sequential[C[_] : Traverse, Output](transactions: C[Transaction[Output]]): Transaction[C[Output]] =
-    Traverse[C].sequence(transactions)
+    Traverse[C].sequence(transactions)(monad)
 
   def vector[Output](transactions: Vector[Transaction[Output]]): Transaction[Vector[Output]] =
-    Traverse[Vector].sequence(transactions)
+    sequential(transactions)
 
   def list[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
-    Traverse[List].sequence(transactions)
+    sequential(transactions)
 
   def parallel[C[_] : Traverse, Output](transactions: C[Transaction[Output]])(implicit factory: Factory[Output, C[Output]]): Transaction[C[Output]] =
     ParTransactions(transactions)
 
-  def parVector[Output](transactions: Vector[Transaction[Output]]): Transaction[Seq[Output]] =
-    ParTransactions(transactions)
+  def parVector[Output](transactions: Vector[Transaction[Output]]): Transaction[Vector[Output]] =
+    parallel(transactions)
 
-  def parList[Output](transactions: List[Transaction[Output]]): Transaction[Seq[Output]] =
-    ParTransactions(transactions)
+  def parList[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
+    parallel(transactions)
 
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
 
@@ -98,8 +120,20 @@ object Transaction {
   def successful[Output](value: Output): Transaction[Output] = IOTransaction(IO.pure(Right(value)))
 
   case class SimpleTransaction[Fields <: HList, Output](runnableStatement: RunnableStatement[Fields], statementExecutor: StatementExecutor[Connection, Fields, Output]) extends Transaction[Output] {
-    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] =
-      statementExecutor.run(connection, jdbcExecutor, runnableStatement)
+    val log: Logger = LoggerFactory.getLogger(getClass.getName)
+
+    override protected def run[F[+_]: Sync : Parallel : ContextShift : LiftIO](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[DataError, Output]] = {
+      for {
+        _ <- Sync[F].delay(log.debug(s"Running query: ${runnableStatement.sql}"))
+        res <- statementExecutor.run(connection, jdbcExecutor, runnableStatement)
+        _ <- Sync[F].delay(
+          res match {
+            case Left(error) => log.error(s"Query ${runnableStatement.sql}: failed with ${error.getMessage}")
+            case Right(_) => log.debug(s"Query ${runnableStatement.sql}: succeeded")
+          }
+        )
+      } yield res
+    }
   }
 
   case class IOTransaction[Output](result: IO[Either[DataError, Output]]) extends Transaction[Output] {
