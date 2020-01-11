@@ -76,7 +76,19 @@ object Transaction {
   def sequential[C[_] : Traverse, Output](transactions: C[Transaction[Output]]): Transaction[C[Output]] =
     Traverse[C].sequence(transactions)
 
+  def vector[Output](transactions: Vector[Transaction[Output]]): Transaction[Vector[Output]] =
+    Traverse[Vector].sequence(transactions)
+
+  def list[Output](transactions: List[Transaction[Output]]): Transaction[List[Output]] =
+    Traverse[List].sequence(transactions)
+
   def parallel[C[_] : Traverse, Output](transactions: C[Transaction[Output]])(implicit factory: Factory[Output, C[Output]]): Transaction[C[Output]] =
+    ParTransactions(transactions)
+
+  def parVector[Output](transactions: Vector[Transaction[Output]]): Transaction[Seq[Output]] =
+    ParTransactions(transactions)
+
+  def parList[Output](transactions: List[Transaction[Output]]): Transaction[Seq[Output]] =
     ParTransactions(transactions)
 
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
