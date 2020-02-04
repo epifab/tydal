@@ -314,10 +314,12 @@ object QueryFragmentBuilder {
   implicit def sortByEmptyList: QueryFragmentBuilder[FT_SortBy, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => CompiledQueryFragment.empty)
 
-  implicit def sortByNonEmptyList[H, T <: HList]
-      (implicit
-       head: QueryFragmentBuilder[FT_SortBy, H, HNil],
-       tail: QueryFragmentBuilder[FT_SortBy, T, HNil]): QueryFragmentBuilder[FT_SortBy, H :: T, HNil] =
+  implicit def sortByNonEmptyList[H, T <: HList, P <: HList, Q <: HList, R <: HList](
+    implicit
+    head: QueryFragmentBuilder[FT_SortBy, H, P],
+    tail: QueryFragmentBuilder[FT_SortBy, T, Q],
+    concat: Concat.Aux[P, Q, R]
+  ): QueryFragmentBuilder[FT_SortBy, H :: T, R] =
     instance(clauses => head.build(clauses.head) `+,+` tail.build(clauses.tail))
 
   // ------------------------------
