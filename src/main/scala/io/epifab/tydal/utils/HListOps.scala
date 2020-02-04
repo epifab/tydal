@@ -17,6 +17,7 @@ object Finder {
 trait Concat[T, U] {
   type Out
   def apply(t: T, u: U): Out
+  def undo(out: Out): (T, U)
 }
 
 object Concat {
@@ -25,11 +26,15 @@ object Concat {
   implicit def concatHNil[L <: HList]: Concat.Aux[HNil, L, L] = new Concat[HNil, L] {
     override type Out = L
     override def apply(h: HNil, l: L): Out = l
+    override def undo(out: L): (HNil, L) = (HNil, out)
   }
 
   implicit def concatHCons[H, T <: HList, L <: HList, O <: HList](implicit tailConcat: Concat.Aux[T, L, O]): Concat.Aux[H :: T, L, H :: O] = new Concat[H :: T, L] {
     override type Out = H :: O
     override def apply(t: H :: T, u: L): Out = t.head :: tailConcat(t.tail, u)
+    override def undo(out: H :: O): (H :: T, L) = tailConcat.undo(out.tail) match {
+      case (t, l) => (out.head :: t) -> l
+    }
   }
 
   def apply[A, B, AB](a: A, b: B)

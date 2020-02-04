@@ -3,9 +3,10 @@ package io.epifab.tydal
 import java.time.{Instant, LocalDate}
 
 import io.epifab.tydal.queries._
-import io.epifab.tydal.runtime.Transaction
+import io.epifab.tydal.runtime.{ReadStatementStep0, Transaction}
 import io.epifab.tydal.schema._
 import io.epifab.tydal.university.Schema._
+import shapeless.{HNil, ::}
 
 object SelectQueries {
   val queryWithRange =
@@ -80,4 +81,11 @@ object SelectQueries {
         )
       )
   }
+
+  val multiplePlaceholderQuery: ReadStatementStep0[KeyVal["test1", Int] :: KeyVal["test2", Int] :: KeyVal["test3", Int] :: KeyVal["test1", String] :: KeyVal["test4", String] :: HNil, NamedPlaceholder[Int] with Tagging["test1"] :: NamedPlaceholder[Int] with Tagging["test2"] :: HNil, Int :: Int :: HNil, As[Int, "test1"] :: As[Int, "test2"] :: HNil] =
+    Select.from(Students as "s").take(_ => (
+      NamedPlaceholder[Int, "test1"],
+      NamedPlaceholder[Int, "test2"]
+    )).where(_ => NamedPlaceholder[Int, "test1"] === "test3" or NamedPlaceholder[String, "test1"] === "test4").compile
+
 }

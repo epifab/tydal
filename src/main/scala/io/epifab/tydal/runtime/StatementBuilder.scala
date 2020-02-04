@@ -8,15 +8,15 @@ import cats.effect.{ContextShift, Resource, Sync}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.TaggedFind
+import io.epifab.tydal.utils.{HSet, TaggedFind}
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
 import scala.collection.{Factory, mutable}
 
-class GenericStatement[InputRepr <: HList, Fields <: HList](
-  val query: String,
-  val toRunnable: InputRepr => RunnableStatement[Fields]) {
+sealed trait GenericStatement[InputRepr <: HList, Fields <: HList] { Self =>
+  def query: String
+  def toRunnable: InputRepr => RunnableStatement[Fields]
 
   def update(
     implicit
@@ -30,6 +30,18 @@ class GenericStatement[InputRepr <: HList, Fields <: HList](
   ): ReadStatementStep0[InputRepr, Fields, OutputRepr, TaggedOutput] =
     new ReadStatementStep0(query, toRunnable)
 
+  def contramap[Input2 <: HList](f: Input2 => InputRepr): GenericStatement[Input2, Fields] = new GenericStatement[Input2, Fields] {
+    override def query: String = Self.query
+    override def toRunnable: Input2 => RunnableStatement[Fields] = (input) => Self.toRunnable(f(input))
+  }
+}
+
+object GenericStatement {
+  def apply[InputRepr <: HList, Fields <: HList](q: String, f: InputRepr => RunnableStatement[Fields]): GenericStatement[InputRepr, Fields] =
+    new GenericStatement[InputRepr, Fields] {
+      override def query: String = q
+      override def toRunnable: InputRepr => RunnableStatement[Fields] = f
+    }
 }
 
 class WriteStatement[Input, Fields <: HList](
@@ -214,14 +226,14 @@ trait StatementBuilder[-Placeholders <: HList, InputRepr <: HList, OutputRepr <:
 object StatementBuilder {
   implicit def noPlaceholders[Output <: HList]: StatementBuilder[HNil, HNil, Output] =
     (query: CompiledQuery[HNil, Output]) =>
-      new GenericStatement(query.sql, _ => RunnableStatement(query.sql, List.empty, query.fields))
+      GenericStatement(query.sql, _ => RunnableStatement(query.sql, List.empty, query.fields))
 
   implicit def namedPlaceholder[PType, PTag <: String with Singleton, Tail <: HList, TailInput <: HList, Output <: HList](
     implicit
     tail: StatementBuilder[Tail, TailInput, Output]
   ): StatementBuilder[(NamedPlaceholder[PType] As PTag) :: Tail, (PTag ~~> PType) :: TailInput, Output] =
     (query: CompiledQuery[(NamedPlaceholder[PType] As PTag) :: Tail, Output]) =>
-      new GenericStatement(query.sql, values => RunnableStatement(
+      GenericStatement(query.sql, values => RunnableStatement(
         query.sql,
         tail
           .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
@@ -235,7 +247,7 @@ object StatementBuilder {
     tail: StatementBuilder[Tail, TailInput, Output]
   ): StatementBuilder[Literal[PType] :: Tail, TailInput, Output] =
     (query: CompiledQuery[Literal[PType] :: Tail, Output]) =>
-      new GenericStatement(query.sql, values => {
+      GenericStatement(query.sql, values => {
         RunnableStatement(
           query.sql,
           tail
@@ -251,7 +263,7 @@ object StatementBuilder {
     tail: StatementBuilder[Tail, TailInput, Output],
   ): StatementBuilder[LiteralOption[PType] :: Tail, TailInput, Output] =
     (query: CompiledQuery[LiteralOption[PType] :: Tail, Output]) =>
-      new GenericStatement(query.sql, values => {
+      GenericStatement(query.sql, values => {
         val tailValues = tail
           .build(CompiledQuery(query.sql, query.placeholders.tail, query.fields))
           .toRunnable(values)

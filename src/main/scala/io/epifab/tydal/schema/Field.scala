@@ -199,9 +199,9 @@ object LiteralOptions {
   }
 }
 
-class KeyVal[A <: String with Singleton, +B](a: A, b: B) {
+class KeyVal[A <: String with Singleton, +B](override val tagValue: A, b: B) extends Tagging[A] {
   def toLiteral[C >: B](implicit decoder: FieldDecoder[C], encoder: FieldEncoder[C]): Literal[C] with Tagging[A] =
-    Literal[C](b).as(a)
+    Literal[C](b).as(tagValue)
 }
 
 trait FieldT[-F <: Field[_], T] {

@@ -5,12 +5,15 @@ import shapeless.{::, HList, HNil}
 
 
 sealed trait HSet[Source <: HList, Target <: HList] {
-  def toSet(src: Source): Target
+  def toSet(list: Source): Target
+  def toList(set: Target): Source
 }
 
 object HSet {
-  sealed trait RemoveElement[Needle, Haystack, ResultSet <: HList] {
-    def remove(haystack: Haystack): ResultSet
+
+  sealed trait RemoveElement[Needle, Haystack, NeedleFreeHaystack <: HList] {
+    def remove(haystack: Haystack): NeedleFreeHaystack
+    def undo(needle: Needle, needleFreeHaystack: NeedleFreeHaystack): Haystack
   }
 
   object RemoveElement {
@@ -43,14 +46,17 @@ object HSet {
 
     implicit def removed[A <: Tagging[_], B <: Tagging[_]](implicit sameElement: SameElement[A, B]): RemoveElement[A, B, HNil] = new RemoveElement[A, B, HNil] {
       override def remove(haystack: B): HNil = HNil
+      override def undo(needle: A, needleFreeHaystack: HNil): B = needle.asInstanceOf[B]
     }
 
     implicit def notRemoved[A <: Tagging[_], B <: Tagging[_]](implicit differentElement: DifferentElement[A, B]): RemoveElement[A, B, B :: HNil] = new RemoveElement[A, B, B :: HNil] {
       override def remove(haystack: B): B :: HNil = haystack :: HNil
+      override def undo(needle: A, needleFreeHaystack: B :: HNil): B = needleFreeHaystack.head
     }
 
     implicit def hNil[A]: RemoveElement[A, HNil, HNil] = new RemoveElement[A, HNil, HNil] {
       override def remove(haystack: HNil): HNil = HNil
+      override def undo(needle: A, needleFreeHaystack: HNil): HNil = HNil
     }
 
     implicit def hCons[A, H, HX <: HList, T <: HList, TX <: HList, XX <: HList]
@@ -60,6 +66,11 @@ object HSet {
      concat: Concat.Aux[HX, TX, XX]): RemoveElement[A, H :: T, XX] = new RemoveElement[A, H :: T, XX] {
       override def remove(haystack: H :: T): XX =
         concat(headRemover.remove(haystack.head), tailRemover.remove(haystack.tail))
+
+      override def undo(needle: A, needleFreeHaystack: XX): H :: T =
+        concat.undo(needleFreeHaystack) match {
+          case (hx, tx) => headRemover.undo(needle, hx) :: tailRemover.undo(needle, tx)
+        }
     }
   }
 
@@ -70,17 +81,21 @@ object HSet {
 
   def apply[Source <: HList](src: Source): PartiallyAppliedHSet[Source] = new PartiallyAppliedHSet(src)
 
-  private def instance[A <: HList, B <: HList](f: A => B): HSet[A, B] = new HSet[A, B] {
-    override def toSet(src: A): B = f(src)
+  private def instance[A <: HList, B <: HList](f: A => B, g: B => A): HSet[A, B] = new HSet[A, B] {
+    override def toSet(list: A): B = f(list)
+    override def toList(set: B): A = g(set)
   }
 
   implicit def hNil: HSet[HNil, HNil] =
-    instance((_: HNil) => HNil)
+    instance((_: HNil) => HNil, (_: HNil) => HNil)
 
-  implicit def hCons[H <: Tagging[_], T <: HList, HX <: HList, XX <: HList]
-    (implicit
-     removeHeadFromTail: RemoveElement[H, T, HX],
-     hSet2: HSet[HX, XX]): HSet[H :: T, H :: XX] =
-    instance((list: H :: T) =>
-      list.head :: hSet2.toSet(removeHeadFromTail.remove(list.tail)))
+  implicit def hCons[H <: Tagging[_], T <: HList, HX <: HList, XX <: HList](
+    implicit
+    removeHeadFromTail: RemoveElement[H, T, HX],
+    nestedHSet: HSet[HX, XX]
+  ): HSet[H :: T, H :: XX] =
+    instance(
+      (list: H :: T) => list.head :: nestedHSet.toSet(removeHeadFromTail.remove(list.tail)),
+      (set: H :: XX) => set.head :: removeHeadFromTail.undo(set.head, nestedHSet.toList(set.tail))
+    )
 }
