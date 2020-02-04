@@ -287,11 +287,29 @@ object QueryFragmentBuilder {
   // Sort by
   // ------------------------------
 
-  implicit def sortByField[S <: SortBy[_]]: QueryFragmentBuilder[FT_SortBy, S, HNil] =
-    QueryFragmentBuilder.instance(sortBy => CompiledQueryFragment(sortBy.alias + " " + (sortBy.sortOrder match {
-      case AscendingOrder => "ASC"
-      case DescendingOrder => "DESC"
-    })))
+//  implicit def sortByFieldWithAlias[F <: Field[_] with Tagging[_], P <: HList](
+//    implicit
+//    field: QueryFragmentBuilder[FT_AliasList, F, P]
+//  ): QueryFragmentBuilder[FT_SortBy, SortBy[F], P] =
+//    QueryFragmentBuilder.instance(sortBy =>
+//      field.build(sortBy.field).append(" " + (sortBy.sortOrder match {
+//        case AscendingOrder => "ASC"
+//        case DescendingOrder => "DESC"
+//      })))
+
+  implicit def sortByFieldWithoutAlias[F <: Field[_], P <: HList](
+    implicit
+    field: QueryFragmentBuilder[FT_FieldExprList, F, P],
+    // todo: it's neater to use field aliases whenever possible here, but they are don't necessarily exists in the
+    //  actual query, e.g. NamedPlaceholder[T, "a"], they won't exists unless the placeholder is selected
+    // untagged: Untagged[F]
+  ): QueryFragmentBuilder[FT_SortBy, SortBy[F], P] =
+    QueryFragmentBuilder.instance(sortBy =>
+      field.build(sortBy.field).append(" " + (sortBy.sortOrder match {
+        case AscendingOrder => "ASC"
+        case DescendingOrder => "DESC"
+      })))
+
 
   implicit def sortByEmptyList: QueryFragmentBuilder[FT_SortBy, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => CompiledQueryFragment.empty)

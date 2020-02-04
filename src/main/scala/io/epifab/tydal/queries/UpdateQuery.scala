@@ -1,11 +1,9 @@
 package io.epifab.tydal.queries
 
-import io.epifab.tydal.{As, Tagging}
-import io.epifab.tydal.runtime.{StatementBuilder, WriteStatement}
-import io.epifab.tydal.schema.{AlwaysTrue, Columns, Field, Filter, GenericSchema, NamedPlaceholders, Table, TableBuilder}
+import io.epifab.tydal.schema._
 import io.epifab.tydal.utils.{TaggedFind, TaggedReplace}
-import shapeless.ops.hlist.Tupler
-import shapeless.{Generic, HList, HNil}
+import io.epifab.tydal.{As, Tagging}
+import shapeless.{Generic, HList}
 
 final class UpdateQuery[Fields <: HList, Values <: HList, Where <: Filter](
   private[tydal] val table: Table[Fields],

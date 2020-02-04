@@ -1,7 +1,7 @@
 package io.epifab.tydal
 
 import io.epifab.tydal.SelectQueries._
-import io.epifab.tydal.queries.{Delete, Insert, Update}
+import io.epifab.tydal.queries._
 import io.epifab.tydal.university.Schema._
 import io.epifab.tydal.university.StudentsRepo
 import org.scalatest.{FlatSpec, Matchers}
@@ -30,6 +30,19 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " FROM exams AS e" +
         " WHERE e.exam_timestamp < ?::timestamp" +
         " GROUP BY e.student_id"
+      )
+  }
+
+  it should "build a sort by clause" in {
+    maxScoreSubQuery.sortBy($ => Descending($("max_score")) -> Ascending($("student_id"))).compile.query shouldBe (
+      "SELECT" +
+        " e.student_id AS student_id," +
+        " max(e.score) AS max_score," +
+        " min(e.course_id) AS course_id" +
+        " FROM exams AS e" +
+        " WHERE e.exam_timestamp < ?::timestamp" +
+        " GROUP BY e.student_id" +
+        " ORDER BY max(e.score) DESC, e.student_id ASC"
       )
   }
 
