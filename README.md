@@ -1,7 +1,108 @@
 # TYDAL
 
 TYDAL (pronounced *tidal* `/ˈtʌɪd(ə)l/` and formerly YADL)
-is a *type safe* PostgreSQL DSL for Scala.
+is a *type-safe* SQL DSL and functional JDBC layer for Scala.
+
+
+## Why Tydal
+
+In a typical real-life application, the set of possible data access queries (e.g. SQL queries)
+can be defined at edit-time. This means that their correctness can be -to certain extent-
+verified before a program even runs (e.g. compile time).
+
+Tydal offers a composable type-safe SQL-like DSL and a JDBC runtime environment
+following canonical functional programming principles.
+
+```scala
+case class Book(isbn: String, name: String, authors: List[String])
+
+object book extends TableSchema["book", (
+  "isbn" :=: String,
+  "name" :=: String,
+  "authors" :=: List[String]
+)]
+
+val statement: ReadStatement[("isbn" ~~> String, "author" ~~> String), Book, Vector] = 
+  Select
+    .from(book as "b")
+    .take(_("b").*)
+    .where(_("b", "isbn") === "isbn")
+    .orWhere(_("b", "authors") contains "author")
+    .compile
+    .to[Book]
+    .as[Vector]
+
+val books: IO[Vector[Book]] = statement
+  .run((
+    "isbn" ~~> "073521610X",
+    "author" ~~> "Carlo"
+  ))
+  .transact(connectionPool)
+```
+
+A few nasty things tydal will help you to fight at a first glance:
+
+- Typos, missing fields or relations:
+
+```scala
+Select.from(book as "b").take(_("b", "asd"))
+// Field or relation "asd" could not be found
+```
+
+- Incompatible types comparison:
+
+```scala
+Select.from(book as "b").where(_("b", "isbn") === Literal(123))
+// Column[String] and PlaceholderValue[Int] are not comparable
+
+Select.from(book as "b").where(_("b", "isbn") in Literal(Seq(1999, 1998)))
+// Column[String] cannot be included in PlaceholderValue[Seq[Int]]
+```
+
+- Incorrect query to model mapping:
+
+```scala
+Select.from(book as "b").take(_("b").*).mapTo[String]
+// Could not find implicit for parameter generic ...
+// ok, this last error message is not as specific as the ones above but it does the job
+```
+
+
+#### Supported DBMS
+
+The only supported DBMS is *PostgreSQL*.
+
+
+#### Supported SQL
+
+Some -or even most- applications needs will be satisfied with the current DSL,
+but SQL is huge, and Tydal only covers a handful of its features.  
+You might (or might not) find this DSL limiting for your use-case.  
+Some libraries (Slick or Doobie for example) allow plain text queries, but Tydal doesn't,
+because that would make composability and some type constraints currently impossible to achieve
+and ultimately defeat the purpose of this library.
+
+Tydal is open source, feel free to contribute.
+
+
+#### Supported types
+
+Out of the box, the following field types are supported:
+
+Database type               | Scala type
+---                         | ---
+`char`, `varchar`, `text`   | `String`
+`int`                       | `Int`
+`float`                     | `Double`
+`date`, `timestamp`         | `LocalDate`, `Instant` (java.time)
+`enum`                      | Any type `T`
+`arrays`                    | `Seq[T]` where `T` is any of the above
+`json`                      | Any type `T`
+
+In addition, every data type can be made optional and encoded as `Option`.
+
+The mapping between a SQL data type and its Scala representation is defined via two *type classes* named `FieldEncoder` and `FieldDecoder`.
+You can, of course, define new encoders/decoders in order to support custom types.
 
 
 ## Getting started
@@ -49,7 +150,7 @@ object Schema {
   implicit val addressEncoder: FieldEncoder.Aux[Address, String] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
 
-  object students extends TableBuilder["students", (
+  object students extends TableSchema["students", (
     "id" :=: UUID,
     "name" :=: String,
     "email" :=: Option[String],
@@ -195,80 +296,3 @@ Select
 ```
 
 Please find more examples [here](src/test/scala/io/epifab/tydal/university).
-
-
-## Why Tydal
-
-For many real life applications, there are only a discrete number of SQL queries that can be run. 
-Typically those queries are static and can be hardcoded as strings,
-but in most cases you need the flexibility of building and composing those queries together.
-  
-The Tydal mission is to bring the compiler into the game, to ensure that your queries will be
-syntactically valid at compile time.
-
-Typos:
-
-```scala
-Select.from(Students as "s").take(_("s", "asd"))
-// Field or relation "asd" could not be found
-```
-
-Incompatible SQL types:
-
-```scala
-Select.from(Students as "s").where(_("s", "date_of_birth") === Literal("1999"))
-// Column[LocalDate] and PlaceholderValue[String] are not comparable
-
-Select.from(Students as "s").where(_("s", "date_of_birth") in Literal(Seq("1999", "1998")))
-// Column[LocalDate] cannot be included in PlaceholderValue[Seq[String]]
-```
-
-Extract results to a non-matching target:
-
-```scala
-Select.from(Students as "s").take(_("s").*).mapTo[Exam]
-// Could not find implicit for parameter generic ...
-// ok, this last error message is not as specific as the ones above but it does the job
-```
-
-> *Warning*:  
-> SQL is complex, and although Tydal helps protecting against several common mistakes you might make
-it does not guarantee your query will run smoothly.
-
-
-### Features
-
-#### DBMS
-
-The only supported DBMS is **PostgreSQL**.
-I have no plan to extend this to support any other DBMS.
-
-
-#### SQL language
-
-SQL is huge, and Tydal covers only a handful of its features.
-You might (or might not) find this DSL limiting for your use-case.
-Most other libraries (Slick or Doobie for example) give you the alternative 
-of writing plain text queries, but Tydal doesn't, because that would defeat the purpose of it.   
-
-So, long story short, don't use it unless you're willing to contribute.
-
-
-#### Types
-
-Out of the box, the following field types are supported:
-
-Database type               | Scala type
----                         | ---
-`char`, `varchar`, `text`   | `String`
-`int`                       | `Int`
-`float`                     | `Double`
-`date`, `timestamp`         | `LocalDate`, `Instant` (java.time)
-`enum`                      | Any type `T`
-`arrays`                    | `Seq[T]` where `T` is any of the above
-`json`                      | Any type `T`
-
-In addition, every data type can be made optional and encoded as `Option`.
-
-The mapping between a SQL data type and its Scala representation is defined via two *type classes* named `FieldEncoder` and `FieldDecoder`.
-You can, of course, define new encoders/decoders in order to support custom types.
