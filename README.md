@@ -150,7 +150,7 @@ object Schema {
   implicit val addressEncoder: FieldEncoder.Aux[Address, String] = FieldEncoder.jsonEncoder[Address]
   implicit val addressDecoder: FieldDecoder.Aux[Address, String] = FieldDecoder.jsonDecoder[Address]
 
-  object students extends TableSchema["students", (
+  object students extends TableBuilder["students", (
     "id" :=: UUID,
     "name" :=: String,
     "email" :=: Option[String],

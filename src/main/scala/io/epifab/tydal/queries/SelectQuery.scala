@@ -66,14 +66,13 @@ trait SelectOps[Fields <: HList, GroupBy <: HList, Sources <: HList, Where <: Fi
   ): SelectQuery[Fields, GroupBy, Sources, Or[Where, NewWhere], Having, Sort, Offset, Limit] =
     new SelectQuery(select.fields, select.groupBy, select.sources, select.where or f(context), select.having, select.sortBy, select.offset, select.limit)
 
-  def groupBy[P, RawGroup <: HList, Columns <: HList, NewGroup <: HList](f: Context => P)(
+  def groupBy[P, RawGroup <: HList, NewGroupBy <: HList](f: Context => P)(
     implicit
     generic: Generic.Aux[P, RawGroup],
-    extractColumns: GroupByColumns[RawGroup, Columns],
-    hSet: HSet[Columns, NewGroup],
-    queryBuilder: QueryBuilder[SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort, Offset, Limit], _, Fields]
-  ): SelectQuery[Fields, NewGroup, Sources, Where, Having, Sort, Offset, Limit] =
-    new SelectQuery(select.fields, hSet.toSet(extractColumns(generic.to(f(context)))), select.sources, select.where, select.having, select.sortBy, select.offset, select.limit)
+    extractColumns: GroupByColumns[RawGroup, NewGroupBy],
+    queryBuilder: QueryBuilder[SelectQuery[Fields, NewGroupBy, Sources, Where, Having, Sort, Offset, Limit], _, Fields]
+  ): SelectQuery[Fields, NewGroupBy, Sources, Where, Having, Sort, Offset, Limit] =
+    new SelectQuery(select.fields, extractColumns(generic.to(f(context))), select.sources, select.where, select.having, select.sortBy, select.offset, select.limit)
 
   def groupBy1[F <: Field[_] with Tagging[_]](f: Context => F)(
     implicit
