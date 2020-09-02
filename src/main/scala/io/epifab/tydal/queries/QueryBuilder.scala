@@ -132,14 +132,18 @@ object QueryBuilder {
       ).get(select.fields)
     )
 
-  implicit def insertQuery[Fields <: HList, Values <: HList, Placeholders <: HList]
+  implicit def insertQuery[Fields <: HList, Values <: HList, ConflictPolicy <: OnConflict, P1 <: HList, P2 <: HList, P3 <: HList]
       (implicit
        names: QueryFragmentBuilder[FT_AliasList, Fields, HNil],
-       values: QueryFragmentBuilder[FT_FieldExprList, Values, Placeholders]): QueryBuilder[InsertQuery[Fields, Values], Placeholders, HNil] =
+       values: QueryFragmentBuilder[FT_FieldExprList, Values, P1],
+       onConflict: QueryFragmentBuilder[FT_ConflictPolicy, ConflictPolicy, P2],
+       concat: Concat.Aux[P1, P2, P3]
+      ): QueryBuilder[InsertQuery[Fields, Values, ConflictPolicy], P3, HNil] =
     QueryBuilder.instance(insert => {
       (names.build(insert.table.fields).wrap("(", ")") ++
         " VALUES " ++
-        values.build(insert.values).wrap("(", ")")
+        values.build(insert.values).wrap("(", ")") ++
+        onConflict.build(insert.onConflict)
       ).prepend(s"INSERT INTO ${insert.table.tableName} ").get(HNil)
     })
 
@@ -165,8 +169,8 @@ object QueryBuilder {
     )
 }
 
-sealed trait QueryFragmentBuilder[TYPE, -X, P <: HList] {
-  def build(x: X): CompiledQueryFragment[P]
+sealed trait QueryFragmentBuilder[Alias, -Target, Placeholders <: HList] {
+  def build(x: Target): CompiledQueryFragment[Placeholders]
 }
 
 object FragmentType {
@@ -179,6 +183,7 @@ object FragmentType {
   type FT_SortBy = "SortByList"
   type FT_LimitPlaceholder = "FT_LimitPlaceholder"
   type FT_OffsetPlaceholder = "FT_OffsetPlaceholder"
+  type FT_ConflictPolicy = "FT_ConflictPolicy"
 }
 
 object QueryFragmentBuilder {
@@ -255,10 +260,10 @@ object QueryFragmentBuilder {
   implicit def fieldAliasEqualExprField[P <: HList, F <: Tagging[_]](implicit src: QueryFragmentBuilder[FT_FieldExprList, F, P]): QueryFragmentBuilder[FT_FieldAliasEqualExprList, F, P] =
     instance((f: F) => src.build(f).prepend(f.tagValue + " = "))
 
-  implicit def fieldAliasEqualExprsEmptyList: QueryFragmentBuilder[FT_FieldAliasEqualExprList, HNil, HNil] =
+  implicit def fieldAliasEqualExprEmptyList: QueryFragmentBuilder[FT_FieldAliasEqualExprList, HNil, HNil] =
     QueryFragmentBuilder.instance(_ => CompiledQueryFragment.empty)
 
-  implicit def fieldAliasEqualExprsNonEmptyList[H, T <: HList, P <: HList, Q <: HList, R <: HList]
+  implicit def fieldAliasEqualExprNonEmptyList[H, T <: HList, P <: HList, Q <: HList, R <: HList]
       (implicit
        head: QueryFragmentBuilder[FT_FieldAliasEqualExprList, H, P],
        tail: QueryFragmentBuilder[FT_FieldAliasEqualExprList, T, Q],
@@ -451,4 +456,23 @@ object QueryFragmentBuilder {
 
   implicit val noLimit: QueryFragmentBuilder[FT_LimitPlaceholder, HNil, HNil] =
     instance(_ => CompiledQueryFragment.empty)
+
+  // ------------------------------
+  // Conflict policy
+  // ------------------------------
+
+  implicit def onConflictThrowException: QueryFragmentBuilder[FT_ConflictPolicy, OnConflict.ThrowException, HNil] =
+    instance(_ => CompiledQueryFragment.empty)
+
+  implicit def onConflictDoNothing[ConflictFields <: HList, P <: HList](implicit conflictFields: QueryFragmentBuilder[FT_AliasList, ConflictFields, P]): QueryFragmentBuilder[FT_ConflictPolicy, OnConflict.DoNothing[ConflictFields], P] =
+    instance(x => CompiledQueryFragment(s" ON CONFLICT ") ++ conflictFields.build(x.fields).wrap("(", ")") ++ " DO NOTHING")
+
+  implicit def onConflictDoUpdate[ConflictFields <: HList, UpdatePlaceholders <: HList, P1 <: HList, P2 <: HList, P3 <: HList](
+      implicit
+      conflictFields: QueryFragmentBuilder[FT_AliasList, ConflictFields, P1],
+      updatePlaceholders: QueryFragmentBuilder[FT_FieldAliasEqualExprList, UpdatePlaceholders, P2],
+      concat: Concat.Aux[P1, P2, P3]
+    ): QueryFragmentBuilder[FT_ConflictPolicy, OnConflict.DoUpdate[ConflictFields, UpdatePlaceholders], P3] =
+    instance(onConflict => CompiledQueryFragment(s" ON CONFLICT ") ++ conflictFields.build(onConflict.fields).wrap("(", ")") ++ " DO UPDATE SET " ++ updatePlaceholders.build(onConflict.updatePlaceholders))
+
 }

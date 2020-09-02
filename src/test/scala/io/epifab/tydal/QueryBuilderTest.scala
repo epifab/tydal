@@ -127,4 +127,25 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " WHERE s.id IN (SELECT e.student_id AS student_id FROM exams AS e WHERE e.score >= ?::int)"
     )
   }
+
+  it should "build an update query (on conflict do nothing)" in {
+    Insert.into(Students)
+      .onConflict(s => Tuple1(s("email")))
+      .doNothing.compile.query shouldBe (
+      "INSERT INTO students (id, name, email, date_of_birth, address, interests)" +
+        " VALUES (?::int, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
+        " ON CONFLICT (email) DO NOTHING"
+    )
+  }
+
+  it should "build an update query (on conflict do update)" in {
+    Insert.into(Students)
+      .onConflict(s => Tuple1(s("email")))
+      .doUpdate(s => (s("date_of_birth"), s("address"), s("interests")))
+      .compile.query shouldBe (
+      "INSERT INTO students (id, name, email, date_of_birth, address, interests)" +
+        " VALUES (?::int, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
+        " ON CONFLICT (email) DO UPDATE SET date_of_birth = ?::date, address = ?::json, interests = ?::interest[]"
+    )
+  }
 }

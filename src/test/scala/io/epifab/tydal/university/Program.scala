@@ -41,6 +41,8 @@ object Program extends IOApp {
   val createStudent =
     Insert
       .into(Students)
+      .onConflict(s => Tuple1(s("email")))
+      .doUpdate(s => (s("name"), s("date_of_birth"), s("address")))
       .compile
       .run((
         "id" ~~> UUID.randomUUID,
