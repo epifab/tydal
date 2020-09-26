@@ -75,7 +75,7 @@ object Program extends IOApp {
     val io = (for {
       _ <- createStudent
       students <- findStudents
-    } yield students).transact(connectionPool)
+    } yield students).transact(connectionPool).attempt
 
     io.map(_.fold(_ => ExitCode.Error, _ => ExitCode.Success))
   }

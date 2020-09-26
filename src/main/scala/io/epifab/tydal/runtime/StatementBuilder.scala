@@ -3,12 +3,11 @@ package io.epifab.tydal.runtime
 import java.sql
 
 import cats.Monad
-import cats.data.EitherT
 import cats.effect.{ContextShift, Resource, Sync}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.CompiledQuery
 import io.epifab.tydal.schema._
-import io.epifab.tydal.utils.{HSet, TaggedFind}
+import io.epifab.tydal.utils.TaggedFind
 import shapeless.ops.hlist.Tupler
 import shapeless.{::, Generic, HList, HNil}
 
@@ -113,41 +112,28 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
   implicit private def executor[C[_]](implicit factory: Factory[Output, C[Output]], dataExtractor: DataExtractor[sql.ResultSet, Fields, OutputRepr]): StatementExecutor[sql.Connection, Fields, C[Output]] = new StatementExecutor[sql.Connection, Fields, C[Output]] {
 
-    override def run[F[+_] : Sync : Monad : ContextShift](connection: sql.Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Either[DataError, C[Output]]] = {
+    override def run[F[+_] : Sync : ContextShift](connection: sql.Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[C[Output]] = {
       import cats.implicits._
 
-      def resultSetResource(statement: sql.PreparedStatement): Resource[F, Either[DataError, sql.ResultSet]] = {
-        val acquire = jdbcExecutor.safe(statement.executeQuery())
+      def resultSetResource(statement: sql.PreparedStatement): Resource[F, sql.ResultSet] =
+        Resource.make(jdbcExecutor(statement.executeQuery()))(rs => jdbcExecutor(rs.close()))
 
-        val close: Either[DataError, sql.ResultSet] => F[Unit] = {
-          case Right(rs) => jdbcExecutor.safe(rs.close()).map(_ => ())
-          case Left(_) => Sync[F].pure(())
-        }
+      def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[C[Output]] =
+        jdbcExecutor(resultSet.next()).flatMap {
+          case false =>
+            Monad[F].pure(builder.result())
 
-        Resource.make(acquire)(close)
-      }
-
-      def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[Either[DataError, C[Output]]] =
-        jdbcExecutor.safe(resultSet.next()).flatMap {
-          case Right(false) =>
-            Monad[F].pure(Right(builder.result()))
-
-          case Right(true) =>
-            jdbcExecutor.unsafe(dataExtractor.extract(resultSet, statement.fields)).flatMap {
+          case true =>
+            jdbcExecutor(dataExtractor.extract(resultSet, statement.fields)).flatMap {
               case Right(element) => recurse(resultSet, builder.addOne(toOutput(element)))
-              case Left(error) => Monad[F].pure(Left(error))
+              case Left(error) => Sync[F].raiseError(error)
             }
-
-          case Left(error) => Sync[F].pure(Left(error))
         }
 
-      (for {
-        ps <- EitherT[F, DataError, sql.PreparedStatement](Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input))
-        rs <- EitherT[F, DataError, C[Output]](resultSetResource(ps).use {
-          case Right(rs) => recurse(rs, factory.newBuilder)
-          case Left(error) => Sync[F].pure(Left(error))
-        })
-      } yield rs).value
+      for {
+        ps <- Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input)
+        rs <- resultSetResource(ps).use(recurse(_, factory.newBuilder))
+      } yield rs
 
     }
   }

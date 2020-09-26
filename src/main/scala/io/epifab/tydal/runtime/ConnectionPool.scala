@@ -9,10 +9,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class JdbcExecutor(blocker: Blocker) {
-  def safe[F[_] : Sync : ContextShift, A](f: => A): F[Either[DataError, A]] =
-    blocker.delay(Try(f).toEither.left.map(error => DriverError(error.getMessage)))
-
-  def unsafe[F[_] : Sync : ContextShift, A](f: => A): F[A] =
+  def apply[F[_] : Sync : ContextShift, A](f: => A): F[A] =
     blocker.delay(f)
 }
 
