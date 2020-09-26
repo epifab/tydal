@@ -4,7 +4,6 @@ import java.time.{Instant, LocalDate}
 import java.util.concurrent.atomic.AtomicInteger
 
 import io.epifab.tydal.queries.Select
-import io.epifab.tydal.runtime.{DataError, DriverError}
 import io.epifab.tydal.schema.{FieldDecoder, NamedPlaceholder}
 import io.epifab.tydal.university.Model._
 import io.epifab.tydal.university.{CoursesRepo, ExamsRepo, StudentsRepo}

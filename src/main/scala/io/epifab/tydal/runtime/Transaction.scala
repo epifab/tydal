@@ -2,9 +2,11 @@ package io.epifab.tydal.runtime
 
 import java.sql.Connection
 
+import cats.arrow.FunctionK
+import cats.effect.LiftIO.liftK
 import cats.effect.{Async, ContextShift, IO, LiftIO, Sync}
 import cats.implicits._
-import cats.{Applicative, Functor, Monad, Parallel, Traverse}
+import cats.{Applicative, Functor, Monad, MonadError, Parallel, Traverse}
 import org.slf4j.{Logger, LoggerFactory}
 import shapeless.HList
 
@@ -32,7 +34,22 @@ trait Transaction[+Output] {
   final def flatMap[O2](f: Output => Transaction[O2]): Transaction[O2] =
     Transaction.FlatMapTransaction(this, f)
 
+  final def attempt: Transaction[Either[Throwable, Output]] =
+    Transaction.AttemptiveTransaction(this)
+
+  final def attemptTap[F[_]: Async](f: PartialFunction[Either[Throwable, Output], F[Unit]])(implicit lift: FunctionK[F, Transaction]): Transaction[Output] =
+    attempt
+      .flatMap {
+        case x if f.isDefinedAt(x) => lift(f(x)).map(_ => x)
+        case x => Transaction.successful(x)
+      }
+      .flatMap {
+        case Left(x) => Transaction.failed(x)
+        case Right(y) => Transaction.successful(y)
+      }
+
   final def discardResults: Transaction[Unit] = map(_ => ())
+
 }
 
 object Transaction {
@@ -91,7 +108,7 @@ object Transaction {
 
   val unit: Transaction[Unit] = IOTransaction(IO.pure(Right(())))
 
-  def failed(error: RuntimeException): Transaction[Nothing] = IOTransaction(IO.raiseError(error))
+  def failed(error: Throwable): Transaction[Nothing] = IOTransaction(IO.raiseError(error))
 
   def successful[Output](value: Output): Transaction[Output] = IOTransaction(IO.pure(value))
 
@@ -130,6 +147,35 @@ object Transaction {
         .map(_.run[F](connection, jdbcExecutor))
         .parSequence
     }
+  }
+
+  case class AttemptiveTransaction[Output](transaction: Transaction[Output]) extends Transaction[Either[Throwable, Output]] {
+    override protected def run[F[+_] : Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[Throwable, Output]] =
+      Async[F].attempt(transaction.run(connection, jdbcExecutor))
+  }
+
+  implicit val monadError: MonadError[Transaction, Throwable] = new MonadError[Transaction, Throwable] {
+    override def flatMap[A, B](fa: Transaction[A])(f: A => Transaction[B]): Transaction[B] =
+      monad.flatMap(fa)(f)
+
+    override def tailRecM[A, B](a: A)(f: A => Transaction[Either[A, B]]): Transaction[B] =
+      monad.tailRecM(a)(f)
+
+    override def raiseError[A](e: Throwable): Transaction[A] =
+      Transaction.failed(e)
+
+    override def handleErrorWith[A](fa: Transaction[A])(f: Throwable => Transaction[A]): Transaction[A] =
+      fa.attempt.flatMap {
+        case Left(error) => f(error)
+        case Right(ok) => Transaction.successful(ok)
+      }
+
+    override def pure[A](x: A): Transaction[A] =
+      monad.pure(x)
+  }
+
+  implicit val transactionIO: FunctionK[IO, Transaction] = new FunctionK[IO, Transaction] {
+    override def apply[A](fa: IO[A]): Transaction[A] = Transaction.fromIO(fa)
   }
 
   def apply[Fields <: HList, Output](
