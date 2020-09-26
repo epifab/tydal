@@ -17,8 +17,8 @@ trait FunctionalTestBase {
     )
 
   implicit class ExtendedTransaction[C](transaction: Transaction[C]) {
-    def runSync(): Either[DataError, C] =
-      transaction.transact(connectionPool).unsafeRunSync()
+    def unsafeRun(): C = transaction.transact(connectionPool).unsafeRunSync()
+    def run(): Either[Throwable, C] = transaction.transact(connectionPool).attempt.unsafeRunSync()
   }
 
 }

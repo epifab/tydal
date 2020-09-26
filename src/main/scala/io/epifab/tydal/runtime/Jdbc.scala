@@ -40,26 +40,20 @@ object Jdbc {
     jdbcExecutor: JdbcExecutor,
     sql: String,
     placeholderValues: List[Literal[_]]
-  ): F[Either[DataError, PreparedStatement]] = {
+  ): F[PreparedStatement] = {
 
-    jdbcExecutor.safe(connection.prepareStatement(sql)) flatMap {
-      case Right(preparedStatement) =>
-
-        val results: F[List[Either[DataError, Unit]]] = Traverse[List].sequence(placeholderValues.zipWithIndex.map {
-          case (value, index) => jdbcExecutor.safe(setPlaceholder(
-            connection,
-            preparedStatement,
-            index + 1,
-            value.encoder.dbType,
-            value.dbValue
-          ))
-        })
-
-        results.map(x => EitherSupport.leftOrRights[List, DataError, Unit](x))
-          .map(_.map(_ => preparedStatement))
-
-      case Left(error) => Monad[F].pure(Left(error))
-    }
+    for {
+      preparedStatement <- jdbcExecutor(connection.prepareCall(sql))
+      _ <- placeholderValues.zipWithIndex.map { case (value, index) =>
+        jdbcExecutor(setPlaceholder(
+          connection,
+          preparedStatement,
+          index + 1,
+          value.encoder.dbType,
+          value.dbValue
+        ))
+      }.sequence
+    } yield preparedStatement
   }
 
   @scala.annotation.tailrec

@@ -41,13 +41,13 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
   val student2Exams: Seq[(Exam, Course)] = Seq(exam2 -> course1, exam3 -> course2)
   val student3Exams: Seq[(Exam, Course)] = Seq.empty
 
-  def tearDown(): Either[DataError, Unit] = (for {
+  def tearDown(): Unit = (for {
     _ <- ExamsRepo.removeAll
     _ <- CoursesRepo.removeAll
     _ <- StudentsRepo.removeAll
-  } yield ()).runSync()
+  } yield ()).unsafeRun()
 
-  def setUp(): Either[DataError, Unit] = (for {
+  def setUp(): Unit = (for {
     _ <- StudentsRepo.add(student1)
     _ <- StudentsRepo.add(student2)
     _ <- StudentsRepo.add(student3)
@@ -57,23 +57,23 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
     _ <- ExamsRepo.add(exam1)
     _ <- ExamsRepo.add(exam2)
     _ <- ExamsRepo.add(exam3)
-  } yield ()).runSync()
+  } yield ()).unsafeRun()
 
   override def beforeAll(): Unit = {
-    tearDown() shouldBe Symbol("Right")
-    setUp() shouldBe Symbol("Right")
+    tearDown()
+    setUp()
   }
 
   override def afterAll(): Unit = {
-    tearDown() shouldBe Symbol("Right")
+    tearDown()
   }
 
   it should "run a query successfully" in {
-    StudentsRepo.findStudentExams(Seq(2, 1)).runSync() shouldBe Right(Seq(
+    StudentsRepo.findStudentExams(Seq(2, 1)).unsafeRun() shouldBe Seq(
       StudentExam(1, "John Doe", 24, exam1.exam_timestamp, "Math"),
       StudentExam(2, "Jane Doe", 30, exam3.exam_timestamp, "Astronomy"),
       StudentExam(2, "Jane Doe", 29, exam2.exam_timestamp, "Math")
-    ))
+    )
   }
 
   it should "create, update and get a student" in {
@@ -88,18 +88,23 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
       maybeJim <- findStudent
       _ <- StudentsRepo.remove(john.id)
       maybeNobody <- findStudent
-    } yield (maybeJohn, maybeJim, maybeNobody)).runSync()
+    } yield (maybeJohn, maybeJim, maybeNobody)).unsafeRun()
 
-    actualStudents shouldBe Right((Some(john), Some(jim), None))
+    actualStudents shouldBe ((Some(john), Some(jim), None))
   }
 
   it should "rollback a transaction" in {
-    (for {
+    val error = (for {
       _ <- StudentsRepo.add(john)
       _ <- StudentsRepo.add(john)
-    } yield ()).runSync() shouldBe Left(DriverError("ERROR: duplicate key value violates unique constraint \"students_pkey\"\n  Detail: Key (id)=(199) already exists."))
+    } yield ()).run()
 
-    StudentsRepo.findById(john.id).runSync() shouldBe Right(None)
+    error match {
+      case Right(_) => fail("Duplicate key shouldn't be allowed")
+      case Left(error) => error.getMessage should include("duplicate key value violates unique constraint")
+    }
+
+    StudentsRepo.findById(john.id).unsafeRun() shouldBe None
   }
 
 //  it should "find a student by email" in {
@@ -153,7 +158,7 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
       _ <- StudentsRepo.add(Student(newId, s"Jack $id Roe", Some(s"jack$id@tydal.com"), a23yo, None, Seq(Interest.Math)))
       _ <- StudentsRepo.add(Student(newId, s"John $id Roe", Some(s"john$id@tydal.com"), a22yo, None, Seq(Interest.Math)))
       _ <- StudentsRepo.add(Student(newId, s"Jane $id Roe", Some(s"jane$id@tydal.com"), a21yo, None, Seq(Interest.Math)))
-    } yield ()).runSync() shouldBe Symbol("Right")
+    } yield ()).unsafeRun()
 
     val results = for {
       i1 <- StudentsRepo.findAllBy(
@@ -187,19 +192,19 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
       ).map(_.length)
     } yield (i1, i2, i3, i4, i5)
 
-    results.runSync() shouldBe Right((21, 12, 6, 4, 2))
+    results.unsafeRun() shouldBe (21, 12, 6, 4, 2)
   }
 
   it should "filter students who have at least one good score" in {
     StudentsRepo
       .findStudentsWithAtLeast1ExamScore(28)
-      .runSync() shouldBe Right(Set(student2))
+      .unsafeRun() shouldBe Set(student2)
   }
 
   it should "filter students having less than 2 exams" in {
     StudentsRepo
       .findStudentsWithAtLeast2Exams
-      .runSync() shouldBe Right(Set(2 -> Some(29.5)))
+      .unsafeRun() shouldBe Set(2 -> Some(29.5))
   }
 
   it should "find users with their best exam" in {
@@ -213,12 +218,12 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
       _ <- ExamsRepo.add(jackExam1)
       _ <- ExamsRepo.add(jackExam2)
       _ <- ExamsRepo.add(jackExam3)
-    } yield ()).runSync() shouldBe Symbol("Right")
+    } yield ()).unsafeRun()
 
     val bestStudentExams = StudentsRepo
       .findStudentsWithBestExam
-      .runSync()
-    bestStudentExams shouldBe Right(Seq(StudentExam(99, jack.name, 29, jackExam2.exam_timestamp, course2.name)))
+      .unsafeRun()
+    bestStudentExams shouldBe Seq(StudentExam(99, jack.name, 29, jackExam2.exam_timestamp, course2.name))
   }
 
   it should "encode and decode a bunch of fields" in {
@@ -242,14 +247,14 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
         "maybelist" ~~> Some(Seq.empty[Int]),
         "stupid" ~~> Option[Option[Seq[Int]]](None)
       ))
-      .runSync()
+      .unsafeRun()
 
-    foo shouldBe Right(Vector((
+    foo shouldBe Vector((
       Seq(1, 2, 3),
       Some(3.14),
       Some(Seq.empty),
       None
-    )))
+    ))
   }
 
   it should "encode and decode postgis fields" in {
@@ -276,8 +281,8 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
           "lat1" ~~> Some(51.5432), "lng1" ~~> 0.1519,
           "lat2" ~~> 51.4656, "lng2" ~~> 0.1150
         ))
-        .runSync()
+        .unsafeRun()
 
-    distances shouldBe Right(Vector(Tuple1(Some(9553.50085968))))
+    distances shouldBe Vector(Tuple1(Some(9553.50085968)))
   }
 }

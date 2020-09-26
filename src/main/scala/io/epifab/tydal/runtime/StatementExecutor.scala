@@ -2,16 +2,12 @@ package io.epifab.tydal.runtime
 
 import java.sql.{Connection, PreparedStatement}
 
-import cats.Monad
-import cats.data.EitherT
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.{ContextShift, Sync}
+import cats.implicits._
 import shapeless.{HList, HNil}
 
-import scala.util.Try
-import scala.util.control.NonFatal
-
 trait StatementExecutor[Conn, Fields <: HList, +Output] {
-  def run[F[+_]: Sync : Monad : ContextShift](connection: Conn, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Either[DataError, Output]]
+  def run[F[+_] : Sync : ContextShift](connection: Conn, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Output]
 }
 
 trait ReadStatementExecutor[Conn, Fields <: HList, Row, +C[_] <: Iterable[_]]
@@ -23,17 +19,13 @@ trait WriteStatementExecutor[Conn, Fields <: HList]
 object StatementExecutor {
   implicit val jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
     new WriteStatementExecutor[Connection, HNil] {
-      override def run[F[+_] : Sync : Monad : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[HNil]): F[Either[DataError, Int]] =
-        (for {
-          preparedStatement <- EitherT(Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input))
-          results <- EitherT(Sync[F].delay(runStatement(preparedStatement)))
-        } yield results).value
+      override def run[F[+_] : Sync : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[HNil]): F[Int] =
+        for {
+          preparedStatement <- Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input)
+          results <- Sync[F].delay(unsafeRunStatement(preparedStatement))
+        } yield results
 
-      private def runStatement(preparedStatement: PreparedStatement): Either[DataError, Int] =
-        Try(preparedStatement.executeUpdate()).toEither match {
-          case Right(updatedRows) => Right(updatedRows)
-          case Left(NonFatal(e)) => Left(DriverError(e.getMessage))
-          case Left(fatalError) => throw fatalError
-        }
+      private def unsafeRunStatement(preparedStatement: PreparedStatement): Int =
+        preparedStatement.executeUpdate()
     }
 }
