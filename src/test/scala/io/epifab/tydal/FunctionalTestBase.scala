@@ -1,20 +1,25 @@
 package io.epifab.tydal
 
-import cats.effect.{Blocker, ContextShift, IO, Resource}
-import io.epifab.tydal.runtime.{ConnectionPool, DataError, HikariConnectionPool, PostgresConfig, Transaction}
+import cats.effect.{ContextShift, IO}
+import io.epifab.tydal.runtime.{ConnectionPool, PoolConfig, PostgresConfig, Transaction}
+import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import scala.concurrent.ExecutionContext
 
-trait FunctionalTestBase {
+trait FunctionalTestBase extends BeforeAndAfterAll { this: Suite =>
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  val connectionPool: ConnectionPool[IO] =
-    ConnectionPool[IO](
+  val (connectionPool, connectionPoolShutDown) =
+    ConnectionPool.resource[IO](
       PostgresConfig.fromEnv("postgres://root:p4ssw0rd@localhost:5432/tydal"),
-      ExecutionContext.global,
-      ExecutionContext.global
-    )
+      PoolConfig(Some(2))
+    ).allocated.unsafeRunSync()
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    connectionPoolShutDown.unsafeRunSync()
+  }
 
   implicit class ExtendedTransaction[C](transaction: Transaction[C]) {
     def unsafeRun(): C = transaction.transact(connectionPool).unsafeRunSync()

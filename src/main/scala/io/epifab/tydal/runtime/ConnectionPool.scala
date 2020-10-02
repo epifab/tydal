@@ -1,6 +1,7 @@
 package io.epifab.tydal.runtime
 
 import java.sql.Connection
+import java.util.concurrent.Executors
 
 import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
 import com.zaxxer.hikari.HikariDataSource
@@ -26,6 +27,13 @@ object PoolConfig {
 }
 
 object ConnectionPool {
+  def resource[F[_] : Async : ContextShift](postgresConfig: PostgresConfig, poolConfig: PoolConfig): Resource[F, ConnectionPool[F]] = {
+    val poolSize = poolConfig.maxPoolSize.getOrElse(10)
+    val connectionEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolSize * 2))
+    val blockingEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolSize * 4))
+    resource(postgresConfig, connectionEC, blockingEC)
+  }
+
   def resource[F[_] : Sync : Async : ContextShift](
     postgresConfig: PostgresConfig,
     connectionEC: ExecutionContext,
@@ -37,13 +45,12 @@ object ConnectionPool {
     Resource.make(acquire)(release)
   }
 
-  def apply[F[_] : Sync : Async : ContextShift](
+  private def apply[F[_] : Sync : Async : ContextShift](
     postgresConfig: PostgresConfig,
     connectionEC: ExecutionContext,
     blockingEC: ExecutionContext,
     poolConfig: PoolConfig = PoolConfig.default
-  ): ConnectionPool[F] =
-    new HikariConnectionPool(createDataSource(postgresConfig, poolConfig), connectionEC, blockingEC)
+  ): ConnectionPool[F] = new HikariConnectionPool(createDataSource(postgresConfig, poolConfig), connectionEC, blockingEC)
 
   private def createDataSource(postgresConfig: PostgresConfig, poolConfig: PoolConfig) = {
     val dataSource = new HikariDataSource

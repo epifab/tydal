@@ -6,7 +6,7 @@ import java.util.UUID
 import cats.effect.{ExitCode, IO, IOApp}
 import io.epifab.tydal._
 import io.epifab.tydal.queries.{Insert, Select}
-import io.epifab.tydal.runtime.{ConnectionPool, PostgresConfig}
+import io.epifab.tydal.runtime.{ConnectionPool, PoolConfig, PostgresConfig}
 import io.epifab.tydal.schema._
 
 import scala.concurrent.ExecutionContext
@@ -65,18 +65,19 @@ object Program extends IOApp {
         "max_dob" ~~> LocalDate.of(1986, 1, 1)
       ))
 
-  val connectionPool = ConnectionPool[IO](
+  val connectionPool = ConnectionPool.resource[IO](
     PostgresConfig.fromEnv(),
-    connectionEC = ExecutionContext.global,
-    blockingEC = ExecutionContext.global
+    PoolConfig(maxPoolSize = Some(2))
   )
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val io = (for {
-      _ <- createStudent
-      students <- findStudents
-    } yield students).transact(connectionPool).attempt
+    connectionPool.use { pool =>
+      val result = (for {
+        _ <- createStudent
+        students <- findStudents
+      } yield students).transact(pool).attempt
 
-    io.map(_.fold(_ => ExitCode.Error, _ => ExitCode.Success))
+      result.map(_.fold(_ => ExitCode.Error, _ => ExitCode.Success))
+    }
   }
 }
