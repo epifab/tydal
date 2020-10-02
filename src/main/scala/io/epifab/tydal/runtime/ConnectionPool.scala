@@ -20,28 +20,20 @@ trait ConnectionPool[F[_]] {
   def shutDown(): F[Unit]
 }
 
-case class PoolConfig(maxPoolSize: Option[Int] = None)
+case class PoolConfig(maxPoolSize: Int)
 
 object PoolConfig {
-  val default: PoolConfig = PoolConfig()
+  val default: PoolConfig = PoolConfig(10)
 }
 
 object ConnectionPool {
   def resource[F[_] : Async : ContextShift](postgresConfig: PostgresConfig, poolConfig: PoolConfig): Resource[F, ConnectionPool[F]] = {
-    val poolSize = poolConfig.maxPoolSize.getOrElse(10)
-    val connectionEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolSize * 2))
-    val blockingEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolSize * 4))
-    resource(postgresConfig, connectionEC, blockingEC)
-  }
+    val connectionEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolConfig.maxPoolSize * 2))
+    val blockingEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolConfig.maxPoolSize * 4))
 
-  def resource[F[_] : Sync : Async : ContextShift](
-    postgresConfig: PostgresConfig,
-    connectionEC: ExecutionContext,
-    blockingEC: ExecutionContext,
-    poolConfig: PoolConfig = PoolConfig.default
-  ): Resource[F, ConnectionPool[F]] = {
     val acquire = Sync[F].delay(ConnectionPool(postgresConfig, connectionEC, blockingEC, poolConfig))
     val release: ConnectionPool[F] => F[Unit] = _.shutDown()
+
     Resource.make(acquire)(release)
   }
 
@@ -57,7 +49,7 @@ object ConnectionPool {
     dataSource.setDriverClassName("org.postgresql.Driver")
     dataSource.setJdbcUrl(postgresConfig.toUrl)
     dataSource.setAutoCommit(false)
-    poolConfig.maxPoolSize.foreach(dataSource.setMaximumPoolSize)
+    dataSource.setMaximumPoolSize(poolConfig.maxPoolSize)
     dataSource
   }
 }
