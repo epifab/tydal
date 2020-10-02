@@ -128,10 +128,10 @@ import java.time.LocalDate
 import java.util.UUID
 
 import cats.effect.{ExitCode, IO, IOApp}
-import io.epifab.tydal._
-import io.epifab.tydal.queries.{Insert, Select}
-import io.epifab.tydal.runtime.{ConnectionPool, DataError, PostgresConfig}
-import io.epifab.tydal.schema._
+import tydal._
+import tydal.queries.{Insert, Select}
+import tydal.runtime.{ConnectionPool, DataError, PostgresConfig}
+import tydal.schema._
 
 import scala.concurrent.ExecutionContext
 
