@@ -1,0 +1,14 @@
+language: scala
+scala:
+  - 2.13.1
+  - 2.13.2
+  - 2.13.3
+branches:
+  only:
+    - master
+jdk:
+  - openjdk11
+services:
+  - docker
+script:
+  - docker-compose run test
