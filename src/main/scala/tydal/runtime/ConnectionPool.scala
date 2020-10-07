@@ -7,7 +7,6 @@ import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
 import com.zaxxer.hikari.HikariDataSource
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 
 class JdbcExecutor(blocker: Blocker) {
   def apply[F[_] : Sync : ContextShift, A](f: => A): F[A] =
@@ -17,7 +16,6 @@ class JdbcExecutor(blocker: Blocker) {
 trait ConnectionPool[F[_]] {
   def executor: JdbcExecutor
   def connection: Resource[F, Connection]
-  def shutDown(): F[Unit]
 }
 
 case class PoolConfig(maxPoolSize: Int)
@@ -29,20 +27,14 @@ object PoolConfig {
 object ConnectionPool {
   def resource[F[_] : Async : ContextShift](postgresConfig: PostgresConfig, poolConfig: PoolConfig): Resource[F, ConnectionPool[F]] = {
     val connectionEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolConfig.maxPoolSize * 2))
-    val blockingEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolConfig.maxPoolSize * 4))
 
-    val acquire = Sync[F].delay(ConnectionPool(postgresConfig, connectionEC, blockingEC, poolConfig))
-    val release: ConnectionPool[F] => F[Unit] = _.shutDown()
-
-    Resource.make(acquire)(release)
+    for {
+      blocker <- Blocker[F]
+      dsAcquire = blocker.blockOn(Async[F].delay(createDataSource(postgresConfig, poolConfig)))
+      dsRelease = (ds: HikariDataSource) => blocker.blockOn(Async[F].delay(ds.close()))
+      dataSource <- Resource.make(dsAcquire)(dsRelease)
+    } yield new HikariConnectionPool(dataSource, connectionEC, blocker)
   }
-
-  private def apply[F[_] : Sync : Async : ContextShift](
-    postgresConfig: PostgresConfig,
-    connectionEC: ExecutionContext,
-    blockingEC: ExecutionContext,
-    poolConfig: PoolConfig = PoolConfig.default
-  ): ConnectionPool[F] = new HikariConnectionPool(createDataSource(postgresConfig, poolConfig), connectionEC, blockingEC)
 
   private def createDataSource(postgresConfig: PostgresConfig, poolConfig: PoolConfig) = {
     val dataSource = new HikariDataSource
@@ -57,20 +49,18 @@ object ConnectionPool {
 class HikariConnectionPool[M[_] : Sync](
   dataSource: HikariDataSource,
   connectionEC: ExecutionContext,
-  blockingEC: ExecutionContext)(
+  blocker: Blocker
+)(
   implicit
-  ev: Async[M],
   contextShift: ContextShift[M]
 ) extends ConnectionPool[M] {
 
-  override val executor: JdbcExecutor = new JdbcExecutor(Blocker.liftExecutionContext(blockingEC))
+  override val executor: JdbcExecutor = new JdbcExecutor(blocker)
 
   override val connection: Resource[M, Connection] = {
-    val acquire = contextShift.evalOn(connectionEC)(ev.delay(dataSource.getConnection))
-    def release(c: Connection) = ev.delay(c.close())
+    val acquire = contextShift.evalOn(connectionEC)(Sync[M].delay(dataSource.getConnection))
+    def release(c: Connection) = blocker.delay(c.close())
     Resource.make(acquire)(release)
   }
-
-  override def shutDown(): M[Unit] = Sync[M].delay(dataSource.close())
 
 }
