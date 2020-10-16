@@ -118,7 +118,7 @@ resolvers += "jitpack" at "https://jitpack.io"
 Step 2. Add the dependency
 
 ```
-libraryDependencies += "com.github.epifab" % "tydal" % "1.2.4"	
+libraryDependencies += "com.github.epifab" % "tydal" % "1.3.5"	
 ```
 
 ### A basic app example
@@ -297,4 +297,4 @@ Select
   .sortBy(ctx => Descending(ctx("score")) -> Ascending(ctx("sname")))
 ```
 
-Please find more examples [here](src/test/scala/io/epifab/tydal/university).
+Please find more examples [here](src/test/scala/tydal/university).
