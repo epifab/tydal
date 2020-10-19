@@ -42,8 +42,11 @@ object FieldEncoder {
     override def encode(value: String): String = value
   }
 
-  implicit val uuidEncoder: FieldEncoder.Aux[UUID, String] =
-    stringEncoder.contramap(_.toString)
+  implicit val uuidEncoder: FieldEncoder.Aux[UUID, String] = new FieldEncoder[UUID] {
+    override type DbType = String
+    override def dbType: FieldType[String] = TypeUuid
+    override def encode(value: UUID): String = value.toString
+  }
 
   implicit val intEncoder: FieldEncoder.Aux[Int, Int] = new FieldEncoder[Int] {
     override type DbType = Int

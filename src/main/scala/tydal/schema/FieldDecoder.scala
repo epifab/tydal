@@ -47,9 +47,13 @@ object FieldDecoder {
     override def decode(value: String): Either[DecoderError, String] = Right(value)
   }
 
-  implicit val uuidDecoder: FieldDecoder.Aux[UUID, String] =
-    stringDecoder.map(string => Try(UUID.fromString(string)).toEither
-      .left.map(ex => DecoderError(ex.getMessage)))
+  implicit val uuidDecoder: FieldDecoder.Aux[UUID, String] = new FieldDecoder[UUID] {
+    override type DbType = String
+    override def dbType: FieldType[String] = TypeUuid
+    override def decode(value: String): Either[DecoderError, UUID] =
+      Try(UUID.fromString(value)).toEither
+        .left.map(ex => DecoderError(ex.getMessage))
+  }
 
   implicit val intDecoder: FieldDecoder.Aux[Int, Int] = new FieldDecoder[Int] {
     override type DbType = Int

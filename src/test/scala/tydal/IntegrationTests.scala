@@ -1,6 +1,7 @@
 package tydal
 
 import java.time.{Instant, LocalDate}
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 import tydal.queries.Select
@@ -12,15 +13,15 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
 class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAfterAll {
 
-  val student1 = Student(1, "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq(Interest.Art, Interest.Math))
-  val student2 = Student(2, "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq(Interest.Art, Interest.Music))
-  val student3 = Student(3, "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq(Interest.Music))
-  val course1 = Course(1, "Math")
-  val course2 = Course(2, "Astronomy")
-  val course3 = Course(3, "Music")
+  val student1 = Student(UUID.randomUUID(), "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq(Interest.Art, Interest.Math))
+  val student2 = Student(UUID.randomUUID(), "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq(Interest.Art, Interest.Music))
+  val student3 = Student(UUID.randomUUID(), "Jack Roe", None, LocalDate.of(1992, 2, 25), Some(Address("N1003", "Fake St.", None)), Seq(Interest.Music))
+  val course1 = Course(UUID.randomUUID(), "Math")
+  val course2 = Course(UUID.randomUUID(), "Astronomy")
+  val course3 = Course(UUID.randomUUID(), "Music")
 
   val john = Student(
-    199,
+    UUID.randomUUID(),
     "John",
     Some("john@tydal.com"),
     LocalDate.of(1986, 3, 8),
@@ -32,9 +33,9 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
   private val novemberThe22nd3PM: Instant = Instant.parse("2018-11-22T15:30:20z")
   private val novemberThe22nd5PM: Instant = Instant.parse("2018-11-22T17:30:20z")
 
-  val exam1 = Exam(student_id = 1, course_id = 1, 24, marchThe8th, Some(marchThe8th.plusNanos(123456000)))
-  val exam2 = Exam(student_id = 2, course_id = 1, 29, novemberThe22nd3PM, Some(novemberThe22nd3PM.plusNanos(123456000)))
-  val exam3 = Exam(student_id = 2, course_id = 2, 30, novemberThe22nd5PM, None)
+  val exam1 = Exam(student_id = student1.id, course_id = course1.id, 24, marchThe8th, Some(marchThe8th.plusNanos(123456000)))
+  val exam2 = Exam(student_id = student2.id, course_id = course1.id, 29, novemberThe22nd3PM, Some(novemberThe22nd3PM.plusNanos(123456000)))
+  val exam3 = Exam(student_id = student2.id, course_id = course2.id, 30, novemberThe22nd5PM, None)
 
   val student1Exams: Seq[(Exam, Course)] = Seq(exam1 -> course1)
   val student2Exams: Seq[(Exam, Course)] = Seq(exam2 -> course1, exam3 -> course2)
@@ -68,10 +69,10 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
   }
 
   it should "run a query successfully" in {
-    StudentsRepo.findStudentExams(Seq(2, 1)).unsafeRun() shouldBe Seq(
-      StudentExam(1, "John Doe", 24, exam1.exam_timestamp, "Math"),
-      StudentExam(2, "Jane Doe", 30, exam3.exam_timestamp, "Astronomy"),
-      StudentExam(2, "Jane Doe", 29, exam2.exam_timestamp, "Math")
+    StudentsRepo.findStudentExams(Seq(student2.id, student1.id)).unsafeRun() shouldBe Seq(
+      StudentExam(student2.id, "Jane Doe", 30, exam3.exam_timestamp, "Astronomy"),
+      StudentExam(student2.id, "Jane Doe", 29, exam2.exam_timestamp, "Math"),
+      StudentExam(student1.id, "John Doe", 24, exam1.exam_timestamp, "Math")
     )
   }
 
@@ -115,7 +116,10 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
   it should "filter students by optional parameters" in {
     val atomicInteger = new AtomicInteger(100)
     val id = atomicInteger.get()
-    def newId = atomicInteger.addAndGet(1)
+    def newId = {
+      atomicInteger.incrementAndGet()
+      UUID.randomUUID()
+    }
 
     val a24yo = LocalDate.now.minusYears(24)
     val a23yo = LocalDate.now.minusYears(23)
@@ -203,11 +207,11 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
   it should "filter students having less than 2 exams" in {
     StudentsRepo
       .findStudentsWithAtLeast2Exams
-      .unsafeRun() shouldBe Set(2 -> Some(29.5))
+      .unsafeRun() shouldBe Set(student2.id -> Some(29.5))
   }
 
   it should "find users with their best exam" in {
-    val jack = Student(99, "Jack", None, LocalDate.of(1994, 2, 2), None, Seq.empty)
+    val jack = Student(UUID.randomUUID(), "Jack", None, LocalDate.of(1994, 2, 2), None, Seq.empty)
     val jackExam1 = Exam(jack.id, course1.id, 29, Instant.now.minusSeconds(172800), None)
     val jackExam2 = Exam(jack.id, course2.id, 29, Instant.now.minusSeconds(86400), None)
     val jackExam3 = Exam(jack.id, course3.id, 28, Instant.now, None)
@@ -222,7 +226,7 @@ class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAf
     val bestStudentExams = StudentsRepo
       .findStudentsWithBestExam
       .unsafeRun()
-    bestStudentExams shouldBe Seq(StudentExam(99, jack.name, 29, jackExam2.exam_timestamp, course2.name))
+    bestStudentExams shouldBe Seq(StudentExam(jack.id, jack.name, 29, jackExam2.exam_timestamp, course2.name))
   }
 
   it should "encode and decode a bunch of fields" in {

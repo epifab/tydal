@@ -74,14 +74,14 @@ class QueryBuilderTest extends FlatSpec with Matchers {
         " FROM students AS s" +
         " INNER JOIN (" + subQuery + ") AS ms ON ms.student_id = s.id" +
         " INNER JOIN courses AS cc ON cc.id = ms.course_id" +
-        " WHERE s.id = ?::int"
+        " WHERE s.id = ?::uuid"
     )
   }
 
   it should "build an insert query" in {
     Insert.into(Students).compile.query shouldBe (
       "INSERT INTO students (id, name, email, date_of_birth, address, interests)" +
-        " VALUES (?::int, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])",
+        " VALUES (?::uuid, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])",
     )
   }
 
@@ -98,7 +98,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       "UPDATE students SET" +
         " name = ?::varchar," +
         " email = ?::varchar" +
-        " WHERE students.id = ?::int"
+        " WHERE students.id = ?::uuid"
     )
   }
 
@@ -110,7 +110,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
   it should "build a delete query" in {
     deleteStudentQuery.compile.query shouldBe (
       "DELETE FROM students WHERE" +
-        " students.id = ?::int"
+        " students.id = ?::uuid"
     )
   }
 
@@ -133,7 +133,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       .onConflict(s => Tuple1(s("email")))
       .doNothing.compile.query shouldBe (
       "INSERT INTO students (id, name, email, date_of_birth, address, interests)" +
-        " VALUES (?::int, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
+        " VALUES (?::uuid, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
         " ON CONFLICT (email) DO NOTHING"
     )
   }
@@ -144,7 +144,7 @@ class QueryBuilderTest extends FlatSpec with Matchers {
       .doUpdate(s => (s("date_of_birth"), s("address"), s("interests")))
       .compile.query shouldBe (
       "INSERT INTO students (id, name, email, date_of_birth, address, interests)" +
-        " VALUES (?::int, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
+        " VALUES (?::uuid, ?::varchar, ?::varchar, ?::date, ?::json, ?::interest[])" +
         " ON CONFLICT (email) DO UPDATE SET date_of_birth = ?::date, address = ?::json, interests = ?::interest[]"
     )
   }

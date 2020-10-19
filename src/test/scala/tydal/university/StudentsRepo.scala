@@ -1,6 +1,7 @@
 package tydal.university
 
 import java.time.{Instant, LocalDate}
+import java.util.UUID
 
 import tydal._
 import tydal.queries._
@@ -24,7 +25,7 @@ object StudentsRepo {
         c("name")           as "cname"
       )}
       .where(_("s", "id") in "sids")
-      .sortBy($ => Ascending($("sid")) -> Descending($("score")))
+      .sortBy($ => Ascending($("sname")) -> Descending($("score")))
       .compile
 
   val studentsWithMinScore: ReadStatement[("min_score" ~~> Int) :: HNil, Student, Set] =
@@ -40,7 +41,7 @@ object StudentsRepo {
       .to[Student]
       .as[Set]
 
-  def findById(id: Int): Transaction[Option[Student]] =
+  def findById(id: UUID): Transaction[Option[Student]] =
     Select
       .from(Students as "s")
       .take(_("s").*)
@@ -54,7 +55,7 @@ object StudentsRepo {
     studentsWithMinScore
       .run(Tuple1("min_score" ~~> score))
 
-  val findStudentsWithAtLeast2Exams: Transaction[Set[(Int, Option[Double])]] =
+  val findStudentsWithAtLeast2Exams: Transaction[Set[(UUID, Option[Double])]] =
     Select
       .from(Students as "s")
       .innerJoin(Exams as "e").on(_("student_id") === _("s", "id"))
@@ -145,7 +146,7 @@ object StudentsRepo {
       .run(())
   }
 
-  def findStudentExams(ids: Seq[Int]): Transaction[Seq[StudentExam]] = {
+  def findStudentExams(ids: Seq[UUID]): Transaction[Seq[StudentExam]] = {
     studentExamsQuery
       .to[StudentExam]
       .as[List]
@@ -168,7 +169,7 @@ object StudentsRepo {
       }
   }
 
-  def updateNameAndEmail(id: Int, name: String, email: Option[String]): Transaction[Int] =
+  def updateNameAndEmail(id: UUID, name: String, email: Option[String]): Transaction[Int] =
     Update(Students)
       .fields(s => s("name") -> s("email"))
       .where(_("id") === "id")
@@ -181,7 +182,7 @@ object StudentsRepo {
         )
       }
 
-  def remove(id: Int): Transaction[Int] =
+  def remove(id: UUID): Transaction[Int] =
     Delete.from(Students)
       .where(_("id") === "id")
       .compile

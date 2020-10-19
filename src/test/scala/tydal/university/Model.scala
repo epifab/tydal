@@ -1,6 +1,7 @@
 package tydal.university
 
 import java.time.{Instant, LocalDate}
+import java.util.UUID
 
 object Model {
   abstract sealed class Interest(val value: String)
@@ -23,7 +24,7 @@ object Model {
   case class Address(postcode: String, line1: String, line2: Option[String])
 
   case class Student(
-    id: Int,
+    id: UUID,
     name: String,
     email: Option[String],
     date_of_birth: LocalDate,
@@ -31,18 +32,18 @@ object Model {
     interests: Seq[Interest]
   )
 
-  case class StudentExam(id: Int, name: String, score: Int, time: Instant, course: String)
+  case class StudentExam(id: UUID, name: String, score: Int, time: Instant, course: String)
 
   case class Exam(
-    student_id: Int,
-    course_id: Int,
+    student_id: UUID,
+    course_id: UUID,
     score: Int,
     exam_timestamp: Instant,
     registration_timestamp: Option[Instant]
   )
 
   case class Course(
-    id: Int,
+    id: UUID,
     name: String
   )
 }

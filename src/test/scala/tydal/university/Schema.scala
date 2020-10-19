@@ -1,6 +1,7 @@
 package tydal.university
 
 import java.time.{Instant, LocalDate}
+import java.util.UUID
 
 import io.circe.generic.auto._
 import tydal._
@@ -21,7 +22,7 @@ object Schema {
     FieldEncoder.jsonEncoder[Address]
 
   object Students extends TableBuilder["students", (
-    "id" :=: Int,
+    "id" :=: UUID,
     "name" :=: String,
     "email" :=: Option[String],
     "date_of_birth" :=: LocalDate,
@@ -30,15 +31,15 @@ object Schema {
   )]
 
   object Exams extends TableBuilder["exams", (
-    "student_id" :=: Int,
-    "course_id" :=: Int,
+    "student_id" :=: UUID,
+    "course_id" :=: UUID,
     "score" :=: Int,
     "exam_timestamp" :=: Instant,
     "registration_timestamp" :=: Option[Instant],
   )]
 
   object Courses extends TableBuilder["courses", (
-    "id" :=: Int,
+    "id" :=: UUID,
     "name" :=: String
   )]
 }
