@@ -1,8 +1,7 @@
-# TYDAL [![Build Status](https://travis-ci.com/epifab/tydal.svg?branch=1.x)](https://travis-ci.com/epifab/tydal)
+# Tydal [![Build Status](https://travis-ci.com/epifab/tydal.svg?branch=1.x)](https://travis-ci.com/epifab/tydal)
 
-TYDAL (pronounced *tidal* `/ˈtʌɪd(ə)l/` and formerly YADL)
-is a *type-safe* SQL DSL and functional JDBC layer for Scala.
-
+Tydal is a *type-safe* SQL DSL and functional JDBC layer for Scala.
+If you're looking for the Scala 3 version of this library proceed to [Tydal 3](https://github.com/epifab/tydal3).
 
 ## Why Tydal
 
