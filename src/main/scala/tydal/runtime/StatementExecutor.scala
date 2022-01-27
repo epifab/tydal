@@ -1,13 +1,13 @@
 package tydal.runtime
 
-import java.sql.{Connection, PreparedStatement}
-
-import cats.effect.{ContextShift, Sync}
+import cats.effect.Async
 import cats.implicits._
 import shapeless.{HList, HNil}
 
+import java.sql.{Connection, PreparedStatement}
+
 trait StatementExecutor[Conn, Fields <: HList, +Output] {
-  def run[F[+_] : Sync : ContextShift](connection: Conn, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[Output]
+  def run[F[+_]: Async](connection: Conn, statement: RunnableStatement[Fields]): F[Output]
 }
 
 trait ReadStatementExecutor[Conn, Fields <: HList, Row, +C[_] <: Iterable[_]]
@@ -19,10 +19,10 @@ trait WriteStatementExecutor[Conn, Fields <: HList]
 object StatementExecutor {
   implicit val jdbcUpdate: WriteStatementExecutor[Connection, HNil] =
     new WriteStatementExecutor[Connection, HNil] {
-      override def run[F[+_] : Sync : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[HNil]): F[Int] =
+      override def run[F[+_]: Async](connection: Connection, statement: RunnableStatement[HNil]): F[Int] =
         for {
-          preparedStatement <- Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input)
-          results <- Sync[F].delay(unsafeRunStatement(preparedStatement))
+          preparedStatement <- Jdbc.initStatement(connection, statement.sql, statement.input)
+          results <- Async[F].delay(unsafeRunStatement(preparedStatement))
         } yield results
 
       private def unsafeRunStatement(preparedStatement: PreparedStatement): Int =

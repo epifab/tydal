@@ -1,32 +1,30 @@
 package tydal.runtime
 
-import java.sql.Connection
-
 import cats.arrow.FunctionK
-import cats.effect.LiftIO.liftK
-import cats.effect.{Async, ContextShift, IO, LiftIO, Sync}
+import cats.effect.{Async, IO, LiftIO}
 import cats.implicits._
 import cats.{Applicative, Functor, Monad, MonadError, Parallel, Traverse}
 import org.slf4j.{Logger, LoggerFactory}
 import shapeless.HList
 
+import java.sql.Connection
 import scala.collection.Factory
 
 trait Transaction[+Output] {
-  final def transact[F[+_]: Async : Parallel : ContextShift](pool: ConnectionPool[F]): F[Output] = {
+  final def transact[F[+_]: Async : Parallel: LiftIO](pool: ConnectionPool[F]): F[Output] = {
     pool.connection.use(connection =>
       for {
-        ac <- pool.executor(connection.getAutoCommit)
-        _  <- if (ac) pool.executor(connection.setAutoCommit(false)) else Sync[F].pure(())
-        sp <- pool.executor(connection.setSavepoint())
-        rs <- Async[F].attemptTap(run(connection, pool.executor)) {
-          case Left(_) => pool.executor(connection.rollback(sp))
-          case Right(_) => pool.executor(connection.commit())
+        ac <- Async[F].blocking(connection.getAutoCommit)
+        _  <- if (ac) Async[F].blocking(connection.setAutoCommit(false)) else Async[F].pure(())
+        sp <- Async[F].blocking(connection.setSavepoint())
+        rs <- Async[F].attemptTap(run(connection)) {
+          case Left(_) => Async[F].blocking(connection.rollback(sp))
+          case Right(_) => Async[F].blocking(connection.commit())
         }
       } yield rs)
   }
 
-  protected def run[F[+_] : Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Output]
+  protected def run[F[+_]: Async : Parallel: LiftIO](connection: Connection): F[Output]
 
   final def map[O2](f: Output => O2): Transaction[O2] =
     Transaction.MapTransaction(this, f)
@@ -77,8 +75,8 @@ object Transaction {
 
     override def ap[A, B](ff: Transaction[A => B])(fa: Transaction[A]): Transaction[B] =
       new Transaction[B] {
-        override protected def run[F[+_] : Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[B] =
-          (ff.run(connection, jdbcExecutor), fa.run(connection, jdbcExecutor)).parMapN { case (f, a) => f(a) }
+        override protected def run[F[+_]: Async : Parallel: LiftIO](connection: Connection): F[B] =
+          (ff.run(connection), fa.run(connection)).parMapN { case (f, a) => f(a) }
       }
   }
 
@@ -115,43 +113,43 @@ object Transaction {
   case class SimpleTransaction[Fields <: HList, Output](runnableStatement: RunnableStatement[Fields], statementExecutor: StatementExecutor[Connection, Fields, Output]) extends Transaction[Output] {
     val log: Logger = LoggerFactory.getLogger(getClass.getName)
 
-    override protected def run[F[+_]: Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Output] = {
+    override protected def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[Output] = {
       for {
-        _ <- Sync[F].delay(log.debug(s"Running query: ${runnableStatement.sql}"))
-        res <- Sync[F].attemptTap(statementExecutor.run(connection, jdbcExecutor, runnableStatement)) {
-          case Left(error) => Sync[F].delay(log.error(s"Query ${runnableStatement.sql}: failed with ${error.getMessage}"))
-          case Right(_) => Sync[F].delay(log.debug(s"Query ${runnableStatement.sql}: succeeded"))
+        _ <- Async[F].delay(log.debug(s"Running query: ${runnableStatement.sql}"))
+        res <- Async[F].attemptTap(statementExecutor.run(connection, runnableStatement)) {
+          case Left(error) => Async[F].delay(log.error(s"Query ${runnableStatement.sql}: failed with ${error.getMessage}"))
+          case Right(_) => Async[F].delay(log.debug(s"Query ${runnableStatement.sql}: succeeded"))
         }
       } yield res
     }
   }
 
   case class IOTransaction[Output](result: IO[Output]) extends Transaction[Output] {
-    override protected def run[F[+_]: Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Output] =
+    override protected def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[Output] =
       LiftIO[F].liftIO(result)
   }
 
-  case class MapTransaction[O1, Output](transactionIO: Transaction[O1], f: O1 => Output) extends Transaction[Output] {
-    override def run[F[+_]: Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Output] =
-      transactionIO.run(connection, jdbcExecutor).map(f)
+  case class MapTransaction[O1, Output](transaction: Transaction[O1], f: O1 => Output) extends Transaction[Output] {
+    override def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[Output] =
+      transaction.run(connection).map(f)
   }
 
   case class FlatMapTransaction[O1, Output](transaction: Transaction[O1], f: O1 => Transaction[Output]) extends Transaction[Output] {
-    override def run[F[+_]: Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Output] =
-      transaction.run(connection, jdbcExecutor).flatMap(f(_).run(connection, jdbcExecutor))
+    override def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[Output] =
+      transaction.run(connection).flatMap(f(_).run(connection))
   }
 
   case class ParTransactions[C[_]: Traverse : Functor, Output](transactions: C[Transaction[Output]])(implicit factory: Factory[Output, C[Output]]) extends Transaction[C[Output]] {
-    override def run[F[+_]: Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[C[Output]] = {
+    override def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[C[Output]] = {
       transactions
-        .map(_.run[F](connection, jdbcExecutor))
+        .map(_.run[F](connection))
         .parSequence
     }
   }
 
   case class AttemptiveTransaction[Output](transaction: Transaction[Output]) extends Transaction[Either[Throwable, Output]] {
-    override protected def run[F[+_] : Async : Parallel : ContextShift](connection: Connection, jdbcExecutor: JdbcExecutor): F[Either[Throwable, Output]] =
-      Async[F].attempt(transaction.run(connection, jdbcExecutor))
+    override protected def run[F[+_]: Async: Parallel: LiftIO](connection: Connection): F[Either[Throwable, Output]] =
+      Async[F].attempt(transaction.run(connection))
   }
 
   implicit val monadError: MonadError[Transaction, Throwable] = new MonadError[Transaction, Throwable] {

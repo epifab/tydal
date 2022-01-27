@@ -1,12 +1,13 @@
 package tydal
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import tydal.SelectQueries._
 import tydal.queries._
 import tydal.university.Schema._
 import tydal.university.StudentsRepo
-import org.scalatest.{FlatSpec, Matchers}
 
-class QueryBuilderTest extends FlatSpec with Matchers {
+class QueryBuilderTest extends AnyFlatSpec with Matchers {
 //  "The QueryBuilder" should "build the simplest select query" in {
 //    Select.compile.query shouldBe "SELECT 1"
 //  }

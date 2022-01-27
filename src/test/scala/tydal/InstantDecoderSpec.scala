@@ -1,12 +1,13 @@
 package tydal
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDateTime, ZoneOffset}
-
 import tydal.schema.FieldDecoder
-import org.scalatest.{FlatSpec, Matchers}
 
-class InstantDecoderSpec extends FlatSpec with Matchers {
+class InstantDecoderSpec extends AnyFlatSpec with Matchers {
   private val baseDate = LocalDateTime.of(2020, 3, 29, 15, 24, 32, 0)
   private val baseDateStr = baseDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
   private val decoder = FieldDecoder.instantDecoder

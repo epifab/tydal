@@ -1,17 +1,18 @@
 package tydal
 
-import java.time.{Instant, LocalDate}
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
-
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import tydal.queries.Select
 import tydal.schema.{FieldDecoder, NamedPlaceholder}
 import tydal.university.Model._
 import tydal.university.{CoursesRepo, ExamsRepo, StudentsRepo}
-import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 
-class IntegrationTests extends FlatSpec with FunctionalTestBase with BeforeAndAfterAll {
+import java.time.{Instant, LocalDate}
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+
+class IntegrationTests extends AnyFlatSpec with Matchers with FunctionalTestBase with BeforeAndAfterAll {
 
   val student1 = Student(UUID.randomUUID(), "John Doe", Some("john@doe.com"), LocalDate.of(1974, 12, 14), Some(Address("N1001", "1 Fake St.", None)), Seq(Interest.Art, Interest.Math))
   val student2 = Student(UUID.randomUUID(), "Jane Doe", Some("jane@doe.com"), LocalDate.of(1986, 3, 8), Some(Address("N1002", "2 Fake St.", None)), Seq(Interest.Art, Interest.Music))

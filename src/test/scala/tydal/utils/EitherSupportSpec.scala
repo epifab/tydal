@@ -1,9 +1,10 @@
 package tydal.utils
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import tydal.runtime.DataError
-import org.scalatest.{FlatSpec, Matchers}
 
-class EitherSupportSpec extends FlatSpec with Matchers {
+class EitherSupportSpec extends AnyFlatSpec with Matchers {
   import cats.implicits._
   import EitherSupport._
 

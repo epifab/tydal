@@ -1,12 +1,10 @@
 package tydal.runtime
 
+import cats.effect.Async
+import tydal.schema._
+
 import java.sql.{Connection, PreparedStatement}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
-
-import cats.effect.{ContextShift, Sync}
-import cats.{Monad, Traverse}
-import tydal.schema._
-import tydal.utils.EitherSupport
 
 object SqlDateTime {
   val formatter: DateTimeFormatter = new DateTimeFormatterBuilder()
@@ -35,17 +33,16 @@ object SqlDate {
 object Jdbc {
   import cats.implicits._
 
-  def initStatement[F[_] : Sync : ContextShift](
+  def initStatement[F[_]: Async](
     connection: Connection,
-    jdbcExecutor: JdbcExecutor,
     sql: String,
     placeholderValues: List[Literal[_]]
   ): F[PreparedStatement] = {
 
     for {
-      preparedStatement <- jdbcExecutor(connection.prepareCall(sql))
+      preparedStatement <- Async[F].blocking(connection.prepareCall(sql))
       _ <- placeholderValues.zipWithIndex.map { case (value, index) =>
-        jdbcExecutor(setPlaceholder(
+        Async[F].blocking(setPlaceholder(
           connection,
           preparedStatement,
           index + 1,

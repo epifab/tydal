@@ -1,20 +1,13 @@
 package tydal.runtime
 
-import java.sql.Connection
-import java.util.concurrent.Executors
-
-import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Async, Resource}
 import com.zaxxer.hikari.HikariDataSource
 
+import java.sql.Connection
+import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
-class JdbcExecutor(blocker: Blocker) {
-  def apply[F[_] : Sync : ContextShift, A](f: => A): F[A] =
-    blocker.delay(f)
-}
-
 trait ConnectionPool[F[_]] {
-  def executor: JdbcExecutor
   def connection: Resource[F, Connection]
 }
 
@@ -25,15 +18,13 @@ object PoolConfig {
 }
 
 object ConnectionPool {
-  def resource[F[_] : Async : ContextShift](postgresConfig: PostgresConfig, poolConfig: PoolConfig): Resource[F, ConnectionPool[F]] = {
+  def resource[F[_] : Async](postgresConfig: PostgresConfig, poolConfig: PoolConfig): Resource[F, ConnectionPool[F]] = {
     val connectionEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolConfig.maxPoolSize * 2))
 
-    for {
-      blocker <- Blocker[F]
-      dsAcquire = blocker.blockOn(Async[F].delay(createDataSource(postgresConfig, poolConfig)))
-      dsRelease = (ds: HikariDataSource) => blocker.blockOn(Async[F].delay(ds.close()))
-      dataSource <- Resource.make(dsAcquire)(dsRelease)
-    } yield new HikariConnectionPool(dataSource, connectionEC, blocker)
+    val dsAcquire = Async[F].blocking(createDataSource(postgresConfig, poolConfig))
+    val dsRelease = (ds: HikariDataSource) => Async[F].blocking(ds.close())
+
+    Resource.make(dsAcquire)(dsRelease).map(ds => new HikariConnectionPool(ds, connectionEC))
   }
 
   private def createDataSource(postgresConfig: PostgresConfig, poolConfig: PoolConfig) = {
@@ -46,20 +37,14 @@ object ConnectionPool {
   }
 }
 
-class HikariConnectionPool[M[_] : Sync](
+class HikariConnectionPool[M[_]: Async](
   dataSource: HikariDataSource,
-  connectionEC: ExecutionContext,
-  blocker: Blocker
-)(
-  implicit
-  contextShift: ContextShift[M]
+  connectionEC: ExecutionContext
 ) extends ConnectionPool[M] {
 
-  override val executor: JdbcExecutor = new JdbcExecutor(blocker)
-
   override val connection: Resource[M, Connection] = {
-    val acquire = contextShift.evalOn(connectionEC)(Sync[M].delay(dataSource.getConnection))
-    def release(c: Connection) = blocker.delay(c.close())
+    val acquire = Async[M].evalOn(Async[M].delay(dataSource.getConnection), connectionEC)
+    def release(c: Connection) = Async[M].blocking(c.close())
     Resource.make(acquire)(release)
   }
 

@@ -1,9 +1,8 @@
 package tydal.runtime
 
 import java.sql
-
 import cats.Monad
-import cats.effect.{ContextShift, Resource, Sync}
+import cats.effect.{Async, Resource}
 import tydal._
 import tydal.queries.CompiledQuery
 import tydal.schema._
@@ -112,26 +111,26 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
 
   implicit private def executor[C[_]](implicit factory: Factory[Output, C[Output]], dataExtractor: DataExtractor[sql.ResultSet, Fields, OutputRepr]): StatementExecutor[sql.Connection, Fields, C[Output]] = new StatementExecutor[sql.Connection, Fields, C[Output]] {
 
-    override def run[F[+_] : Sync : ContextShift](connection: sql.Connection, jdbcExecutor: JdbcExecutor, statement: RunnableStatement[Fields]): F[C[Output]] = {
+    override def run[F[+_]: Async](connection: sql.Connection, statement: RunnableStatement[Fields]): F[C[Output]] = {
       import cats.implicits._
 
       def resultSetResource(statement: sql.PreparedStatement): Resource[F, sql.ResultSet] =
-        Resource.make(jdbcExecutor(statement.executeQuery()))(rs => jdbcExecutor(rs.close()))
+        Resource.make(Async[F].blocking(statement.executeQuery()))(rs => Async[F].blocking(rs.close()))
 
       def recurse(resultSet: sql.ResultSet, builder: mutable.Builder[Output, C[Output]]): F[C[Output]] =
-        jdbcExecutor(resultSet.next()).flatMap {
+        Async[F].blocking(resultSet.next()).flatMap {
           case false =>
             Monad[F].pure(builder.result())
 
           case true =>
-            jdbcExecutor(dataExtractor.extract(resultSet, statement.fields)).flatMap {
+            Async[F].blocking(dataExtractor.extract(resultSet, statement.fields)).flatMap {
               case Right(element) => recurse(resultSet, builder.addOne(toOutput(element)))
-              case Left(error) => Sync[F].raiseError(error)
+              case Left(error) => Async[F].raiseError(error)
             }
         }
 
       for {
-        ps <- Jdbc.initStatement(connection, jdbcExecutor, statement.sql, statement.input)
+        ps <- Jdbc.initStatement(connection, statement.sql, statement.input)
         rs <- resultSetResource(ps).use(recurse(_, factory.newBuilder))
       } yield rs
 

@@ -1,11 +1,10 @@
 package tydal
 
 import java.time.{Instant, LocalDate}
-
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import shapeless.the
 
-class TypePropsTest extends FunSuite {
+class TypePropsTest extends AnyFunSuite {
   import tydal.schema._
 
   test("Negative type class") {

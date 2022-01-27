@@ -1,14 +1,11 @@
 package tydal
 
-import cats.effect.{ContextShift, IO}
-import tydal.runtime.{ConnectionPool, PoolConfig, PostgresConfig, Transaction}
+import cats.effect.IO
 import org.scalatest.{BeforeAndAfterAll, Suite}
-
-import scala.concurrent.ExecutionContext
+import tydal.runtime.{ConnectionPool, PoolConfig, PostgresConfig, Transaction}
+import cats.effect.unsafe.implicits.global
 
 trait FunctionalTestBase extends BeforeAndAfterAll { this: Suite =>
-
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   val (connectionPool, connectionPoolShutDown) =
     ConnectionPool.resource[IO](
