@@ -11,7 +11,7 @@ object EitherSupport {
       case (_, Left(e)) => Left(e)
       case (Right(builder), Right(x)) => Right(builder.addOne(x))
     }
-    results.map(_.result)
+    results.map(_.result())
   }
 
   def firstLeftOrRights[A, B](s: Seq[Either[A, B]]): Either[A, Seq[B]] =

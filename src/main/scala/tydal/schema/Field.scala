@@ -74,7 +74,7 @@ class NamedPlaceholder[T] private(val name: String)(implicit val decoder: FieldD
     }
 
   override def equals(obj: Any): Boolean = obj match {
-    case p: NamedPlaceholder[T] => p.name == name
+    case p: NamedPlaceholder[_] => p.name == name
     case _ => false
   }
 
