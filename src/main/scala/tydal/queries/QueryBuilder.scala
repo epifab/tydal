@@ -432,6 +432,7 @@ object QueryFragmentBuilder {
         case _: Overlaps[_, _] => e1.concatenateRequired(e2, " && ")
         case _: IsIncluded[_, _] => e1.concatenateRequired(e2.wrap("(", ")"), " = ANY")
         case _: InSubquery[_, _, _, _, _, _, _, _, _] => e1.concatenateRequired(e2.wrap("(", ")"), " IN ")
+        case _: NotInSubquery[_, _, _, _, _, _, _, _, _] => e1.concatenateRequired(e2.wrap("(", ")"), " NOT IN ")
       }
     }
 

@@ -167,7 +167,7 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
     val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)(executor[Vector]).flatMap {
       case emptyVector if emptyVector.isEmpty => Transaction.failed(NoResultsError("No results"))
       case twoOrMoreResults if twoOrMoreResults.size > 1 => Transaction.failed(MultipleResultsError("Multiple results"))
-      case nonEmptyVector if nonEmptyVector.nonEmpty => Transaction.successful(nonEmptyVector.head)
+      case nonEmptyVector => Transaction.successful(nonEmptyVector.head)
     }
 
     new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))
@@ -181,7 +181,7 @@ class ReadStatementStep1[Input, Fields <: HList, OutputRepr <: HList, Output](
     val toTransaction = (runnableStatement: RunnableStatement[Fields]) => Transaction(runnableStatement)(executor[Vector]).flatMap {
       case emptyVector if emptyVector.isEmpty => Transaction.successful(default)
       case twoOrMoreResults if twoOrMoreResults.size > 1 => Transaction.failed(MultipleResultsError("Multiple results"))
-      case nonEmptyVector if nonEmptyVector.nonEmpty => Transaction.successful(nonEmptyVector.head)
+      case nonEmptyVector => Transaction.successful(nonEmptyVector.head)
     }
 
     new ReadStatement[Input, Output, cats.Id](query, input => toTransaction(toRunnable(input)))

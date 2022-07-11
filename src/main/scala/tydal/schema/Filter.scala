@@ -78,3 +78,9 @@ case class InSubquery[+F1 <: Field[_], F2 <: Field[_], GroupBy <: HList, Sources
   right: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit]
 )(implicit areComparable: AreComparable[F1, F2])
   extends Filter2[F1, SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit]]
+
+case class NotInSubquery[+F1 <: Field[_], F2 <: Field[_], GroupBy <: HList, Sources <: HList, Where <: Filter, Having <: Filter, Sort <: HList, Offset, Limit](
+  left: F1,
+  right: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit]
+)(implicit areComparable: AreComparable[F1, F2])
+  extends Filter2[F1, SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit]]

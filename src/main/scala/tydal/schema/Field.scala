@@ -276,6 +276,19 @@ object Field {
     ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit])(implicit areComparable: AreComparable[F1, F2]): InSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort, Offset, Limit] =
       InSubquery(field1, subQuery)
 
+    def notIn[
+      Placeholders <: HList,
+      F2 <: Field[_],
+      GroupBy <: HList,
+      Sources <: HList,
+      Where <: Filter,
+      Having <: Filter,
+      Sort <: HList,
+      Offset,
+      Limit
+    ](subQuery: SelectQuery[F2 :: HNil, GroupBy, Sources, Where, Having, Sort, Offset, Limit])(implicit areComparable: AreComparable[F1, F2]): NotInSubquery[F1, F2, GroupBy, Sources, Where, Having, Sort, Offset, Limit] =
+      NotInSubquery(field1, subQuery)
+
     def ===[PlaceholderName <: String with Singleton, T](placeholderName: PlaceholderName)(
       implicit
       valueOf: ValueOf[PlaceholderName],
