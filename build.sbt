@@ -4,7 +4,7 @@ import sbt.Global
  Global Settings & Configs
   *****************************************************************/
 name := "tydal"
-version := "1.3.11"
+version := "1.3.12"
 organization := "epifab.io"
 
 exportJars := true
@@ -25,12 +25,12 @@ scalacOptions ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.7.0",
-  "org.typelevel" %% "cats-effect" % "3.3.8",
+  "org.typelevel" %% "cats-effect" % "3.3.12",
   "com.chuusai" %% "shapeless" % "2.3.9",
-  "io.circe" %% "circe-core" % "0.14.1",
-  "io.circe" %% "circe-generic" % "0.14.1",
-  "io.circe" %% "circe-parser" % "0.14.1",
-  "org.postgresql" % "postgresql" % "42.3.3",
+  "io.circe" %% "circe-core" % "0.14.2",
+  "io.circe" %% "circe-generic" % "0.14.2",
+  "io.circe" %% "circe-parser" % "0.14.2",
+  "org.postgresql" % "postgresql" % "42.3.6",
   "com.zaxxer" % "HikariCP" % "5.0.1",
-  "org.scalatest" %% "scalatest" % "3.2.11" % Test
+  "org.scalatest" %% "scalatest" % "3.2.12" % Test
 )
